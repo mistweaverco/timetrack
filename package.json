@@ -1,0 +1,46 @@
+{
+  "name": "timetrack.desktop",
+  "version": "1.0.0",
+  "description": "Simple desktop 🖥️ application to track your time ⏰ spent on different projects 🎉.",
+  "main": "app/process.js",
+  "scripts": {
+    "start": "electron-forge start",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "package": "electron-forge package",
+    "make": "electron-forge make"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+ssh://git@github.com/mistweaverco/timetrack.desktop.git"
+  },
+  "author": "Marco Kellershoff <marco@kellershoff.net>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/mistweaverco/timetrack.desktop/issues"
+  },
+  "homepage": "https://github.com/mistweaverco/timetrack.desktop#readme",
+  "devDependencies": {
+    "@electron-forge/cli": "7.4.0",
+    "@electron-forge/maker-deb": "7.4.0",
+    "@electron-forge/maker-dmg": "7.4.0",
+    "@electron-forge/maker-rpm": "7.4.0",
+    "@electron-forge/maker-squirrel": "7.4.0",
+    "@electron-forge/maker-zip": "7.4.0",
+    "@electron-forge/plugin-auto-unpack-natives": "7.4.0",
+    "@electron-forge/plugin-fuses": "7.4.0",
+    "@electron/fuses": "1.8.0",
+    "@types/electron": "1.6.10",
+    "@types/sqlite3": "3.1.11",
+    "electron": "30.0.3",
+    "typescript": "5.4.5"
+  },
+  "dependencies": {
+    "@fortawesome/fontawesome-free": "6.5.2",
+    "bulma": "1.0.0",
+    "electron-squirrel-startup": "^1.0.0",
+    "i": "0.3.7",
+    "npm": "10.7.0",
+    "sqlite": "5.1.1",
+    "sqlite3": "5.1.7"
+  }
+}
