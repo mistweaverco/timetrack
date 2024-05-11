@@ -1,3 +1,4 @@
+const path = require('path');
 const { FusesPlugin } = require('@electron-forge/plugin-fuses');
 const { FuseV1Options, FuseVersion } = require('@electron/fuses');
 
@@ -12,14 +13,14 @@ module.exports = {
       name: '@electron-forge/maker-squirrel',
       config: {
         iconUrl: 'https://raw.githubusercontent.com/mistweaverco/timetrack.desktop/main/src/assets/icon/icon.ico',
-        setupIcon: 'src/assets/icon/icon.ico'
+        setupIcon: path.resolve(__dirname, 'src/assets/icon/icon.ico'),
       },
     },
     {
       name: '@electron-forge/maker-dmg',
       config: {
         options: {
-          icon: 'src/assets/icon/icon.icns',
+          icon: path.resolve(__dirname, 'src/assets/icon/icon.icns'),
           format: 'ULFO'
         }
       },
@@ -28,7 +29,7 @@ module.exports = {
       name: '@electron-forge/maker-deb',
       config: {
         options: {
-          icon: 'src/assets/icon/icon.png'
+          icon: path.resolve(__dirname, 'src/assets/icon/icon.png')
         }
       },
     },
@@ -36,7 +37,7 @@ module.exports = {
       name: '@electron-forge/maker-rpm',
       config: {
         options: {
-          icon: 'src/assets/icon/icon.png'
+          icon: path.resolve(__dirname, 'src/assets/icon/icon.png')
         }
       },
     },
