@@ -1,0 +1,68 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+jobs:
+  # build:
+  #   name: Default Build and Release
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - name: Checkout
+  #       uses: actions/checkout@v4
+  #       with:
+  #         fetch-depth: 0
+  #     - name: Install wine
+  #       run: |
+  #         sudo dpkg --add-architecture i386
+  #         sudo apt update
+  #         sudo apt install -y wine64 wine32
+  #     - name: Set up env
+  #       run: |
+  #         VERSION=${GITHUB_REF_NAME#v}
+  #         echo "VERSION=$VERSION" >> $GITHUB_ENV
+  #     - name: Set up Node
+  #       uses: actions/setup-node@v3
+  #       with:
+  #         node-version: 20
+  #     - name: Install node dependencies
+  #       run: npm ci
+  #     - name: Build Linux
+  #       run: make linux
+  #     - name: Build Windows
+  #       run: make windows
+  #     - name: Archive
+  #       run: make archives
+  #     - name: Default Release
+  #       run: make default-release VERSION=$VERSION
+  #       env:
+  #         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  buildpatch:
+    # needs: build
+    name: Build MacOS and Patch Release
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      # https://github.com/electron/forge/issues/2807
+      - name: Install python3 setuptools
+        run: brew install python-setuptools tree
+      - name: Set up env
+        run: |
+          VERSION=${GITHUB_REF_NAME#v}
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+      - name: Set up Node
+        uses: actions/setup-node@v3
+        with:
+          node-version: 20
+      - name: Install node dependencies
+        run: npm ci
+      - name: Build MacOS
+        run: make macos
+      - name: Patch Release (MacOS)
+        run: make macos-release VERSION=$VERSION
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
