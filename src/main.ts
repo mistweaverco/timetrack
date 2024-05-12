@@ -1,7 +1,7 @@
-const { app, BrowserWindow, ipcMain } = require('electron')
-const path = require('node:path')
-const { CountUp } = require('./countup.js')
-const {
+import { app, BrowserWindow, ipcMain } from 'electron';
+import path from 'path';
+import { CountUp } from './countup';
+import {
   initDB,
   getProjects,
   addProject,
@@ -15,13 +15,48 @@ const {
   editTask,
   deleteTask,
   getTasks,
-  saveRunningTasks
-} = require('./database')
+  saveRunningTasks,
+} from './database'
+
+let DB;
+
+const createWindow = async () => {
+  const win = new BrowserWindow({
+    width: 960,
+    height: 600,
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.js'),
+    },
+  });
+
+  // and load the index.html of the app.
+  if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
+    win.loadURL(MAIN_WINDOW_VITE_DEV_SERVER_URL);
+    // Open the DevTools.
+    win.webContents.openDevTools();
+  } else {
+    win.loadFile(path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`));
+  }
+
+  win.setMenuBarVisibility(false)
+}
+
+// Handle creating/removing shortcuts on Windows when installing/uninstalling.
+if (require('electron-squirrel-startup')) {
+  app.quit();
+}
+
+app.on('activate', () => {
+  // On OS X it's common to re-create a window in the app when the
+  // dock icon is clicked and there are no other windows open.
+  if (BrowserWindow.getAllWindows().length === 0) {
+    createWindow();
+  }
+});
 
 
 app.commandLine.appendSwitch('disable-gpu-vsync')
 
-let DB
 
 const runningTasks = []
 
@@ -112,20 +147,6 @@ const getRunningTask = async (opts) => {
     return task
   }
   return null;
-}
-
-const createWindow = async () => {
-  const win = new BrowserWindow({
-    width: 960,
-    height: 600,
-    webPreferences: {
-      preload: path.join(__dirname, 'preload.js')
-    }
-  })
-
-  win.setMenuBarVisibility(false)
-
-  win.loadFile('gui/main.html')
 }
 
 const setupIPCHandles = async () => {
@@ -272,12 +293,6 @@ const onWhenReady = async () => {
   }, 30000)
 
   createWindow()
-
-  app.on('activate', function () {
-    if (BrowserWindow.getAllWindows().length === 0) {
-      createWindow()
-    }
-  })
 }
 
 app.whenReady().then(onWhenReady)

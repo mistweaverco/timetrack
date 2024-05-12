@@ -45,6 +45,6 @@ class CountUp {
   }
 }
 
-module.exports = {
+export {
   CountUp,
 };

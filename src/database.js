@@ -1,10 +1,10 @@
-const { app } = require('electron')
-const fs = require('fs')
-const path = require('node:path')
+import { app } from 'electron'
+import fs from 'fs'
+import path from 'node:path'
+import sqlite3 from 'sqlite3'
+import { open } from 'sqlite'
 const userDataPath = app.getPath('userData')
 const sqlFilePath = path.join(userDataPath, '..', 'timetrack', 'timetrack.db')
-const sqlite3 = require('sqlite3')
-const { open } = require('sqlite')
 
 // make sure sqlFilePath exists
 if (!fs.existsSync(sqlFilePath)) {
@@ -92,7 +92,7 @@ const getTasks = async (db, projectName) => {
   return tasks
 }
 
-module.exports = {
+export {
   initDB,
   addProject,
   editProject,
@@ -106,6 +106,6 @@ module.exports = {
   editTask,
   deleteTask,
   getTasks,
-  saveRunningTasks
+  saveRunningTasks,
 }
 

@@ -2,103 +2,11 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; img-src 'self' data:; style-src 'self' 'sha256-68BvgoB8sHi+LLMZhVmN6nH4JnDNLpefxZaHgqFrZ44='">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>TimeTrack.Desktop</title>
   </head>
-  <style>
-    .is-hidden {
-      display: none;
-    }
-    body.is-loading {
-      background-color: #263038;
-    }
-    #loader {
-      display: block;
-      margin: 40px auto;
-      width: 320px;
-      max-width: 100%;
-    }
-    #loader span {
-      display: block;
-      margin-left: auto;
-      margin-right: auto;
-      max-width: fit-content;
-    }
-    .loader {
-      transform: rotateZ(45deg);
-      perspective: 1000px;
-      border-radius: 50%;
-      width: 48px;
-      height: 48px;
-      color: #fff;
-    }
-    .loader:before,
-    .loader:after {
-      content: '';
-      display: block;
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: inherit;
-      height: inherit;
-      border-radius: 50%;
-      transform: rotateX(70deg);
-      animation: 1s spin linear infinite;
-    }
-    .loader:after {
-      color: #00d1b2;
-      transform: rotateY(70deg);
-      animation-delay: .4s;
-    }
-
-  @keyframes rotate {
-    0% {
-      transform: translate(-50%, -50%) rotateZ(0deg);
-    }
-    100% {
-      transform: translate(-50%, -50%) rotateZ(360deg);
-    }
-  }
-
-  @keyframes rotateccw {
-    0% {
-      transform: translate(-50%, -50%) rotate(0deg);
-    }
-    100% {
-      transform: translate(-50%, -50%) rotate(-360deg);
-    }
-  }
-
-  @keyframes spin {
-    0%,
-    100% {
-      box-shadow: .2em 0px 0 0px currentcolor;
-    }
-    12% {
-      box-shadow: .2em .2em 0 0 currentcolor;
-    }
-    25% {
-      box-shadow: 0 .2em 0 0px currentcolor;
-    }
-    37% {
-      box-shadow: -.2em .2em 0 0 currentcolor;
-    }
-    50% {
-      box-shadow: -.2em 0 0 0 currentcolor;
-    }
-    62% {
-      box-shadow: -.2em -.2em 0 0 currentcolor;
-    }
-    75% {
-      box-shadow: 0px -.2em 0 0 currentcolor;
-    }
-    87% {
-      box-shadow: .2em -.2em 0 0 currentcolor;
-    }
-  }
-  </style>
-  <body class="is-loading">
+  <body>
 
     <div id="loader">
       <span>
@@ -481,10 +389,9 @@
         </div>
       </section>
     </div>
-    <link href="../node_modules/bulma/css/bulma.min.css" rel="stylesheet" />
-    <link href="../node_modules/@fortawesome/fontawesome-free/css/all.min.css" rel="stylesheet" />
-    <link href="css/styles.css" rel="stylesheet" />
-    <script src="js/modal.js"></script>
-    <script src="js/renderer.js"></script>
+    <link href="node_modules/bulma/css/bulma.min.css" rel="stylesheet" />
+    <link href="node_modules/@fortawesome/fontawesome-free/css/all.min.css" rel="stylesheet" />
+    <link href="gui/css/styles.css" rel="stylesheet" />
+    <script type="module" src="src/renderer.ts"></script>
   </body>
 </html>
