@@ -1,5 +1,6 @@
 import { app, BrowserWindow, ipcMain } from 'electron';
 import path from 'path';
+import { Database } from 'sqlite';
 import { CountUp } from './countup';
 import {
   initDB,
@@ -18,7 +19,7 @@ import {
   saveRunningTasks,
 } from './database'
 
-let DB;
+let DB: Database;
 
 const createWindow = async () => {
   const win = new BrowserWindow({
@@ -29,10 +30,8 @@ const createWindow = async () => {
     },
   });
 
-  // and load the index.html of the app.
   if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
     win.loadURL(MAIN_WINDOW_VITE_DEV_SERVER_URL);
-    // Open the DevTools.
     win.webContents.openDevTools();
   } else {
     win.loadFile(path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`));
@@ -54,13 +53,11 @@ app.on('activate', () => {
   }
 });
 
-
 app.commandLine.appendSwitch('disable-gpu-vsync')
 
+const runningTasks: InstanceType<typeof CountUp>[] = []
 
-const runningTasks = []
-
-const getRunningTasks = async () => {
+const getRunningTasks = (): MainProcessRunningTaskMapped[] => {
   const tasks = runningTasks.map(t => {
     return {
       name: t.name,
@@ -75,12 +72,12 @@ const getRunningTasks = async () => {
 }
 
 const periodicSaveRunningTasks = async () => {
-  const tasks = await getRunningTasks();
+  const tasks = getRunningTasks();
   saveRunningTasks(DB, tasks);
 }
 
-const startRunningTask = async (opts) => {
-  const task = await getRunningTask(opts);
+const startRunningTask = (opts: MainProcessManageRunningTasksOpts) => {
+  const task = getRunningTask(opts);
   if (!task) {
     console.error('task not found', opts);
   }
@@ -96,8 +93,8 @@ const startRunningTask = async (opts) => {
   };
 }
 
-const stopRunningTask = async (opts) => {
-  const task = await getRunningTask(opts);
+const stopRunningTask = (opts: MainProcessManageRunningTasksOpts) => {
+  const task = getRunningTask(opts);
   if (!task) {
     console.error('task not found', opts);
   }
@@ -113,8 +110,8 @@ const stopRunningTask = async (opts) => {
   };
 }
 
-const toggleRunningTask = async (opts) => {
-  const task = await getRunningTask(opts);
+const toggleRunningTask = (opts: MainProcessManageRunningTasksOpts) => {
+  const task = getRunningTask(opts);
   if (!task) {
     console.error('task not found', opts);
   }
@@ -134,14 +131,14 @@ const toggleRunningTask = async (opts) => {
   };
 }
 
-const addRunningTask = async (task) => {
+const addRunningTask = (task: MainProccessAddRunningTaskOpts) => {
   const countup = new CountUp(task.name, task.projectName, task.date, task.seconds)
   countup.start()
   runningTasks.push(countup)
   return { success: true }
 }
 
-const getRunningTask = async (opts) => {
+const getRunningTask = (opts: MainProcessManageRunningTasksOpts): InstanceType<typeof CountUp> => {
   const task = runningTasks.find(t => t.name === opts.name && t.projectName === opts.projectName && t.date === opts.date)
   if (task) {
     return task
@@ -150,7 +147,7 @@ const getRunningTask = async (opts) => {
 }
 
 const setupIPCHandles = async () => {
-  const ipcHandles = [
+  const ipcHandles: MainProcessIPCHandle[] = [
     {
       id: 'getProjects',
       cb: async () => {
@@ -160,119 +157,119 @@ const setupIPCHandles = async () => {
     },
     {
       id: 'addProject',
-      cb: async (_, name) => {
+      cb: async (_: string, name: string) => {
         const json = await addProject(DB, name)
         return json
       }
     },
     {
       id: 'editProject',
-      cb: async (_, name) => {
-        const json = await editProject(DB, name)
+      cb: async (_: string, opts: DBEditProjectOpts) => {
+        const json = await editProject(DB, opts)
         return json
       }
     },
     {
       id: 'deleteProject',
-      cb: async (_, name) => {
+      cb: async (_: string, name: string) => {
         const json = await deleteProject(DB, name)
         return json
       }
     },
     {
       id: 'addTaskDefinition',
-      cb: async (_, opts) => {
+      cb: async (_: string, opts: DBAddTaskDefinitionOpts) => {
         const json = await addTaskDefinition(DB, opts)
         return json
       }
     },
     {
       id: 'editTaskDefinition',
-      cb: async (_, opts) => {
+      cb: async (_: string, opts: DBEditTaskDefinitionOpts) => {
         const json = await editTaskDefinition(DB, opts)
         return json
       }
     },
     {
       id: 'deleteTaskDefinition',
-      cb: async (_, opts) => {
+      cb: async (_: string, opts: DBDeleteTaskDefinitionOpts) => {
         const json = await deleteTaskDefinition(DB, opts)
         return json
       }
     },
     {
       id: 'getTaskDefinitions',
-      cb: async (_, name) => {
+      cb: async (_: string, name: string) => {
         const tasks = await getTaskDefinitions(DB, name)
         return tasks
       }
     },
     {
       id: 'addTask',
-      cb: async (_, opts) => {
+      cb: async (_: string, opts: DBAddTaskOpts) => {
         const json = await addTask(DB, opts)
         return json
       }
     },
     {
       id: 'editTask',
-      cb: async (_, opts) => {
+      cb: async (_: string, opts: DBEditTaskOpts) => {
         const json = await editTask(DB, opts)
         return json
       }
     },
     {
       id: 'deleteTask',
-      cb: async (_, opts) => {
+      cb: async (_: string, opts: DBDeleteTaskOpts) => {
         const json = await deleteTask(DB, opts)
         return json
       }
     },
     {
       id: 'getTasks',
-      cb: async (_, name) => {
+      cb: async (_: string, name: string) => {
         const json = await getTasks(DB, name)
         return json
       }
     },
     {
       id: 'addRunningTask',
-      cb: async (_, opts) => {
+      cb: async (_: string, opts: MainProccessAddRunningTaskOpts) => {
         const json = await addRunningTask(opts)
         return json
       }
     },
     {
       id: 'getRunningTasks',
-      cb: async () => {
-        const json = await getRunningTasks()
+      cb: () => {
+        const json = getRunningTasks()
         return json
       }
     },
     {
       id: 'getRunningTask',
-      cb: async (_, opts) => {
-        const json = await getRunningTask(opts)
+      cb: (_: string, opts: MainProcessManageRunningTasksOpts) => {
+        const json = getRunningTask(opts)
         return json
       }
     },
     {
       id: 'startRunningTask',
-      cb: async (_, opts) => {
+      cb: async (_: string, opts: MainProcessManageRunningTasksOpts) => {
         const json = await startRunningTask(opts)
         return json
       }
     },
     {
       id: 'stopRunningTask',
-      cb: async (_, opts) => {
+      cb: async (_: string, opts: MainProcessManageRunningTasksOpts) => {
         const json = await stopRunningTask(opts)
         return json
       }
     },
     {
       id: 'toggleRunningTask',
-      cb: async (_, opts) => {
+      cb: async (_: string, opts: MainProcessManageRunningTasksOpts) => {
         const json = await toggleRunningTask(opts)
         return json
       }

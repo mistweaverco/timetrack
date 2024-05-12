@@ -34,7 +34,7 @@ const saveRunningTasks = async (db: Database, tasks: Task[]) => {
   });
 }
 
-const getProjects = async (db: Database) => {
+const getProjects = async (db: Database): Promise<DBProject[]> => {
   const projects = await db.all('SELECT * FROM projects')
   return projects
 }
@@ -44,12 +44,7 @@ const addProject = async (db: Database, name: string) => {
   return { success: true }
 }
 
-type EditProjectOpts = {
-  name: string,
-  oldname: string,
-}
-
-const editProject = async (db: Database, opts: EditProjectOpts) => {
+const editProject = async (db: Database, opts: DBEditProjectOpts) => {
   await db.run('UPDATE projects SET name = ? WHERE name = ?', opts.name, opts.oldname)
   await db.run('UPDATE tasks SET project_name = ? WHERE project_name = ?', opts.name, opts.oldname)
   await db.run('UPDATE tasks_definitions SET project_name = ? WHERE project_name = ?', opts.name, opts.oldname)
@@ -63,80 +58,43 @@ const deleteProject = async (db: Database, name: string) => {
   return { success: true }
 }
 
-type AddTaskDefinitionOpts = {
-  name: string,
-  projectName: string,
-}
-
-const addTaskDefinition = async (db: Database, opts: AddTaskDefinitionOpts) => {
+const addTaskDefinition = async (db: Database, opts: DBAddTaskDefinitionOpts) => {
   await db.run('INSERT INTO task_definitions (name, project_name) VALUES (?, ?)', opts.name, opts.projectName)
   return { success: true }
 }
 
-type EditTaskDefinitionOpts = {
-  name: string,
-  oldname: string,
-  projectName: string,
-}
-
-const editTaskDefinition = async (db: Database, opts: EditTaskDefinitionOpts) => {
+const editTaskDefinition = async (db: Database, opts: DBEditTaskDefinitionOpts) => {
   await db.run('UPDATE task_definitions SET name = ? WHERE name=? AND project_name = ?', opts.name, opts.oldname, opts.projectName)
   return { success: true }
 }
 
-type DeleteTaskDefinitionOpts = {
-  name: string,
-  projectName: string,
-}
-
-const deleteTaskDefinition = async (db: Database, opts: DeleteTaskDefinitionOpts) => {
+const deleteTaskDefinition = async (db: Database, opts: DBDeleteTaskDefinitionOpts) => {
   await db.run('DELETE FROM task_definitions WHERE name = ? AND project_name = ?', opts.name, opts.projectName)
   return { success: true }
 }
 
-const getTaskDefinitions = async (db: Database, projectName: string) => {
+const getTaskDefinitions = async (db: Database, projectName: string): Promise<DBTaskDefinition[]> => {
   const tasks = await db.all('SELECT * FROM task_definitions WHERE project_name = ?', projectName)
   return tasks
 }
 
-type AddTaskOpts = {
-  name: string,
-  description: string,
-  projectName: string,
-}
-
-const addTask = async (db: Database, opts: AddTaskOpts) => {
+const addTask = async (db: Database, opts: DBAddTaskOpts) => {
   await db.run('INSERT INTO tasks (name, description, project_name) VALUES (?, ?, ?)', opts.name, opts.description, opts.projectName)
   return { success: true }
 }
 
-type EditTaskOpts = {
-  name: string,
-  description: string,
-  seconds: number,
-  oldname: string,
-  date: string,
-  projectName: string,
-}
-
-const editTask = async (db: Database, opts: EditTaskOpts) => {
+const editTask = async (db: Database, opts: DBEditTaskOpts) => {
   await db.run('UPDATE tasks SET name = ?, description = ?, seconds = ? WHERE name=? AND date=? AND project_name = ?', opts.name, opts.description, opts.seconds, opts.oldname, opts.date, opts.projectName)
   return { success: true }
 }
 
-type DeleteTaskOpts = {
-  name: string,
-  date: string,
-  projectName: string,
-}
-
-const deleteTask = async (db: Database, opts: DeleteTaskOpts) => {
+const deleteTask = async (db: Database, opts: DBDeleteTaskOpts) => {
   const res = await db.run('DELETE FROM tasks WHERE name = ? AND date = ? AND project_name = ?', opts.name, opts.date, opts.projectName)
   console.log({res, opts})
   return { success: true }
 }
 
-const getTasks = async (db: Database, projectName: string) => {
+const getTasks = async (db: Database, projectName: string): Promise<DBTask[]> => {
   const tasks = await db.all('SELECT * FROM tasks WHERE project_name = ?', projectName)
   return tasks
 }

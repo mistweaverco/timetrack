@@ -1,8 +1,6 @@
 import './index.css';
 import './modal.ts';
 
-console.log('👋 This message is being logged by "renderer.ts", included via Vite');
-
 const onRendererReady = async () => {
   const electron = window.electron;
   const projectList = document.querySelector('[data-project-list]');
