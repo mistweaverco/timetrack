@@ -1,3 +1,5 @@
+import '@fortawesome/fontawesome-free/css/all.min.css';
+import 'bulma/css/bulma.min.css';
 import './index.css';
 import './modal.ts';
 

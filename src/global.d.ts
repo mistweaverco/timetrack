@@ -84,13 +84,13 @@ type MainProcessIPCHandle = {
   cb: any, // eslint-disable-line @typescript-eslint/no-explicit-any
 }
 
-declare global {
-  const versions: {
+interface Window {
+  versions: {
     node: string;
     chrome: string;
     electron: string;
   }
-  const electron: {
+  electron: {
     addProject: (name: string) => Promise<{success: boolean}>;
     editProject: (opts: { name: string, newName: string }) => Promise<{success: boolean}>;
     deleteProject: (name: string) => Promise<{success: boolean}>;
@@ -99,13 +99,13 @@ declare global {
     editTaskDefinition: (opts: { projectName: string, name: string, newName: string, command: string }) => Promise<{success: boolean}>;
     deleteTaskDefinition: (opts: { projectName: string, name: string }) => Promise<{success: boolean}>;
     getTaskDefinitions: (projectName: string) => Promise<DBTaskDefinition[]>;
-    addTask: (opts: { projectName: string, name: string, definitionName: string, args: string[] }) => Promise<any>;
+    addTask: (opts: { projectName: string, name: string, definitionName: string, args: string[] }) => Promise<{success: boolean}>;
     editTask: (opts: { projectName: string, name: string, newName: string, definitionName: string, args: string[] }) => Promise<{success: boolean}>;
     deleteTask: (opts: { projectName: string, name: string }) => Promise<{success: boolean}>;
     getTasks: (projectName: string) => Promise<DBTask[]>;
     addRunningTask: (opts: { projectName: string, taskName: string }) => Promise<{success: boolean}>;
-    getRunningTasks: () => Promise<any>;
-    getRunningTask: (opts: { projectName: string, taskName: string }) => Promise<any>;
+    getRunningTasks: () => Promise<MainProcessRunningTaskMapped[]>;
+    getRunningTask: (opts: { projectName: string, taskName: string }) => Promise<MainProcessRunningTaskMapped>;
     startRunningTask: (opts: { projectName: string, taskName: string }) => Promise<{success: boolean}>;
     stopRunningTask: (opts: { projectName: string, taskName: string }) => Promise<{success: boolean}>;
     toggleRunningTask: (opts: { projectName: string, taskName: string }) => Promise<{success: boolean}>;

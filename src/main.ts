@@ -20,6 +20,7 @@ import {
 } from './database'
 
 let DB: Database;
+const runningTasks: InstanceType<typeof CountUp>[] = []
 
 const createWindow = async () => {
   const win = new BrowserWindow({
@@ -54,8 +55,6 @@ app.on('activate', () => {
 });
 
 app.commandLine.appendSwitch('disable-gpu-vsync')
-
-const runningTasks: InstanceType<typeof CountUp>[] = []
 
 const getRunningTasks = (): MainProcessRunningTaskMapped[] => {
   const tasks = runningTasks.map(t => {
