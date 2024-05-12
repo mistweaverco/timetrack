@@ -1,5 +1,12 @@
 class CountUp {
-  constructor(name, projectName, date, seconds = 0) {
+  name: string;
+  projectName: string;
+  date: string;
+  seconds: number;
+  tick: NodeJS.Timeout | null = null;
+  count: number;
+
+  constructor(name: string, projectName: string, date: string, seconds: number) {
     this.name = name;
     this.projectName = projectName;
     this.date = date;
