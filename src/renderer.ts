@@ -47,17 +47,6 @@ const onRendererReady = async () => {
   runningTasksList.classList.add('is-hidden');
   runningTasksEmptyInfo.classList.remove('is-hidden');
 
-  const convertSecondsToTime = (s) => {
-    const hours = String(Math.floor(s / 3600));
-    const minutes = String(Math.floor((s % 3600) / 60));
-    const seconds = String(s % 60);
-    return `${hours.padStart(2, '0')}:${minutes.padStart(2, '0')}:${seconds.padStart(2, '0')}`;
-  }
-
-  const convertTimeToSeconds = (hours, minutes, seconds) => {
-    return (parseInt(hours, 10) * 3600) + (parseInt(minutes, 10) * 60) + parseInt(seconds, 10);
-  }
-
   const showToast = (opts) => {
     opts.type = opts.type || 'info';
     opts.timeout = opts.timeout * 1000 || 3000;
@@ -258,19 +247,6 @@ const onRendererReady = async () => {
     taskDefSection.classList.remove('is-hidden');
   }
 
-  const loadProjectList = async () => {
-    projects = await electron.getProjects();
-    if (projectTemplate === null) {
-      projectTemplate = document.querySelector('[data-project-item]').cloneNode(true);
-      document.querySelector('[data-project-item]').remove();
-    }
-    projects.forEach(project => {
-      const projectItem = projectTemplate.cloneNode(true);
-      projectItem.addEventListener('click', onProjectItemClick.bind(null, projectItem));
-      projectItem.querySelector('[data-project-item-header]').innerHTML = project.name;
-      projectList.appendChild(projectItem);
-    })
-  }
 
   const taskListToggleActiveItem = (item) => {
     projectList.querySelectorAll('[data-task-item]').forEach(i => {

@@ -1,7 +1,7 @@
 {
   "compilerOptions": {
     "allowJs": true,
-    "baseUrl": ".",
+    "baseUrl": "./src",
     "esModuleInterop": true,
     "lib": ["ES2020", "DOM", "DOM.Iterable"],
     "module": "commonjs",
@@ -12,6 +12,13 @@
     "resolveJsonModule": true,
     "skipLibCheck": true,
     "sourceMap": true,
-    "target": "ESNext"
-  }
+    "target": "ESNext",
+    "paths": {
+      "@components/*": ["src/components/*"],
+      "@lib/*": [ "./lib/*" ]
+    }
+  },
+  "include": [
+    "./src"
+  ]
 }

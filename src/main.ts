@@ -2,6 +2,7 @@ import { app, BrowserWindow, ipcMain } from 'electron';
 import path from 'path';
 import { Database } from 'sqlite';
 import { CountUp } from './countup';
+import { windowsInstallerSetupEvents } from './installer-setup-events';
 import {
   initDB,
   getProjects,
@@ -18,6 +19,13 @@ import {
   getTasks,
   saveRunningTasks,
 } from './database'
+
+if (require('electron-squirrel-startup')) app.quit()
+// if first time install on windows, do not run application, rather
+// let squirrel installer do its work
+if (windowsInstallerSetupEvents()) {
+  process.exit()
+}
 
 let DB: Database;
 const runningTasks: InstanceType<typeof CountUp>[] = []
