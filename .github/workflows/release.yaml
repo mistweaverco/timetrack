@@ -40,6 +40,7 @@ jobs:
         with:
           fetch-depth: 0
       - name: Set up env
+        shell: bash
         run: |
           VERSION=${GITHUB_REF_NAME#v}
           echo "VERSION=$VERSION" >> $GITHUB_ENV
@@ -48,11 +49,12 @@ jobs:
         with:
           node-version: 20
       - name: Install node dependencies
-        shell: pwsh
         run: npm ci
       - name: Build Windows
+        shell: bash
         run: make windows
       - name: Windows Release
+        shell: bash
         run: make windows-release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
