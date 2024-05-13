@@ -33,17 +33,12 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   build-windows:
     name: Build Windows
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Install wine
-        run: |
-          sudo dpkg --add-architecture i386
-          sudo apt update
-          sudo apt install -y wine64 wine32
       - name: Set up env
         run: |
           VERSION=${GITHUB_REF_NAME#v}
@@ -53,6 +48,7 @@ jobs:
         with:
           node-version: 20
       - name: Install node dependencies
+        shell: pwsh
         run: npm ci
       - name: Build Windows
         run: make windows
