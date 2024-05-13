@@ -92,7 +92,7 @@ interface Window {
   }
   electron: {
     addProject: (name: string) => Promise<{success: boolean}>;
-    editProject: (opts: { name: string, newName: string }) => Promise<{success: boolean}>;
+    editProject: (opts: { name: string, oldname: string }) => Promise<{success: boolean}>;
     deleteProject: (name: string) => Promise<{success: boolean}>;
     getProjects: () => Promise<DBProject[]>;
     addTaskDefinition: (opts: { projectName: string, name: string, command: string }) => Promise<{success: boolean}>;

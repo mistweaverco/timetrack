@@ -7,11 +7,18 @@ const getProjects = async () => {
   return projects;
 }
 
-const loadTasks = async (projectName: string) => {
+const getTasks = async (projectName: string) => {
   const tasks = await electron.getTasks(projectName);
   return tasks;
 }
 
+const getTaskDefinitions = async (projectName: string) => {
+  const td = await electron.getTaskDefinitions(projectName);
+  return td;
+}
+
 export const Datafetcher = {
   getProjects,
+  getTaskDefinitions,
+  getTasks,
 };

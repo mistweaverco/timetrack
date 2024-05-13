@@ -1,28 +1,22 @@
-import React, { FC, useState, useEffect } from 'react';
+import React, { FC, useState, useEffect, useContext } from 'react';
+import { Provider } from 'react-redux'
 import { Container } from './Container';
 import { ActiveTasks } from './ActiveTasks';
 import { Projects } from './Projects';
 import { Tasks } from './Tasks';
 import { TaskDefinitions } from './TaskDefinitions';
-import { Datafetcher } from './../lib/Datafetcher';
+import { store } from './Store'
 
 export const GUI: FC = () => {
-  const [projects, setProjects] = useState([]);
-  const [selectedProject, setSelectedProject] = useState(null);
-
-  useEffect(()=> {
-    Datafetcher.getProjects().then((projects) => {
-      setProjects(projects);
-    });
-  },[])
-
   return <>
-    <Container>
-      <ActiveTasks />
-      <Projects projects={projects} />
-      <Tasks />
-      <TaskDefinitions />
-    </Container>
+    <Provider store={store}>
+      <Container>
+        <ActiveTasks />
+        <Projects />
+        <Tasks />
+        <TaskDefinitions />
+      </Container>
+    </Provider>
   </>;
 };
 

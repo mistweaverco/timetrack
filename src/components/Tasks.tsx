@@ -1,11 +1,34 @@
-import React, { FC, ReactNode } from 'react';
+import { FC, useEffect, useRef, useState } from 'react';
+import { Datafetcher } from './../lib/Datafetcher';
+import { useAppDispatch, useAppSelector } from './Store/hooks'
+import { replaceTask, replaceTasks, appendTask, deleteTask } from './Store/slices/tasks'
+import { replaceTaskDefinitions } from './Store/slices/taskDefinitions'
+import { setSelectedTask, removeSelectedTask } from './Store/slices/selectedTask'
+import { ModalConfirm } from './ModalConfirm';
 
-interface BaseLayoutProps {
-  children?: ReactNode;
-}
+export const Tasks: FC = () => {
+  const dispatch = useAppDispatch();
+  const tasksDefinitions = useAppSelector((state) => state.taskDefinitions.value)
+  const tasks = useAppSelector((state) => state.tasks.value)
+  const selectedProject = useAppSelector((state) => state.selectedProject.value)
+  const selectedTask = useAppSelector((state) => state.selectedTask.value)
+  const [useModalConfirm, setModalConfirm] = useState(null)
+  const [useModalEdit, setModalEdit] = useState(null)
+  const useModalEditRef = useRef(null)
 
-export const Tasks: FC<BaseLayoutProps> = ({ children }) => {
+  const fetchTaskDefinitions = async () => {
+    if (!selectedProject) return;
+    const td = await Datafetcher.getTaskDefinitions(selectedProject);
+    dispatch(replaceTaskDefinitions(td))
+  }
+
+  useEffect(() => {
+    fetchTaskDefinitions();
+  }, [])
+
   return <>
+    {useModalConfirm}
+    {useModalEdit}
     <section className="section">
       <h1 className="title">Tasks</h1>
       <h2 className="subtitle">All available Tasks for a given project</h2>
@@ -20,7 +43,7 @@ export const Tasks: FC<BaseLayoutProps> = ({ children }) => {
                   <div className="control">
                     <div className="select">
                       <select name="name">
-                        <option defaultValue="">Loading...</option>
+                        {tasksDefinitions.map((td, idx: number) => <option key={idx}>{td.name}</option>)}
                       </select>
                     </div>
                   </div>

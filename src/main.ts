@@ -166,6 +166,7 @@ const setupIPCHandles = async () => {
     {
       id: 'addProject',
       cb: async (_: string, name: string) => {
+        console.log({ name })
         const json = await addProject(DB, name)
         return json
       }

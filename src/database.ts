@@ -47,7 +47,7 @@ const addProject = async (db: Database, name: string) => {
 const editProject = async (db: Database, opts: DBEditProjectOpts) => {
   await db.run('UPDATE projects SET name = ? WHERE name = ?', opts.name, opts.oldname)
   await db.run('UPDATE tasks SET project_name = ? WHERE project_name = ?', opts.name, opts.oldname)
-  await db.run('UPDATE tasks_definitions SET project_name = ? WHERE project_name = ?', opts.name, opts.oldname)
+  await db.run('UPDATE task_definitions SET project_name = ? WHERE project_name = ?', opts.name, opts.oldname)
   return { success: true }
 }
 
