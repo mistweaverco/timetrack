@@ -1,20 +1,24 @@
 import { createSlice } from '@reduxjs/toolkit'
 
 interface SelectedProjectState {
-  value: string | null
+  value: {
+    name: string | null
+  }
 }
 
 // Define the initial state using that type
 const initialState: SelectedProjectState = {
-  value: null
+  value: {
+    name: null
+  }
 }
 
 interface State {
-  value: string | null
+  value: SelectedProjectState['value']
 }
 
 interface Action {
-  payload: string | null
+  payload: SelectedProjectState['value']
   type: string
 }
 
@@ -26,12 +30,12 @@ export const selectedProjectSlice = createSlice({
       state.value = action.payload
     },
     removeSelectedProject: (state: State) => {
-      state.value = null
+      state.value = {
+        name: null
+      }
     }
   },
 })
 
-// Action creators are generated for each case reducer function
 export const { setSelectedProject, removeSelectedProject } = selectedProjectSlice.actions
-
 export const selectedProjectReducer = selectedProjectSlice.reducer;

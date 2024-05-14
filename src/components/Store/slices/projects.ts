@@ -65,7 +65,5 @@ export const projectsSlice = createSlice({
   },
 })
 
-// Action creators are generated for each case reducer function
 export const { replaceProjects, replaceProject, appendProject, deleteProject } = projectsSlice.actions
-
 export const projectsReducer = projectsSlice.reducer;

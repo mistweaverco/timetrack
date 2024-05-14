@@ -1,20 +1,30 @@
 import { createSlice } from '@reduxjs/toolkit'
 
 interface SelectedTaskState {
-  value: string | null
+  value: {
+    name: string | null
+    date: string | null
+    seconds: number | null
+    project_name: string | null
+  }
 }
 
 // Define the initial state using that type
 const initialState: SelectedTaskState = {
-  value: null
+  value: {
+    name: null,
+    date: null,
+    seconds: null,
+    project_name: null
+  }
 }
 
 interface State {
-  value: string | null
+  value: SelectedTaskState['value']
 }
 
 interface Action {
-  payload: string | null
+  payload: SelectedTaskState['value']
   type: string
 }
 
@@ -26,7 +36,7 @@ export const selectedTaskSlice = createSlice({
       state.value = action.payload
     },
     removeSelectedTask: (state: State) => {
-      state.value = null
+      state.value = initialState.value
     }
   },
 })

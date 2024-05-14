@@ -1,3 +1,38 @@
+type ActiveTask = {
+  name: string,
+  project_name: string,
+  description: string,
+  date: string,
+  seconds: number,
+  tick?: NodeJS.Timeout | null,
+  isActive?: boolean,
+}
+
+type PDFTotalObject = {
+ [key: string]: {
+    [key: string]: number
+  }
+}
+
+type PDFQueryResult = {
+  date: string,
+  description: string,
+  name: string,
+  project_name: string,
+  seconds: number,
+}
+
+type PDFQueryTask = {
+  project_name: string,
+  name: string,
+}
+
+type PDFQuery = {
+  from: string,
+  to: string,
+  tasks: PDFQueryTask[],
+}
+
 type DBProject = {
   name: string,
 }
@@ -15,24 +50,25 @@ type DBTask = {
   date: string,
 }
 
-type MainProcessRunningTaskMapped = {
+type MainProcessActiveTaskMapped = {
   name: string,
-  projectName: string,
+  project_name: string,
   date: string,
   seconds: number,
   time: string,
-  isRunning: boolean,
+  isActive: boolean,
 }
 
-type MainProcessManageRunningTasksOpts = {
-  projectName: string,
+type MainProcessManageActiveTasksOpts = {
+  project_name: string,
   name: string,
   date: string,
+  seconds?: number,
 }
 
-type MainProccessAddRunningTaskOpts = {
+type MainProccessAddActiveTaskOpts = {
   name: string,
-  projectName: string,
+  project_name: string,
   date: string,
   seconds: number,
 }
@@ -44,45 +80,49 @@ type DBEditProjectOpts = {
 
 type DBAddTaskDefinitionOpts = {
   name: string,
-  projectName: string,
+  project_name: string,
 }
 
 type DBEditTaskDefinitionOpts = {
   name: string,
   oldname: string,
-  projectName: string,
+  project_name: string,
 }
 
 type DBDeleteTaskDefinitionOpts = {
   name: string,
-  projectName: string,
+  project_name: string,
 }
 
 type DBAddTaskOpts = {
   name: string,
   description: string,
-  projectName: string,
+  project_name: string,
+  seconds: number,
 }
 
 type DBEditTaskOpts = {
   name: string,
   description: string,
   seconds: number,
-  oldname: string,
   date: string,
-  projectName: string,
+  project_name: string,
 }
 
 type DBDeleteTaskOpts = {
   name: string,
   date: string,
-  projectName: string,
+  project_name: string,
 }
 
 type MainProcessIPCHandle = {
   id: string,
   cb: any, // eslint-disable-line @typescript-eslint/no-explicit-any
 }
+
+declare const MAIN_WINDOW_VITE_DEV_SERVER_URL: string | undefined;
+declare const MAIN_WINDOW_VITE_NAME: string;
+declare const electron: any; // eslint-disable-line @typescript-eslint/no-explicit-any
 
 interface Window {
   versions: {
@@ -91,23 +131,24 @@ interface Window {
     electron: string;
   }
   electron: {
+    on: (channel: string, callback: (data: any) => void) => void; // eslint-disable-line @typescript-eslint/no-explicit-any
     addProject: (name: string) => Promise<{success: boolean}>;
     editProject: (opts: { name: string, oldname: string }) => Promise<{success: boolean}>;
     deleteProject: (name: string) => Promise<{success: boolean}>;
     getProjects: () => Promise<DBProject[]>;
-    addTaskDefinition: (opts: { projectName: string, name: string, command: string }) => Promise<{success: boolean}>;
-    editTaskDefinition: (opts: { projectName: string, name: string, newName: string, command: string }) => Promise<{success: boolean}>;
-    deleteTaskDefinition: (opts: { projectName: string, name: string }) => Promise<{success: boolean}>;
-    getTaskDefinitions: (projectName: string) => Promise<DBTaskDefinition[]>;
-    addTask: (opts: { projectName: string, name: string, definitionName: string, args: string[] }) => Promise<{success: boolean}>;
-    editTask: (opts: { projectName: string, name: string, newName: string, definitionName: string, args: string[] }) => Promise<{success: boolean}>;
-    deleteTask: (opts: { projectName: string, name: string }) => Promise<{success: boolean}>;
-    getTasks: (projectName: string) => Promise<DBTask[]>;
-    addRunningTask: (opts: { projectName: string, taskName: string }) => Promise<{success: boolean}>;
-    getRunningTasks: () => Promise<MainProcessRunningTaskMapped[]>;
-    getRunningTask: (opts: { projectName: string, taskName: string }) => Promise<MainProcessRunningTaskMapped>;
-    startRunningTask: (opts: { projectName: string, taskName: string }) => Promise<{success: boolean}>;
-    stopRunningTask: (opts: { projectName: string, taskName: string }) => Promise<{success: boolean}>;
-    toggleRunningTask: (opts: { projectName: string, taskName: string }) => Promise<{success: boolean}>;
+    addTaskDefinition: (opts: { project_name: string, name: string }) => Promise<{success: boolean}>;
+    editTaskDefinition: (opts: { project_name: string, name: string, oldname: string }) => Promise<{success: boolean}>;
+    deleteTaskDefinition: (opts: { project_name: string, name: string }) => Promise<{success: boolean}>;
+    getTaskDefinitions: (project_name: string) => Promise<DBTaskDefinition[]>;
+    addTask: (opts: { project_name: string, name: string, description: string, seconds: number }) => Promise<{success: boolean}>;
+    editTask: (opts: { project_name: string, name: string, description: string, seconds: number, date: string }) => Promise<{success: boolean}>;
+    deleteTask: (opts: { project_name: string, name: string, date: string }) => Promise<{success: boolean}>;
+    getTasks: (project_name: string) => Promise<DBTask[]>;
+    getActiveTasks: () => Promise<ActiveTask[]>;
+    startActiveTask: (opts: { project_name: string, name: string, date: string; seconds: number }) => Promise<{success: boolean}>;
+    stopActiveTask: (opts: { project_name: string, name: string, date: string }) => Promise<{success: boolean}>;
+    getDataForPDFExport: (opts: PDFQuery) => Promise<PDFQueryResult[]>;
+    showFileSaveDialog: () => Promise<void>;
+    getPDFExport: (filepath: string) => Promise<void>;
   }
 }

@@ -23,14 +23,24 @@ const initDB = async (): Promise<Database> =>{
 
 type Task = {
   name: string,
-  projectName: string,
+  project_name: string,
   date: string,
   seconds: number,
 }
 
-const saveRunningTasks = async (db: Database, tasks: Task[]) => {
+const getDataForPDFExport = async (db: Database, q: PDFQuery): Promise<DBProject[]> => {
+  const inTaskClause = q.tasks.map((task) => `'${task.name}'`).join(',')
+  const res = await db.all(`SELECT * FROM tasks WHERE date BETWEEN ? AND ? AND name IN(${inTaskClause})`, q.from, q.to)
+  return res
+}
+
+const saveActiveTask = async (db: Database, task: Task) => {
+  await db.run('UPDATE tasks SET seconds = ? WHERE name = ? AND project_name = ? AND date = ?', task.seconds, task.name, task.project_name, task.date);
+}
+
+const saveActiveTasks = async (db: Database, tasks: Task[]) => {
   tasks.forEach(async (task) => {
-    await db.run('UPDATE tasks SET seconds = ? WHERE name = ? AND project_name = ? AND date = ?', task.seconds, task.name, task.projectName, task.date);
+    await db.run('UPDATE tasks SET seconds = ? WHERE name = ? AND project_name = ? AND date = ?', task.seconds, task.name, task.project_name, task.date);
   });
 }
 
@@ -59,43 +69,53 @@ const deleteProject = async (db: Database, name: string) => {
 }
 
 const addTaskDefinition = async (db: Database, opts: DBAddTaskDefinitionOpts) => {
-  await db.run('INSERT INTO task_definitions (name, project_name) VALUES (?, ?)', opts.name, opts.projectName)
+  await db.run('INSERT INTO task_definitions (name, project_name) VALUES (?, ?)', opts.name, opts.project_name)
   return { success: true }
 }
 
 const editTaskDefinition = async (db: Database, opts: DBEditTaskDefinitionOpts) => {
-  await db.run('UPDATE task_definitions SET name = ? WHERE name=? AND project_name = ?', opts.name, opts.oldname, opts.projectName)
+  await db.run('UPDATE task_definitions SET name = ? WHERE name=? AND project_name = ?', opts.name, opts.oldname, opts.project_name)
+  await db.run('UPDATE tasks SET name = ? WHERE name=? AND project_name = ?', opts.name, opts.oldname, opts.project_name)
   return { success: true }
 }
 
 const deleteTaskDefinition = async (db: Database, opts: DBDeleteTaskDefinitionOpts) => {
-  await db.run('DELETE FROM task_definitions WHERE name = ? AND project_name = ?', opts.name, opts.projectName)
+  await db.run('DELETE FROM task_definitions WHERE name = ? AND project_name = ?', opts.name, opts.project_name)
   return { success: true }
 }
 
-const getTaskDefinitions = async (db: Database, projectName: string): Promise<DBTaskDefinition[]> => {
-  const tasks = await db.all('SELECT * FROM task_definitions WHERE project_name = ?', projectName)
+const getTaskDefinitions = async (db: Database, project_name: string): Promise<DBTaskDefinition[]> => {
+  const tasks = await db.all('SELECT * FROM task_definitions WHERE project_name = ?', project_name)
   return tasks
 }
 
+const getAllTaskDefinitions = async (db: Database): Promise<DBTaskDefinition[]> => {
+  const res = await db.all('SELECT * FROM task_definitions')
+  return res
+}
+
 const addTask = async (db: Database, opts: DBAddTaskOpts) => {
-  await db.run('INSERT INTO tasks (name, description, project_name) VALUES (?, ?, ?)', opts.name, opts.description, opts.projectName)
+  await db.run('INSERT INTO tasks (name, description, project_name, seconds) VALUES (?, ?, ?, ?)', opts.name, opts.description, opts.project_name, opts.seconds)
   return { success: true }
 }
 
 const editTask = async (db: Database, opts: DBEditTaskOpts) => {
-  await db.run('UPDATE tasks SET name = ?, description = ?, seconds = ? WHERE name=? AND date=? AND project_name = ?', opts.name, opts.description, opts.seconds, opts.oldname, opts.date, opts.projectName)
+  await db.run('UPDATE tasks SET name = ?, description = ?, seconds = ? WHERE name=? AND date=? AND project_name = ?', opts.name, opts.description, opts.seconds, opts.name, opts.date, opts.project_name)
   return { success: true }
 }
 
 const deleteTask = async (db: Database, opts: DBDeleteTaskOpts) => {
-  const res = await db.run('DELETE FROM tasks WHERE name = ? AND date = ? AND project_name = ?', opts.name, opts.date, opts.projectName)
-  console.log({res, opts})
+  await db.run('DELETE FROM tasks WHERE name = ? AND date = ? AND project_name = ?', opts.name, opts.date, opts.project_name)
   return { success: true }
 }
 
-const getTasks = async (db: Database, projectName: string): Promise<DBTask[]> => {
-  const tasks = await db.all('SELECT * FROM tasks WHERE project_name = ?', projectName)
+const getTasks = async (db: Database, project_name: string): Promise<DBTask[]> => {
+  const tasks = await db.all('SELECT * FROM tasks WHERE project_name = ?', project_name)
+  return tasks
+}
+
+const getTasksToday = async (db: Database, project_name: string): Promise<DBTask[]> => {
+  const tasks = await db.all('SELECT * FROM tasks WHERE project_name = ? AND date=DATE("now")', project_name)
   return tasks
 }
 
@@ -109,10 +129,14 @@ export {
   editTaskDefinition,
   deleteTaskDefinition,
   getTaskDefinitions,
+  getAllTaskDefinitions,
   addTask,
   editTask,
   deleteTask,
   getTasks,
-  saveRunningTasks,
+  getTasksToday,
+  saveActiveTasks,
+  saveActiveTask,
+  getDataForPDFExport,
 }
 

@@ -6,7 +6,15 @@ contextBridge.exposeInMainWorld('versions', {
   electron: () => process.versions.electron
 })
 
+type ElectronOnCallback = {
+  (data: any): void // eslint-disable-line @typescript-eslint/no-explicit-any
+}
+
 contextBridge.exposeInMainWorld('electron', {
+  on: (channel: string, callback: ElectronOnCallback) => {
+    ipcRenderer.on(channel, (_, data) => callback(data));
+  },
+  showFileSaveDialog: () => ipcRenderer.invoke('showFileSaveDialog').then(result => result),
   addProject: (name: string) => ipcRenderer.invoke('addProject', name).then(result => result),
   editProject: (opts) => ipcRenderer.invoke('editProject', opts).then(result => result),
   deleteProject: (name: string) => ipcRenderer.invoke('deleteProject', name).then(result => result),
@@ -14,15 +22,17 @@ contextBridge.exposeInMainWorld('electron', {
   addTaskDefinition: (opts) => ipcRenderer.invoke('addTaskDefinition', opts).then(result => result),
   editTaskDefinition: (opts) => ipcRenderer.invoke('editTaskDefinition', opts).then(result => result),
   deleteTaskDefinition: (opts) => ipcRenderer.invoke('deleteTaskDefinition', opts).then(result => result),
-  getTaskDefinitions: (projectName: string) => ipcRenderer.invoke('getTaskDefinitions', projectName).then(result => result),
+  getTaskDefinitions: (project_name: string) => ipcRenderer.invoke('getTaskDefinitions', project_name).then(result => result),
+  getAllTaskDefinitions: () => ipcRenderer.invoke('getAllTaskDefinitions').then(result => result),
   addTask: (opts) => ipcRenderer.invoke('addTask', opts).then(result => result),
   editTask: (opts) => ipcRenderer.invoke('editTask', opts).then(result => result),
   deleteTask: (opts) => ipcRenderer.invoke('deleteTask', opts).then(result => result),
-  getTasks: (projectName: string) => ipcRenderer.invoke('getTasks', projectName).then(result => result),
-  addRunningTask: (opts) => ipcRenderer.invoke('addRunningTask', opts).then(result => result),
-  getRunningTasks: () => ipcRenderer.invoke('getRunningTasks').then(result => result),
-  getRunningTask: (opts) => ipcRenderer.invoke('getRunningTask', opts).then(result => result),
-  startRunningTask: (opts) => ipcRenderer.invoke('startRunningTask', opts).then(result => result),
-  stopRunningTask: (opts) => ipcRenderer.invoke('stopRunningTask', opts).then(result => result),
-  toggleRunningTask: (opts) => ipcRenderer.invoke('toggleRunningTask', opts).then(result => result),
+  getTasks: (project_name: string) => ipcRenderer.invoke('getTasks', project_name).then(result => result),
+  getTasksToday: (project_name: string) => ipcRenderer.invoke('getTasksToday', project_name).then(result => result),
+  getActiveTasks: () => ipcRenderer.invoke('getActiveTasks').then(result => result),
+  startActiveTask: (opts: ActiveTask) => ipcRenderer.invoke('startActiveTask', opts).then(result => result),
+  stopActiveTask: (opts: ActiveTask) => ipcRenderer.invoke('stopActiveTask', opts).then(result => result),
+  getDataForPDFExport: (opts: PDFQuery) => ipcRenderer.invoke('getDataForPDFExport', opts).then(result => result),
+  getPDFExport: (filepath: string) => ipcRenderer.invoke('getPDFExport', filepath).then(result => result),
 })
+

@@ -1,33 +1,35 @@
 import { createSlice } from '@reduxjs/toolkit'
 
-interface TaskState {
-  value: DBTask[]
+interface ActiveTasksState {
+  value: ActiveTask[]
 }
 
 // Define the initial state using that type
-const initialState: TaskState = {
+const initialState: ActiveTasksState = {
   value: []
 }
 
 interface State {
-  value: DBTask[]
+  value: ActiveTask[]
 }
 
 interface ReplaceAction {
-  payload: DBTask[]
+  payload: ActiveTask[]
 }
 
 interface ReplaceSingleAction {
   payload: {
     name: string
+    description: string
     project_name: string
     oldname: string
+    seconds: number
     date: string
   }
 }
 
 interface AppendAction {
-  payload: DBTask
+  payload: ActiveTask
 }
 
 interface RemoveAction {
@@ -38,12 +40,12 @@ interface RemoveAction {
   }
 }
 
-export const tasksSlice = createSlice({
-  name: 'tasks',
+export const activeTasksSlice = createSlice({
+  name: 'activeTasks',
   initialState,
   reducers: {
-    replaceTask: (state: State, action: ReplaceSingleAction) => {
-      state.value = state.value.map((t: DBTask) => {
+    replaceActiveTask: (state: State, action: ReplaceSingleAction) => {
+      state.value = state.value.map((t: ActiveTask) => {
         if (t.name === action.payload.oldname && t.date === action.payload.date && t.project_name === action.payload.project_name) {
           t.name = action.payload.name
           return t
@@ -52,12 +54,12 @@ export const tasksSlice = createSlice({
         }
       })
     },
-    replaceTasks: (state: State, action: ReplaceAction) => {
+    replaceActiveTasks: (state: State, action: ReplaceAction) => {
       state.value = action.payload
     },
-    appendTask: (state: State, action: AppendAction) => {
+    appendActiveTask: (state: State, action: AppendAction) => {
       // make sure tasks are unique
-      const f = (e: DBTask) => {
+      const f = (e: ActiveTask) => {
           e.name === action.payload.name &&
           e.date === action.payload.date &&
           e.project_name === action.payload.project_name
@@ -66,12 +68,11 @@ export const tasksSlice = createSlice({
         state.value = state.value.concat(action.payload)
       }
     },
-    deleteTask: (state: State, action: RemoveAction) => {
-      const idx = state.value.findIndex(t => t.name === action.payload.name && t.project_name === action.payload.project_name && t.date === action.payload.date)
-      state.value.splice(idx, 1)
+    removeActiveTask: (state: State, action: RemoveAction) => {
+      state.value = state.value.filter((t: ActiveTask) => action.payload.name !== t.name)
     }
   },
 })
 
-export const { replaceTasks, replaceTask, appendTask, deleteTask } = tasksSlice.actions
-export const tasksReducer = tasksSlice.reducer;
+export const { replaceActiveTasks, replaceActiveTask, appendActiveTask, removeActiveTask } = activeTasksSlice.actions
+export const activeTasksReducer = activeTasksSlice.reducer;

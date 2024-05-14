@@ -1,4 +1,7 @@
-import { app, BrowserWindow, ipcMain } from 'electron';
+import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron';
+import moment from 'moment';
+import os from 'os';
+import fs from 'fs';
 import path from 'path';
 import { Database } from 'sqlite';
 import { CountUp } from './countup';
@@ -13,11 +16,15 @@ import {
   editTaskDefinition,
   deleteTaskDefinition,
   getTaskDefinitions,
+  getAllTaskDefinitions,
   addTask,
   editTask,
   deleteTask,
   getTasks,
-  saveRunningTasks,
+  getTasksToday,
+  saveActiveTasks,
+  saveActiveTask,
+  getDataForPDFExport,
 } from './database'
 
 if (require('electron-squirrel-startup')) app.quit()
@@ -27,11 +34,21 @@ if (windowsInstallerSetupEvents()) {
   process.exit()
 }
 
+let WINDOW = null;
 let DB: Database;
-const runningTasks: InstanceType<typeof CountUp>[] = []
+const activeTasks: InstanceType<typeof CountUp>[] = []
+
+const getPDFExport = async (evt, filepath) => { // eslint-disable-line @typescript-eslint/no-explicit-any
+  const win = BrowserWindow.fromWebContents(evt.sender);
+  const options = {}
+  const pdfWriterResult = await win.webContents.printToPDF(options)
+  fs.writeFileSync(filepath, pdfWriterResult);
+  evt.sender.send('on-pdf-export-file-saved', filepath);
+  shell.openExternal('file://' + filepath);
+}
 
 const createWindow = async () => {
-  const win = new BrowserWindow({
+  WINDOW = new BrowserWindow({
     width: 960,
     height: 600,
     webPreferences: {
@@ -40,14 +57,20 @@ const createWindow = async () => {
   });
 
   if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
-    win.loadURL(MAIN_WINDOW_VITE_DEV_SERVER_URL);
-    win.webContents.openDevTools();
-    win.maximize();
+    WINDOW.loadURL(MAIN_WINDOW_VITE_DEV_SERVER_URL);
+    WINDOW.webContents.openDevTools();
+    WINDOW.maximize();
   } else {
-    win.loadFile(path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`));
+    WINDOW.loadFile(path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`));
   }
 
-  win.setMenuBarVisibility(false)
+  WINDOW.setMenuBarVisibility(false)
+
+  // open external links in default browser
+  WINDOW.webContents.setWindowOpenHandler((details) => {
+    shell.openExternal(details.url);
+    return { action: 'deny' }
+  })
 }
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
@@ -65,89 +88,102 @@ app.on('activate', () => {
 
 app.commandLine.appendSwitch('disable-gpu-vsync')
 
-const getRunningTasks = (): MainProcessRunningTaskMapped[] => {
-  const tasks = runningTasks.map(t => {
+const getActiveTasks = (): ActiveTask[] => {
+  const tasks = activeTasks.map(t => {
     return {
       name: t.name,
-      projectName: t.projectName,
+      project_name: t.project_name,
+      description: t.description,
       date: t.date,
       seconds: t.seconds,
-      time: t.getTime(),
-      isRunning: t.isRunning(),
+      isActive: t.isActive(),
     }
   })
   return tasks
 }
 
-const periodicSaveRunningTasks = async () => {
-  const tasks = getRunningTasks();
-  saveRunningTasks(DB, tasks);
+const periodicSaveActiveTasks = async () => {
+  const tasks = getActiveTasks();
+  saveActiveTasks(DB, tasks);
 }
 
-const startRunningTask = (opts: MainProcessManageRunningTasksOpts) => {
-  const task = getRunningTask(opts);
+const startActiveTask = (opts: ActiveTask) => {
+  const task = getActiveTask(opts);
   if (!task) {
-    console.error('task not found', opts);
+    console.warn('task not found, starting new one', opts);
+    const addedTask = addActiveTask({
+      name: opts.name,
+      description: opts.description,
+      project_name: opts.project_name,
+      date: opts.date,
+      seconds: opts.seconds,
+      isActive: true,
+    })
+    addedTask.start();
+    return {
+      success: true,
+      project_name: addedTask.project_name,
+      name: addedTask.name,
+      date: addedTask.date,
+      seconds: addedTask.seconds,
+      isActive: true,
+    };
   }
-  task.start();
-  return {
-    success: true,
-    projectName: task.projectName,
-    name: task.name,
-    date: task.date,
-    seconds: task.seconds,
-    datestring: task.getTime(),
-    isRunning: task.isRunning(),
-  };
-}
-
-const stopRunningTask = (opts: MainProcessManageRunningTasksOpts) => {
-  const task = getRunningTask(opts);
-  if (!task) {
-    console.error('task not found', opts);
-  }
-  task.stop();
-  return {
-    success: true,
-    projectName: task.projectName,
-    name: task.name,
-    date: task.date,
-    seconds: task.seconds,
-    datestring: task.getTime(),
-    isRunning: task.isRunning(),
-  };
-}
-
-const toggleRunningTask = (opts: MainProcessManageRunningTasksOpts) => {
-  const task = getRunningTask(opts);
-  if (!task) {
-    console.error('task not found', opts);
-  }
-  if (task.isRunning) {
-    task.stop();
+  if (task.isActive()) {
+    console.warn('task already active', opts);
+    return {
+      success: false,
+      project_name: task.project_name,
+      name: task.name,
+      date: task.date,
+      seconds: task.seconds,
+      isActive: true,
+    };
   } else {
     task.start();
+    return {
+      success: true,
+      project_name: task.project_name,
+      name: task.name,
+      date: task.date,
+      seconds: task.seconds,
+      isActive: true,
+    };
   }
-  return {
-    success: true,
-    projectName: task.projectName,
+}
+
+const stopActiveTask = (opts: ActiveTask) => {
+  const task = getActiveTask(opts);
+  if (!task) {
+    console.error('task not found', opts);
+    return { success: false };
+  }
+  task.stop();
+  saveActiveTask(DB, {
     name: task.name,
+    project_name: task.project_name,
     date: task.date,
     seconds: task.seconds,
-    datestring: task.getTime(),
-    isRunning: task.isRunning(),
-  };
+  })
+  const idx = activeTasks.findIndex(t => t.name === opts.name && t.project_name === opts.project_name && t.date === opts.date)
+  activeTasks.splice(idx, 1)
+  return { success: true };
 }
 
-const addRunningTask = (task: MainProccessAddRunningTaskOpts) => {
-  const countup = new CountUp(task.name, task.projectName, task.date, task.seconds)
-  countup.start()
-  runningTasks.push(countup)
-  return { success: true }
+const addActiveTask = (task: ActiveTask) => {
+  const countup = new CountUp({
+    name: task.name,
+    project_name: task.project_name,
+    description: task.description,
+    date: task.date,
+    seconds: task.seconds
+  })
+  activeTasks.push(countup)
+  return countup;
 }
 
-const getRunningTask = (opts: MainProcessManageRunningTasksOpts): InstanceType<typeof CountUp> => {
-  const task = runningTasks.find(t => t.name === opts.name && t.projectName === opts.projectName && t.date === opts.date)
+const getActiveTask = (opts: MainProcessManageActiveTasksOpts): InstanceType<typeof CountUp> => {
+  const task = activeTasks.find(t => t.name === opts.name && t.project_name === opts.project_name && t.date === opts.date)
   if (task) {
     return task
   }
@@ -156,6 +192,21 @@ const getRunningTask = (opts: MainProcessManageRunningTasksOpts): InstanceType<t
 
 const setupIPCHandles = async () => {
   const ipcHandles: MainProcessIPCHandle[] = [
+    {
+      id: 'showFileSaveDialog',
+      cb: async (evt: any) => { // eslint-disable-line @typescript-eslint/no-explicit-any
+        const datestr = moment().format('YYYY-MM-DD');
+        const dialogResult = await dialog.showSaveDialog(WINDOW, {
+          properties: ['showOverwriteConfirmation'],
+          defaultPath: `timetrack.desktop-report-${datestr}.pdf`,
+        });
+        evt.sender.send('on-pdf-export-file-selected', dialogResult);
+        if (dialogResult.canceled) {
+          return;
+        }
+        getPDFExport(evt, dialogResult.filePath);
+      }
+    },
     {
       id: 'getProjects',
       cb: async () => {
@@ -166,7 +217,6 @@ const setupIPCHandles = async () => {
     {
       id: 'addProject',
       cb: async (_: string, name: string) => {
-        console.log({ name })
         const json = await addProject(DB, name)
         return json
       }
@@ -214,6 +264,13 @@ const setupIPCHandles = async () => {
       }
     },
     {
+      id: 'getAllTaskDefinitions',
+      cb: async (_: string, name: string) => {
+        const res = await getAllTaskDefinitions(DB)
+        return res
+      }
+    },
+    {
       id: 'addTask',
       cb: async (_: string, opts: DBAddTaskOpts) => {
         const json = await addTask(DB, opts)
@@ -242,44 +299,37 @@ const setupIPCHandles = async () => {
       }
     },
     {
-      id: 'addRunningTask',
-      cb: async (_: string, opts: MainProccessAddRunningTaskOpts) => {
-        const json = await addRunningTask(opts)
+      id: 'getTasksToday',
+      cb: async (_: string, name: string) => {
+        const json = await getTasksToday(DB, name)
         return json
       }
     },
     {
-      id: 'getRunningTasks',
+      id: 'getActiveTasks',
       cb: () => {
-        const json = getRunningTasks()
+        const json = getActiveTasks()
         return json
       }
     },
     {
-      id: 'getRunningTask',
-      cb: (_: string, opts: MainProcessManageRunningTasksOpts) => {
-        const json = getRunningTask(opts)
+      id: 'startActiveTask',
+      cb: async (_: string, opts: ActiveTask) => {
+        const json = startActiveTask(opts)
         return json
       }
     },
     {
-      id: 'startRunningTask',
-      cb: async (_: string, opts: MainProcessManageRunningTasksOpts) => {
-        const json = await startRunningTask(opts)
+      id: 'stopActiveTask',
+      cb: async (_: string, opts: ActiveTask) => {
+        const json = stopActiveTask(opts)
         return json
       }
     },
     {
-      id: 'stopRunningTask',
-      cb: async (_: string, opts: MainProcessManageRunningTasksOpts) => {
-        const json = await stopRunningTask(opts)
-        return json
-      }
-    },
-    {
-      id: 'toggleRunningTask',
-      cb: async (_: string, opts: MainProcessManageRunningTasksOpts) => {
-        const json = await toggleRunningTask(opts)
+      id: 'getDataForPDFExport',
+      cb: async (_: string, opts: PDFQuery) => {
+        const json = getDataForPDFExport(DB, opts)
         return json
       }
     },
@@ -295,7 +345,7 @@ const onWhenReady = async () => {
   await setupIPCHandles()
 
   setInterval(async() => {
-    await periodicSaveRunningTasks();
+    await periodicSaveActiveTasks();
   }, 30000)
 
   createWindow()
@@ -304,7 +354,7 @@ const onWhenReady = async () => {
 app.whenReady().then(onWhenReady)
 
 const onWindowAllClosed = async () => {
-  await periodicSaveRunningTasks()
+  await periodicSaveActiveTasks()
   DB.close()
   if (process.platform !== 'darwin') {
     app.quit()

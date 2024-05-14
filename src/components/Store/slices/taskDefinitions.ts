@@ -63,7 +63,7 @@ export const taskDefinitionSlice = createSlice({
         state.value = state.value.concat(action.payload)
       }
     },
-    deleteTaskDefinition: (state: State, action: RemoveAction) => {
+    removeTaskDefinition: (state: State, action: RemoveAction) => {
       const f = (t: DBTaskDefinition) => (action.payload.name !== t.name && action.payload.project_name !== t.project_name)
       state.value = state.value.filter(f)
     }
@@ -71,6 +71,6 @@ export const taskDefinitionSlice = createSlice({
 })
 
 // Action creators are generated for each case reducer function
-export const { replaceTaskDefinitions, replaceTaskDefinition, appendTaskDefinition, deleteTaskDefinition } = taskDefinitionSlice.actions
+export const { replaceTaskDefinitions, replaceTaskDefinition, appendTaskDefinition, removeTaskDefinition } = taskDefinitionSlice.actions
 
 export const taskDefinitionsReducer = taskDefinitionSlice.reducer;

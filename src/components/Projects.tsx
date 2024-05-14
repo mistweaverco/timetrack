@@ -2,7 +2,9 @@ import { FC, useEffect, useRef, useState } from 'react';
 import { useAppDispatch, useAppSelector } from './Store/hooks'
 import { replaceProject, replaceProjects, appendProject, deleteProject } from './Store/slices/projects'
 import { setSelectedProject, removeSelectedProject } from './Store/slices/selectedProject'
+import { removeSelectedTaskDefinition } from './Store/slices/selectedTaskDefinition'
 import { Datafetcher } from './../lib/Datafetcher';
+import { removeActiveClassnameProjects, removeActiveClassnameTaskDefinitions } from './../lib/Utils';
 import { ModalConfirm } from './ModalConfirm';
 import { EditProjectModal } from './EditProjectModal';
 
@@ -27,19 +29,22 @@ export const Projects: FC = () => {
 
   const onProjectSelect = async (evt: React.MouseEvent) => {
     const target = evt.target as HTMLDivElement
-    const name = target.dataset.name as string
-    dispatch(setSelectedProject(name))
-    target.parentNode.querySelectorAll('.panel-block').forEach((n: HTMLDivElement) => n.classList.remove('is-active'))
-    target.classList.add('is-active');
+    const root = target.closest('[data-name]') as HTMLDivElement
+    const name = root.dataset.name as string
+    removeActiveClassnameProjects();
+    removeActiveClassnameTaskDefinitions();
+    dispatch(removeSelectedTaskDefinition())
+    dispatch(setSelectedProject({ name: name }))
+    root.classList.add('is-active');
   }
 
   const onConfirmCallback = async (status: boolean) => {
     if (status) {
-      const project = projects.find((p) => p.name === selectedProject)
+      const project = projects.find((p) => p.name === selectedProject.name)
       if (project) {
         const rpcResult = await window.electron.deleteProject(project.name)
         if (rpcResult.success) {
-          dispatch(deleteProject({ name: selectedProject }));
+          dispatch(deleteProject({ name: selectedProject.name }));
           dispatch(removeSelectedProject());
         }
       }
@@ -61,7 +66,7 @@ export const Projects: FC = () => {
       const rpcResult = await window.electron.editProject({ oldname, name })
       if (rpcResult.success) {
         dispatch(replaceProject({ name, oldname }));
-        dispatch(setSelectedProject(name));
+        dispatch(setSelectedProject({ name: name }));
       }
     }
     setModalEdit(null)
@@ -69,7 +74,7 @@ export const Projects: FC = () => {
 
   const onEditButtonClick = async (evt: React.MouseEvent) => {
     evt.preventDefault();
-    setModalEdit(<EditProjectModal useRef={useModalEditRef} name={selectedProject} callback={onEditProjectCallback} />)
+    setModalEdit(<EditProjectModal useRef={useModalEditRef} name={selectedProject.name} callback={onEditProjectCallback} />)
   }
 
   const fetchProjects = async () => {
@@ -110,7 +115,7 @@ export const Projects: FC = () => {
           <div className="cell">
             <nav className="panel">
               <p className="panel-heading">Available</p>
-              <div data-project-list>
+              <div data-projects-list>
                 {projects.map((project, idx: number) => (
                   <div key={idx} className="panel-block" data-idx={idx} data-name={project.name} onClick={onProjectSelect}>
                     <span className="panel-icon">
@@ -122,15 +127,15 @@ export const Projects: FC = () => {
               </div>
             </nav>
           </div>
-          {selectedProject !== null ?
+          {selectedProject.name !== null ?
           <div data-project-actions-container className="cell">
             <nav className="panel">
               <p className="panel-heading">Actions</p>
               <form data-buttons className="p-4">
                 <div className="field">
                   <div className="control">
-                    <button className="button is-warning" onClick={onEditButtonClick}>Edit</button>
-                    <button className="button is-danger" onClick={onDeleteButtonClick}>Delete</button>
+                    <button className="button is-warning m-1" onClick={onEditButtonClick}>Edit</button>
+                    <button className="button is-danger m-1" onClick={onDeleteButtonClick}>Delete</button>
                   </div>
                 </div>
               </form>
@@ -142,4 +147,3 @@ export const Projects: FC = () => {
     </section>
   </>;
 };
-

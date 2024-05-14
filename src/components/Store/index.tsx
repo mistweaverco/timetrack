@@ -1,19 +1,26 @@
 import { configureStore } from '@reduxjs/toolkit'
+import { selectedPanelReducer } from './slices/selectedPanel';
 import { projectsReducer } from './slices/projects';
 import { selectedProjectReducer } from './slices/selectedProject';
 import { taskDefinitionsReducer } from './slices/taskDefinitions';
 import { selectedTaskDefinitionReducer } from './slices/selectedTaskDefinition';
 import { tasksReducer } from './slices/tasks';
 import { selectedTaskReducer } from './slices/selectedTask';
+import { activeTasksReducer } from './slices/activeTasks';
+import { pdfDocumentReducer } from './slices/pdfDocument';
+
 
 export const store = configureStore({
   reducer: {
+    selectedPanel: selectedPanelReducer,
     projects: projectsReducer,
     selectedProject: selectedProjectReducer,
     taskDefinitions: taskDefinitionsReducer,
-    selectedTaskDefinitionReducer: selectedTaskDefinitionReducer,
+    selectedTaskDefinition: selectedTaskDefinitionReducer,
     tasks: tasksReducer,
     selectedTask: selectedTaskReducer,
+    activeTasks: activeTasksReducer,
+    pdfDocument: pdfDocumentReducer,
   },
 })
 

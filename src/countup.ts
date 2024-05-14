@@ -1,16 +1,26 @@
+type CountUpOpts = {
+  name: string,
+  project_name: string,
+  description: string,
+  date: string,
+  seconds: number,
+}
+
 class CountUp {
   name: string;
-  projectName: string;
+  project_name: string;
+  description: string;
   date: string;
   seconds: number;
   tick: NodeJS.Timeout | null = null;
   count: number;
 
-  constructor(name: string, projectName: string, date: string, seconds: number) {
-    this.name = name;
-    this.projectName = projectName;
-    this.date = date;
-    this.seconds = seconds;
+  constructor(opts: CountUpOpts) {
+    this.name = opts.name;
+    this.project_name = opts.project_name;
+    this.description = opts.description;
+    this.date = opts.date;
+    this.seconds = opts.seconds;
   }
 
   start() {
@@ -24,31 +34,12 @@ class CountUp {
     this.tick = null
   }
 
-  isRunning() {
+  isActive() {
     return this.tick !== null
-  }
-
-  toggle() {
-    if (this.tick) {
-      this.stop();
-    } else {
-      this.start();
-    }
   }
 
   increment() {
     this.seconds++;
-  }
-
-  getSeconds() {
-    return this.count;
-  }
-
-  getTime() {
-    const hours = Math.floor(this.seconds / 3600);
-    const minutes = Math.floor((this.seconds % 3600) / 60);
-    const seconds = this.seconds % 60;
-    return `${hours}:${minutes}:${seconds}`;
   }
 }
 
