@@ -23,6 +23,8 @@ interface ReplaceSingleAction {
     project_name: string
     oldname: string
     date: string
+    seconds: number
+    description: string
   }
 }
 
@@ -45,7 +47,7 @@ export const tasksSlice = createSlice({
     replaceTask: (state: State, action: ReplaceSingleAction) => {
       state.value = state.value.map((t: DBTask) => {
         if (t.name === action.payload.oldname && t.date === action.payload.date && t.project_name === action.payload.project_name) {
-          t.name = action.payload.name
+          t = action.payload
           return t
         } else {
           return t

@@ -161,7 +161,7 @@ interface Window {
     deleteTaskDefinition: (opts: { project_name: string, name: string }) => Promise<{success: boolean}>;
     getTaskDefinitions: (project_name: string) => Promise<DBTaskDefinition[]>;
     addTask: (opts: { project_name: string, name: string, description: string, seconds: number }) => Promise<{success: boolean}>;
-    editTask: (opts: { project_name: string, name: string, description: string, seconds: number, date: string }) => Promise<{success: boolean}>;
+    editTask: (opts: { project_name: string, name: string, description: string, seconds: number, date: string }) => Promise<DBTask & {success: boolean}>;
     deleteTask: (opts: { project_name: string, name: string, date: string }) => Promise<{success: boolean}>;
     getTasks: (project_name: string) => Promise<DBTask[]>;
     getActiveTasks: () => Promise<ActiveTask[]>;

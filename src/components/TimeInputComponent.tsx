@@ -51,6 +51,7 @@ export const TimeInputComponent: FC<BaseLayoutProps> = ({ task, addUpHours }) =>
       hInput.current.value = String(hms.hours);
       mInput.current.value = String(hms.minutes);
       sInput.current.value = String(hms.seconds);
+      secondsInput.current.value = String(secondsValue);
     }
   }
 

@@ -7,7 +7,7 @@ import { useAppDispatch, useAppSelector } from './Store/hooks'
 import { replaceTask, replaceTasks, appendTask, deleteTask } from './Store/slices/tasks'
 import { replaceTaskDefinitions } from './Store/slices/taskDefinitions'
 import { setSelectedTask, removeSelectedTask } from './Store/slices/selectedTask'
-import { appendActiveTask } from './Store/slices/activeTasks'
+import { appendActiveTask, replaceActiveTask } from './Store/slices/activeTasks'
 import { ModalConfirm } from './ModalConfirm';
 import { EditTaskModal } from './EditTaskModal';
 import { TimerComponent } from './TimerComponent';
@@ -17,17 +17,17 @@ type Props = {
   selectedProject: {
     name: string | null
   },
-  activeTasks: ActiveTask[]
+  activeTasks: ActiveTask[],
+  tasks: DBTask[]
 }
 
 type WrappedTimerComponentProps = {
   task: DBTask
 }
 
-const Component: FC<Props> = ({ selectedProject, activeTasks }) => {
+const Component: FC<Props> = ({ selectedProject, activeTasks, tasks }) => {
   const dispatch = useAppDispatch();
   const tasksDefinitions = useAppSelector((state) => state.taskDefinitions.value)
-  const tasks = useAppSelector((state) => state.tasks.value)
   const selectedTask = useAppSelector((state) => state.selectedTask.value)
   const [useModalConfirm, setModalConfirm] = useState(null)
   const [useModalEdit, setModalEdit] = useState(null)
@@ -75,6 +75,7 @@ const Component: FC<Props> = ({ selectedProject, activeTasks }) => {
       const rpcResult = await window.electron.startActiveTask({
         name: task.name,
         project_name: task.project_name,
+        description: task.description,
         date: task.date,
         seconds: task.seconds
       })
@@ -109,16 +110,28 @@ const Component: FC<Props> = ({ selectedProject, activeTasks }) => {
         seconds: task.seconds,
         date: task.date
       })
+
       if (rpcResult.success) {
+        const activeTask = activeTasks.find((at) => at.name === task.name && at.project_name === task.project_name && at.date === task.date)
+        if (activeTask) {
+          dispatch(replaceActiveTask({
+            name: rpcResult.name,
+            oldname: rpcResult.name,
+            project_name: rpcResult.project_name,
+            description: rpcResult.description,
+            date: rpcResult.date,
+            seconds: rpcResult.seconds,
+            isActive: activeTask.isActive
+          }))
+        }
         dispatch(replaceTask({
-          name: task.name,
-          oldname: task.name,
-          project_name: task.project_name,
-          date: task.date
+          name: rpcResult.name,
+          oldname: rpcResult.name,
+          seconds: rpcResult.seconds,
+          project_name: rpcResult.project_name,
+          date: rpcResult.date,
+          description: rpcResult.description,
         }))
-        // TODO fix
-        // dirty hack to update the task in the store
-        window.location.reload()
       }
     }
     setModalEdit(null)
@@ -327,7 +340,8 @@ const Component: FC<Props> = ({ selectedProject, activeTasks }) => {
 const mapStateToProps = (state: RootState) => {
   return {
     selectedProject: state.selectedProject.value,
-    activeTasks: state.activeTasks.value
+    activeTasks: state.activeTasks.value,
+    tasks: state.tasks.value
   }
 }
 const connected = connect(mapStateToProps)(Component);

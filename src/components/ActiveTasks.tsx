@@ -3,6 +3,7 @@ import { connect } from 'react-redux';
 import type { RootState } from './Store'
 import { useAppDispatch } from './Store/hooks'
 import { removeActiveTask, replaceActiveTasks, replaceActiveTask, pauseActiveTask } from './Store/slices/activeTasks'
+import { replaceTask } from './Store/slices/tasks'
 import { TimerComponent } from './TimerComponent';
 
 interface BaseLayoutProps {
@@ -70,12 +71,17 @@ const Component: FC<BaseLayoutProps> = ({ activeTasks }) => {
     if (rpcResult.success) {
       dispatch(removeActiveTask({
         name: rpcResult.name,
-        project_name: root.dataset.projectName,
-        date: root.dataset.date
+        project_name: rpcResult.project_name,
+        date: rpcResult.date,
       }));
-      // TODO fix
-      // dirty hack to force a reload of the task definitions
-      window.location.reload();
+      dispatch(replaceTask({
+        name: rpcResult.name,
+        oldname: rpcResult.name,
+        project_name: rpcResult.project_name,
+        date: rpcResult.date,
+        seconds: rpcResult.seconds,
+        description: root.dataset.description,
+      }));
     }
   }
 

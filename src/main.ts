@@ -320,8 +320,11 @@ const setupIPCHandles = async () => {
     {
       id: 'editTask',
       cb: async (_: string, opts: DBEditTaskOpts) => {
-        const json = await editTask(DB, opts)
-        return json
+        await editTask(DB, opts)
+        return {
+          ...opts,
+          success: true,
+        }
       }
     },
     {
