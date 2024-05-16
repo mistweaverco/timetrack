@@ -12,7 +12,6 @@ const config: ForgeConfig = {
   packagerConfig: {
     asar: true,
     icon: path.resolve(__dirname, 'src/assets/icon'),
-    tmpdir: "/tmp/timetrack",
   },
   rebuildConfig: {},
   makers: [
