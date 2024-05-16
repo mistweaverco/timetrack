@@ -54,12 +54,9 @@ const Component: FC<BaseLayoutProps> = ({ activeTasks, callback, task, useRef })
                         Editing the <strong>duration</strong> of an <strong>active task</strong> is not allowed.
                         You can stop the task first, and then edit the duration.
                       </div>
-                      <div className="control is-loading">
-                        <input type="hidden" name="seconds" defaultValue={activeTask.seconds} />
-                        <input className="input" disabled defaultValue={activeTask.seconds} />
-                      </div>
+                      <TimeInputComponent task={activeTask} />
                     </article>
-                    : <TimeInputComponent task={task} />
+                    : <TimeInputComponent task={task} addUpHours={true} />
                 }
                 </div>
               </div>

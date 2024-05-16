@@ -1,6 +1,5 @@
-import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron';
+import { app, BrowserWindow, dialog, ipcMain, shell, IpcMainInvokeEvent } from 'electron';
 import moment from 'moment';
-import os from 'os';
 import fs from 'fs';
 import path from 'path';
 import { Database } from 'sqlite';
@@ -35,11 +34,11 @@ if (windowsInstallerSetupEvents()) {
   process.exit()
 }
 
-let WINDOW = null;
+let WINDOW: BrowserWindow = null;
 let DB: Database;
 const activeTasks: InstanceType<typeof CountUp>[] = []
 
-const getPDFExport = async (evt, filepath) => { // eslint-disable-line @typescript-eslint/no-explicit-any
+const getPDFExport = async (evt: IpcMainInvokeEvent, filepath: string) => {
   const win = BrowserWindow.fromWebContents(evt.sender);
   const options = {}
   const pdfWriterResult = await win.webContents.printToPDF(options)
@@ -97,7 +96,7 @@ const getActiveTasks = (): ActiveTask[] => {
       description: t.description,
       date: t.date,
       seconds: t.seconds,
-      isActive: t.isActive(),
+      isActive: t.isActive,
     }
   })
   return tasks
@@ -108,7 +107,7 @@ const periodicSaveActiveTasks = async () => {
   saveActiveTasks(DB, tasks);
 }
 
-const startActiveTask = (opts: ActiveTask) => {
+const startActiveTask = (opts: ActiveTask): ActiveTask & { success: boolean } => {
   const task = getActiveTask(opts);
   if (!task) {
     const addedTask = addActiveTask({
@@ -123,17 +122,19 @@ const startActiveTask = (opts: ActiveTask) => {
     return {
       success: true,
       project_name: addedTask.project_name,
+      description: addedTask.description,
       name: addedTask.name,
       date: addedTask.date,
       seconds: addedTask.seconds,
       isActive: true,
     };
   }
-  if (task.isActive()) {
+  if (task.isActive) {
     console.warn('task already active', opts);
     return {
       success: false,
       project_name: task.project_name,
+      description: task.description,
       name: task.name,
       date: task.date,
       seconds: task.seconds,
@@ -144,6 +145,7 @@ const startActiveTask = (opts: ActiveTask) => {
     return {
       success: true,
       project_name: task.project_name,
+      description: task.description,
       name: task.name,
       date: task.date,
       seconds: task.seconds,
@@ -152,7 +154,7 @@ const startActiveTask = (opts: ActiveTask) => {
   }
 }
 
-const stopActiveTask = (opts: ActiveTask) => {
+const stopActiveTask = (opts: ActiveTask): ActiveTask & {success: true} | {success: false} => {
   const task = getActiveTask(opts);
   if (!task) {
     console.error('task not found', opts);
@@ -166,8 +168,46 @@ const stopActiveTask = (opts: ActiveTask) => {
     seconds: task.seconds,
   })
   const idx = activeTasks.findIndex(t => t.name === opts.name && t.project_name === opts.project_name && t.date === opts.date)
-  activeTasks.splice(idx, 1)
-  return { success: true };
+  const f = activeTasks.find(t => t.name === opts.name && t.project_name === opts.project_name && t.date === opts.date)
+  if (f) {
+    const clone = Object.assign({}, f)
+    activeTasks.splice(idx, 1)
+    return {
+      success: true,
+      project_name: clone.project_name,
+      description: clone.description,
+      name: clone.name,
+      date: clone.date,
+      seconds: clone.seconds,
+      isActive: false,
+    };
+  } else {
+    return { success: false };
+  }
+}
+
+const pauseActiveTask = (opts: ActiveTask): ActiveTask & {success: true} | {success: false} => {
+  const task = getActiveTask(opts);
+  if (!task) {
+    console.error('task not found', opts);
+    return { success: false };
+  }
+  task.pause();
+  saveActiveTask(DB, {
+    name: task.name,
+    project_name: task.project_name,
+    date: task.date,
+    seconds: task.seconds,
+  })
+  return {
+    success: true,
+    name: task.name,
+    project_name: task.project_name,
+    description: task.description,
+    date: task.date,
+    seconds: task.seconds,
+    isActive: false,
+  };
 }
 
 const addActiveTask = (task: ActiveTask) => {
@@ -194,7 +234,7 @@ const setupIPCHandles = async () => {
   const ipcHandles: MainProcessIPCHandle[] = [
     {
       id: 'showFileSaveDialog',
-      cb: async (evt: any) => { // eslint-disable-line @typescript-eslint/no-explicit-any
+      cb: async (evt: IpcMainInvokeEvent) => {
         const datestr = moment().format('YYYY-MM-DD');
         const dialogResult = await dialog.showSaveDialog(WINDOW, {
           properties: ['showOverwriteConfirmation'],
@@ -265,7 +305,7 @@ const setupIPCHandles = async () => {
     },
     {
       id: 'getAllTaskDefinitions',
-      cb: async (_: string, name: string) => {
+      cb: async () => {
         const res = await getAllTaskDefinitions(DB)
         return res
       }
@@ -316,6 +356,13 @@ const setupIPCHandles = async () => {
       id: 'startActiveTask',
       cb: async (_: string, opts: ActiveTask) => {
         const json = startActiveTask(opts)
+        return json
+      }
+    },
+    {
+      id: 'pauseActiveTask',
+      cb: async (_: string, opts: ActiveTask) => {
+        const json = pauseActiveTask(opts)
         return json
       }
     },

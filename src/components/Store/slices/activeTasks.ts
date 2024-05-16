@@ -25,6 +25,7 @@ interface ReplaceSingleAction {
     oldname: string
     seconds: number
     date: string
+    isActive: boolean
   }
 }
 
@@ -32,11 +33,27 @@ interface AppendAction {
   payload: ActiveTask
 }
 
+interface PauseAction {
+  payload: {
+    name: string
+    project_name: string
+    date: string
+  }
+}
+
 interface RemoveAction {
   payload: {
     name: string
     project_name: string
     date: string
+  }
+}
+interface UpdateSecondsAction {
+  payload: {
+    name: string
+    project_name: string
+    date: string
+    seconds: number
   }
 }
 
@@ -48,6 +65,29 @@ export const activeTasksSlice = createSlice({
       state.value = state.value.map((t: ActiveTask) => {
         if (t.name === action.payload.oldname && t.date === action.payload.date && t.project_name === action.payload.project_name) {
           t.name = action.payload.name
+          t.isActive = action.payload.isActive
+          t.seconds = action.payload.seconds
+          t.description = action.payload.description
+          return t
+        } else {
+          return t
+        }
+      })
+    },
+    updateActiveTaskSeconds: (state: State, action: UpdateSecondsAction) => {
+      state.value = state.value.map((t: ActiveTask) => {
+        if (t.name === action.payload.name && t.date === action.payload.date && t.project_name === action.payload.project_name) {
+          t.seconds = action.payload.seconds
+          return t
+        } else {
+          return t
+        }
+      })
+    },
+    pauseActiveTask: (state: State, action: PauseAction) => {
+      state.value = state.value.map((t: ActiveTask) => {
+        if (t.name === action.payload.name && t.date === action.payload.date && t.project_name === action.payload.project_name) {
+          t.isActive = false
           return t
         } else {
           return t
@@ -74,5 +114,5 @@ export const activeTasksSlice = createSlice({
   },
 })
 
-export const { replaceActiveTasks, replaceActiveTask, appendActiveTask, removeActiveTask } = activeTasksSlice.actions
+export const { replaceActiveTasks, replaceActiveTask, appendActiveTask, removeActiveTask, pauseActiveTask, updateActiveTaskSeconds } = activeTasksSlice.actions
 export const activeTasksReducer = activeTasksSlice.reducer;

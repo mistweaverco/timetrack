@@ -165,8 +165,9 @@ interface Window {
     deleteTask: (opts: { project_name: string, name: string, date: string }) => Promise<{success: boolean}>;
     getTasks: (project_name: string) => Promise<DBTask[]>;
     getActiveTasks: () => Promise<ActiveTask[]>;
-    startActiveTask: (opts: { project_name: string, name: string, date: string; seconds: number }) => Promise<{success: boolean}>;
-    stopActiveTask: (opts: { project_name: string, name: string, date: string }) => Promise<{success: boolean}>;
+    startActiveTask: (opts: ActiveTask) => Promise<ActiveTask & {success: boolean}>;
+    pauseActiveTask: (opts: ActiveTask) => Promise<{success: boolean}>;
+    stopActiveTask: (opts: { project_name: string, name: string, date: string }) => Promise<ActiveTask & {success: true} | {success: false}>;
     getDataForPDFExport: (opts: PDFQuery) => Promise<PDFQueryResult[]>;
     showFileSaveDialog: () => Promise<void>;
     getPDFExport: (filepath: string) => Promise<void>;

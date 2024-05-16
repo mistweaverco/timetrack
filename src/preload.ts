@@ -31,6 +31,7 @@ contextBridge.exposeInMainWorld('electron', {
   getTasksToday: (project_name: string) => ipcRenderer.invoke('getTasksToday', project_name).then(result => result),
   getActiveTasks: () => ipcRenderer.invoke('getActiveTasks').then(result => result),
   startActiveTask: (opts: ActiveTask) => ipcRenderer.invoke('startActiveTask', opts).then(result => result),
+  pauseActiveTask: (opts: ActiveTask) => ipcRenderer.invoke('pauseActiveTask', opts).then(result => result),
   stopActiveTask: (opts: ActiveTask) => ipcRenderer.invoke('stopActiveTask', opts).then(result => result),
   getDataForPDFExport: (opts: PDFQuery) => ipcRenderer.invoke('getDataForPDFExport', opts).then(result => result),
   getPDFExport: (filepath: string) => ipcRenderer.invoke('getPDFExport', filepath).then(result => result),

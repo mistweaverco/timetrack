@@ -14,6 +14,7 @@ class CountUp {
   seconds: number;
   tick: NodeJS.Timeout | null = null;
   count: number;
+  isActive: boolean;
 
   constructor(opts: CountUpOpts) {
     this.name = opts.name;
@@ -21,21 +22,26 @@ class CountUp {
     this.description = opts.description;
     this.date = opts.date;
     this.seconds = opts.seconds;
+    this.isActive = false;
   }
 
   start() {
+    this.isActive = true;
     this.tick = setInterval(() => {
       this.increment();
     }, 1000);
   }
 
+  pause() {
+    clearInterval(this.tick);
+    this.tick = null
+    this.isActive = false;
+  }
+
   stop() {
     clearInterval(this.tick);
     this.tick = null
-  }
-
-  isActive() {
-    return this.tick !== null
+    this.isActive = false;
   }
 
   increment() {

@@ -2,7 +2,7 @@ import { FC, useEffect } from 'react';
 import { connect } from 'react-redux';
 import type { RootState } from './Store'
 import { useAppDispatch } from './Store/hooks'
-import { removeActiveTask, replaceActiveTasks } from './Store/slices/activeTasks'
+import { removeActiveTask, replaceActiveTasks, replaceActiveTask, pauseActiveTask } from './Store/slices/activeTasks'
 import { TimerComponent } from './TimerComponent';
 
 interface BaseLayoutProps {
@@ -19,10 +19,45 @@ const Component: FC<BaseLayoutProps> = ({ activeTasks }) => {
     }
   }
 
+  const onVisibilityChange = () => {
+    document.addEventListener("visibilitychange", () => {
+      if (!document.hidden) {
+        // restoring from background
+        // possible throttling of the UI might have happened
+        // fetch active tasks again from backend
+        fetchActiveTasks();
+      }
+    });
+  }
+
   useEffect(() => {
     fetchActiveTasks();
+    onVisibilityChange()
   }, []);
 
+  const startTask = async (evt: React.MouseEvent) => {
+    evt.preventDefault();
+    const target = evt.target as HTMLButtonElement;
+    const root = target.closest('tr');
+    const rpcResult = await window.electron.startActiveTask({
+      project_name: root.dataset.projectName,
+      name: root.dataset.name,
+      date: root.dataset.date,
+      seconds: parseInt(root.dataset.seconds, 10),
+      description: root.dataset.description,
+    });
+    if (rpcResult.success) {
+      dispatch(replaceActiveTask({
+        oldname: rpcResult.name,
+        name: rpcResult.name,
+        description: rpcResult.description,
+        project_name: rpcResult.project_name,
+        date: rpcResult.date,
+        seconds: rpcResult.seconds,
+        isActive: true,
+      }));
+    }
+  }
   const stopTask = async (evt: React.MouseEvent) => {
     evt.preventDefault();
     const target = evt.target as HTMLButtonElement;
@@ -34,7 +69,7 @@ const Component: FC<BaseLayoutProps> = ({ activeTasks }) => {
     });
     if (rpcResult.success) {
       dispatch(removeActiveTask({
-        name: root.dataset.name,
+        name: rpcResult.name,
         project_name: root.dataset.projectName,
         date: root.dataset.date
       }));
@@ -43,6 +78,27 @@ const Component: FC<BaseLayoutProps> = ({ activeTasks }) => {
       window.location.reload();
     }
   }
+
+  const pauseTask = async (evt: React.MouseEvent) => {
+    evt.preventDefault();
+    const target = evt.target as HTMLButtonElement;
+    const root = target.closest('tr');
+    const rpcResult = await window.electron.pauseActiveTask({
+      project_name: root.dataset.projectName,
+      name: root.dataset.name,
+      description: root.dataset.description,
+      date: root.dataset.date,
+      seconds: parseInt(root.dataset.seconds, 10),
+    });
+    if (rpcResult.success) {
+      dispatch(pauseActiveTask({
+        name: root.dataset.name,
+        project_name: root.dataset.projectName,
+        date: root.dataset.date
+      }));
+    }
+  }
+
   return <>
     { activeTasks.length ?
       <section className="section">
@@ -68,15 +124,19 @@ const Component: FC<BaseLayoutProps> = ({ activeTasks }) => {
                     data-seconds={task.seconds}
                     data-active={task.isActive}
                     data-date={task.date}
-                    >
+                  >
                     <td>{task.project_name}</td>
                     <td>{task.name}</td>
                     <td>
-                      <TimerComponent task={task} countup={task.isActive} />
+                      <TimerComponent task={task} />
                     </td>
                     <td>{task.date}</td>
                     <td>
-                      <button className="button is-primary is-small" onClick={stopTask}>Stop</button>
+                      { task.isActive ?
+                        <button className="button is-warning is-small m-1" onClick={pauseTask}>Pause</button>
+                        : <button className="button is-success is-small m-1" onClick={startTask}>Resume</button>
+                      }
+                      <button className="button is-danger is-small m-1" onClick={stopTask}>Stop</button>
                     </td>
                   </tr>
                 })}

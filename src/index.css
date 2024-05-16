@@ -28,10 +28,6 @@
   max-width: 100%;
 }
 
-.timeinput {
-  width: 84px;
-}
-
 form.pdf-export-form .field,
 form.search-form .field {
 /* TODO: find a better way to do this
