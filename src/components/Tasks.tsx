@@ -145,6 +145,9 @@ const Component: FC<Props> = ({ selectedProject, activeTasks }) => {
         if (rpcResult.success) {
           dispatch(deleteTask({ name: task.name, project_name: task.project_name, date: task.date }));
           dispatch(removeSelectedTask());
+          // TODO fix
+          // dirty hack to update
+          window.location.reload()
         }
       }
     }
