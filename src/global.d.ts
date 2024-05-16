@@ -33,6 +33,26 @@ type PDFQuery = {
   tasks: PDFQueryTask[],
 }
 
+type SearchQueryTask = {
+  project_name: string,
+  task_name: string,
+  task_definition_name: string,
+  task_description: string,
+}
+
+type SearchQuery = {
+  active_state: string,
+  from_date: string,
+  task: SearchQueryTask,
+  to_date: string,
+}
+
+type SearchQueryResult = {
+  projects: DBProject[],
+  task_definitions: DBTaskDefinition[],
+  tasks: DBTask[],
+}
+
 type DBProject = {
   name: string,
 }
@@ -150,5 +170,6 @@ interface Window {
     getDataForPDFExport: (opts: PDFQuery) => Promise<PDFQueryResult[]>;
     showFileSaveDialog: () => Promise<void>;
     getPDFExport: (filepath: string) => Promise<void>;
+    getSearchResult: (query: SearchQuery) => Promise<SearchQueryResult>;
   }
 }

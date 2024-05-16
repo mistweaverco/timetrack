@@ -1,3 +1,5 @@
+import { viteStaticCopy } from 'vite-plugin-static-copy'
+import { normalizePath } from 'vite'
 import type { ConfigEnv, UserConfig } from 'vite';
 import { defineConfig, mergeConfig } from 'vite';
 import { getBuildConfig, getBuildDefine, external, pluginHotRestart } from './vite.base.config';
@@ -18,7 +20,17 @@ export default defineConfig((env) => {
         external,
       },
     },
-    plugins: [pluginHotRestart('restart')],
+    plugins: [
+      pluginHotRestart('restart'),
+      viteStaticCopy({
+        targets: [
+          {
+            src: normalizePath('src/db.sql'),
+            dest: normalizePath('.')
+          }
+        ]
+      })
+    ],
     define,
     resolve: {
       // Load the Node.js entry.

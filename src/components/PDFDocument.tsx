@@ -58,13 +58,14 @@ const BasicView: FC = (pdfDocument: PDFQueryResult[]) => {
         </header>
         <div className="card-content">
           <div className="content">
+            <h1>{item.name}</h1>
             <p>{item.description}</p>
             <br />
             <time dateTime={item.date}>{item.date}</time>
           </div>
         </div>
         <footer className="card-footer">
-          <p className="card-footer-item">{getHMSStringFromSeconds(item.seconds)}</p>
+          <p className="card-footer-item">Time spent: {getHMSStringFromSeconds(item.seconds)}</p>
         </footer>
       </div>
     ))}

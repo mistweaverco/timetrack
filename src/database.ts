@@ -1,21 +1,22 @@
-import { app } from 'electron'
-import fs from 'fs'
+import { readFile } from 'node:fs/promises';
 import path from 'node:path'
-import sqlite3 from 'sqlite3'
+import { Database as Sqlite3Database } from 'sqlite3'
 import { open, Database } from 'sqlite'
-const userDataPath = app.getPath('userData')
-const sqlFilePath = path.join(userDataPath, '..', 'timetrack', 'timetrack.db')
+import { getUserDataPath, getUserConfig } from './lib/ConfigFile';
 
-// make sure sqlFilePath exists
-if (!fs.existsSync(sqlFilePath)) {
-  fs.mkdirSync(path.dirname(sqlFilePath), { recursive: true })
-}
 
 const initDB = async (): Promise<Database> =>{
-  const db = await open({ filename: sqlFilePath, driver: sqlite3.Database })
+  const userConfig = await getUserConfig()
+  const userDataPath = await getUserDataPath()
+  let sqlFilePath = path.join(userDataPath, 'timetrack.db')
+  if (userConfig && userConfig.database_file_path) {
+    sqlFilePath = userConfig.database_file_path
+    console.warn('Using custom database file path 🗃️', sqlFilePath)
+  }
+  const db = await open({ filename: sqlFilePath, driver: Sqlite3Database })
   const atable = await db.all('SELECT name FROM sqlite_master WHERE type=\'table\' AND name=?', 'projects')
   if (atable.length === 0) {
-    const sql = fs.readFileSync(path.join(__dirname, 'db.sql'), 'utf8')
+    const sql = await readFile(path.join(__dirname, 'db.sql'), 'utf8')
     await db.exec(sql)
   }
   return db
@@ -26,6 +27,25 @@ type Task = {
   project_name: string,
   date: string,
   seconds: number,
+}
+
+const getSearchResult = async (db: Database, q: SearchQuery): Promise<SearchQueryResult> => {
+  const active_state = q.active_state
+    .replace('all', 'active = 1 OR active = 0')
+    .replace('active', 'active = 1')
+    .replace('inactive', 'active = 0')
+  const project_name = q.task.project_name.replace(/\*/g, '%')
+  const task_name = q.task.task_name.replace(/\*/g, '%')
+  const task_description = q.task.task_description.replace(/\*/g, '%')
+  const task_definition_name = q.task.task_definition_name.replace(/\*/g, '%')
+  const dbResultProjects = await db.all(`SELECT name FROM projects WHERE name LIKE ?`, project_name)
+  const dbResultTaskDefinitions = await db.all(`SELECT name FROM task_definitions WHERE name LIKE ? AND project_name LIKE ?`, task_definition_name, project_name)
+  const dbResultTasks = await db.all(`SELECT name, project_name, date, description FROM tasks WHERE date BETWEEN ? AND ? AND name LIKE ? AND name LIKE ? AND description LIKE ? AND project_name LIKE ?`, q.from_date, q.to_date, task_name, task_definition_name, task_description, project_name)
+  return {
+    projects: dbResultProjects,
+    task_definitions: dbResultTaskDefinitions,
+    tasks: dbResultTasks,
+  }
 }
 
 const getDataForPDFExport = async (db: Database, q: PDFQuery): Promise<DBProject[]> => {
@@ -138,5 +158,6 @@ export {
   saveActiveTasks,
   saveActiveTask,
   getDataForPDFExport,
+  getSearchResult,
 }
 

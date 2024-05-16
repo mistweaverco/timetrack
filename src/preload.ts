@@ -34,5 +34,6 @@ contextBridge.exposeInMainWorld('electron', {
   stopActiveTask: (opts: ActiveTask) => ipcRenderer.invoke('stopActiveTask', opts).then(result => result),
   getDataForPDFExport: (opts: PDFQuery) => ipcRenderer.invoke('getDataForPDFExport', opts).then(result => result),
   getPDFExport: (filepath: string) => ipcRenderer.invoke('getPDFExport', filepath).then(result => result),
+  getSearchResult: (query: SearchQuery) => ipcRenderer.invoke('getSearchResult', query).then(result => result),
 })
 

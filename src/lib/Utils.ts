@@ -5,6 +5,8 @@ export const getHMSFromSeconds = (s: number) => {
   return { hours, minutes, seconds };
 }
 
+export const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
+
 export const getHMSToSeconds = (hours: number, minutes: number, seconds: number) => {
   return hours * 3600 + minutes * 60 + seconds;
 }

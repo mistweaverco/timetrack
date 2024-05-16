@@ -5,6 +5,7 @@ import { ActiveTasks } from './ActiveTasks';
 import { Projects } from './Projects';
 import { Tasks } from './Tasks';
 import { TaskDefinitions } from './TaskDefinitions';
+import { Search } from './Search';
 import { PDFExport } from './PDFExport';
 import { PDFDocument } from './PDFDocument';
 import { useAppDispatch } from './Store/hooks'
@@ -81,7 +82,7 @@ const Component: FC<Props> = ({ selectedPanel }) => {
 
   const ActiveComponent: FC = () => {
     return <>
-      { selectedPanel === 'Search' && <div /> }
+      { selectedPanel === 'Search' && <Search /> }
       { selectedPanel === 'PDFExport' && <PDFExport /> }
       { selectedPanel === 'PDFDocument' && <PDFDocument /> }
       { selectedPanel === 'Overview' && <OverviewComponent /> }

@@ -25,6 +25,7 @@ import {
   saveActiveTasks,
   saveActiveTask,
   getDataForPDFExport,
+  getSearchResult,
 } from './database'
 
 if (require('electron-squirrel-startup')) app.quit()
@@ -110,7 +111,6 @@ const periodicSaveActiveTasks = async () => {
 const startActiveTask = (opts: ActiveTask) => {
   const task = getActiveTask(opts);
   if (!task) {
-    console.warn('task not found, starting new one', opts);
     const addedTask = addActiveTask({
       name: opts.name,
       description: opts.description,
@@ -330,6 +330,13 @@ const setupIPCHandles = async () => {
       id: 'getDataForPDFExport',
       cb: async (_: string, opts: PDFQuery) => {
         const json = getDataForPDFExport(DB, opts)
+        return json
+      }
+    },
+    {
+      id: 'getSearchResult',
+      cb: async (_: string, opts: SearchQuery) => {
+        const json = getSearchResult(DB, opts)
         return json
       }
     },

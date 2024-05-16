@@ -11,6 +11,22 @@ type ProjectTaskDefintion = {
   name: string,
 }
 
+const onInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const target = e.currentTarget;
+  const form = target.closest('form') as HTMLFormElement;
+  const submitButton = form.querySelector('button[name="generate"]');
+  const countChecked = form.querySelector('input[type="checkbox"]:checked');
+  if (form.checkValidity() && countChecked) {
+    submitButton.removeAttribute('disabled');
+    submitButton.classList.remove('is-danger');
+    submitButton.classList.add('is-primary');
+  } else {
+    submitButton.setAttribute('disabled', 'disabled');
+    submitButton.classList.add('is-danger');
+    submitButton.classList.remove('is-primary');
+  }
+}
+
 const TasksComponent: FC<{ tasks: ProjectTaskDefintion[] }> = ({ tasks }) => {
   if (!tasks.length) {
     return null;
@@ -19,7 +35,7 @@ const TasksComponent: FC<{ tasks: ProjectTaskDefintion[] }> = ({ tasks }) => {
     return (
       <div key={idx}>
         <label className="checkbox">
-          <input type="checkbox" name="task" data-project-name={task.project_name} value={task.name} /> {task.name}
+          <input onChange={onInputChange} type="checkbox" name="task" data-project-name={task.project_name} value={task.name} /> {task.name}
         </label>
       </div>
     )
@@ -61,6 +77,9 @@ const Component: FC = () => {
   const onFormSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const form = e.currentTarget as HTMLFormElement;
+    if (!form.checkValidity()) {
+      return;
+    }
     const formData = new FormData(form);
     const rawfrom = formData.get('from') as string;
     const rawto = formData.get('to') as string;
@@ -91,20 +110,6 @@ const Component: FC = () => {
     dispatch(setSelectedPanel({ name: 'PDFExport' }));
   })
 
-  const onTimeChange = async () => {
-    if (fromRef.current && toRef.current) {
-      const from = fromRef.current.value;
-      const to = toRef.current.value;
-      if (from && to) {
-        genRef.current.disabled = false;
-      } else {
-        genRef.current.disabled = true;
-      }
-    } else {
-      genRef.current.disabled = true;
-    }
-  }
-
 
   const fetchAllProjects = async () => {
     const p = await Datafetcher.getProjects();
@@ -126,7 +131,7 @@ const Component: FC = () => {
       <section className="section">
         <h1 className="title">PDF Export</h1>
         <h2 className="subtitle">You can export your saved projects and tasks as PDF.</h2>
-        <form onSubmit={onFormSubmit}>
+        <form onSubmit={onFormSubmit} className="pdf-export-form">
           <div className="fixed-grid has-3-cols">
             <div className="grid">
               <div className="cell">
@@ -135,18 +140,18 @@ const Component: FC = () => {
                   <div className="field">
                     <label className="label">From</label>
                     <div className="control">
-                      <input name="from" ref={fromRef} onChange={onTimeChange} className="input" type="date" />
+                      <input name="from" required onChange={onInputChange} defaultValue={moment().format('YYYY-MM-DD')} className="input" type="date" />
                     </div>
                   </div>
                   <div className="field">
                     <label className="label">To</label>
                     <div className="control">
-                      <input name="to" ref={toRef} onChange={onTimeChange} className="input" type="date" />
+                      <input name="to" required onChange={onInputChange} defaultValue={moment().format('YYYY-MM-DD')} className="input" type="date" />
                     </div>
                   </div>
                   <div className="field">
                     <div className="control">
-                      <button ref={genRef} disabled className="button is-primary" type="submit">Generate</button>
+                      <button name="generate" disabled className="button is-danger" type="submit">Generate</button>
                     </div>
                   </div>
                 </nav>
