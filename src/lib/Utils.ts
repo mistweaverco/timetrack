@@ -28,7 +28,7 @@ const removeActiveClassnameGeneric = (rootQuery: string, itemsQuery: string) => 
 }
 
 export const removeActiveClassnameTasks = () => {
-  removeActiveClassnameGeneric('[data-tasks-list]', '.panel-block');
+  removeActiveClassnameGeneric('[data-tasks-list]', '.tasklist-item');
 }
 
 export const removeActiveClassnameTaskDefinitions = () => {

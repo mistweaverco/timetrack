@@ -6,15 +6,15 @@ interface BaseLayoutProps {
   callback?: (status: boolean) => void;
 }
 
-export const ModalConfirm: FC<BaseLayoutProps> = ({ callback, message }) => {
-  const onYesButtonClick = (evt: MouseEvent) => {
+export const ModalConfirm: FC<BaseLayoutProps> = ({ callback, message, children }) => {
+  const onYesButtonClick = (evt: React.MouseEvent<HTMLButtonElement>) => {
     evt.preventDefault();
     if (callback) {
       callback(true);
     }
   }
 
-  const onNoButtonClick = (evt: MouseEvent) => {
+  const onNoButtonClick = (evt: React.MouseEvent<HTMLButtonElement>) => {
     evt.preventDefault();
     if (callback) {
       callback(false);
@@ -26,7 +26,7 @@ export const ModalConfirm: FC<BaseLayoutProps> = ({ callback, message }) => {
       <div className="modal-background"></div>
       <div className="modal-content">
         <div className="box">
-          <p>{message ? message : "Are you sure?" }</p>
+          {children ? children : <p>{message ? message : "Are you sure?" }</p>}
           <div className="buttons">
             <button className="button is-danger" onClick={onYesButtonClick}>Yes</button>
             <button className="button is-primary" onClick={onNoButtonClick}>No</button>

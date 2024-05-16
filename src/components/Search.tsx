@@ -1,37 +1,24 @@
-import React, { FC, useEffect, useRef, useState, ReactNode } from 'react';
+import React, { FC, useRef, useState  } from 'react';
 import moment from 'moment';
-import { Datafetcher } from './../lib/Datafetcher';
+import { LoadingComponent } from './LoadingComponent';
+import { ModalConfirm } from './ModalConfirm';
 import { useAppDispatch } from './Store/hooks'
 
 type Props = {
   searchResult: SearchQueryResult
 }
 
-const LoadingComponent: FC = () => {
-  return <>
-    <div className="skeleton-lines mt-3 mb-3">
-      <div></div>
-      <div></div>
-      <div></div>
-      <div></div>
-      <div></div>
-    </div>
-    <progress className="progress is-large is-primary" max="100">15%</progress>
-    <div className="skeleton-lines mb-3">
-      <div></div>
-      <div></div>
-      <div></div>
-      <div></div>
-      <div></div>
-      <span className="icon has-text-dark is-large is-align-self-flex-end mr-3">
-        <i className="fas fa-coffee fa-3x"></i>
-      </span>
-    </div>
-  </>;
-}
-
 const SearchResultsProjectsComponent: FC<Props> = ({ searchResult }) => {
+  const [DeleteProjectConfirmModal, setDeleteProjectConfirmModal] = useState(null);
+  const showDeleteProjectConfirmModal = (evt: React.MouseEvent<HTMLButtonElement>) => {
+    evt.preventDefault();
+    const modal = <ModalConfirm callback={(result) => {console.log(result);}}>
+      <p>Are you sure you want to delete this project?</p>
+    </ModalConfirm>
+    setDeleteProjectConfirmModal(modal);
+  }
   return <>
+    { DeleteProjectConfirmModal }
     { searchResult.projects.length ?
       searchResult.projects.map((project: DBProject, idx: number) =>
         <div key={idx} className="columns panel-block">
@@ -41,8 +28,7 @@ const SearchResultsProjectsComponent: FC<Props> = ({ searchResult }) => {
           <div className="column">
             <div className="field">
               <div className="control">
-                <button className="button is-primary">View</button>
-                <button className="button is-warning">Edit</button>
+                <button className="button is-warning" onClick={showDeleteProjectConfirmModal}>Edit</button>
                 <button className="button is-danger">Delete</button>
               </div>
             </div>
@@ -65,7 +51,6 @@ const SearchResultsTaskDefinitionsComponent: FC<Props> = ({ searchResult }) => {
           <div className="column">
             <div className="field">
               <div className="control">
-                <button className="button is-primary">View</button>
                 <button className="button is-warning">Edit</button>
                 <button className="button is-danger">Delete</button>
               </div>
@@ -91,7 +76,6 @@ const SearchResultsTasksComponent: FC<Props> = ({ searchResult }) => {
           <div className="column">
             <div className="field">
               <div className="control">
-                <button className="button is-primary">View</button>
                 <button className="button is-warning">Edit</button>
                 <button className="button is-danger">Delete</button>
               </div>

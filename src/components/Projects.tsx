@@ -118,9 +118,6 @@ export const Projects: FC = () => {
               <div data-projects-list>
                 {projects.map((project, idx: number) => (
                   <div key={idx} className="panel-block" data-idx={idx} data-name={project.name} onClick={onProjectSelect}>
-                    <span className="panel-icon">
-                      <i className="fas fa-book" aria-hidden="true"></i>
-                    </span>
                     <p data-project-item-header className="bd-notification is-info">{project.name}</p>
                   </div>
                 ))}

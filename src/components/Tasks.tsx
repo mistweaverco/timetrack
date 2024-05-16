@@ -285,24 +285,19 @@ const Component: FC<Props> = ({ selectedProject, activeTasks, tasks }) => {
                   <p className="panel-heading">Today</p>
                   <div data-tasks-list>
                     {tasks.map((task, idx: number) => {
-                      return <div key={idx} data-name={task.name} data-description={task.description} data-seconds={task.seconds} data-project-name={task.project_name} data-date={task.date} onClick={onTaskSelect} className="panel-block">
-                        <span className="panel-icon">
-                          <i className="fas fa-book" aria-hidden="true"></i>
-                        </span>
-                        <div className="grid has-1-cols">
-                          <div className="columns">
-                            <div className="column">
-                              <p data-task-name className="bd-notification is-info">{task.name}</p>
-                            </div>
-                          </div>
-                        </div>
-                        <div className="grid has-2-cols">
-                          <div className="columns">
-                            <div className="column">
-                              <WrappedTimerComponent task={task} />
-                            </div>
-                            <div className="column">
-                              <p data-task-date className="bd-notification is-info">{task.date}</p>
+                      return <div className="p-4 tasklist-item" key={idx} data-name={task.name} data-description={task.description} data-seconds={task.seconds} data-project-name={task.project_name} data-date={task.date} onClick={onTaskSelect}>
+                        <div className="columns">
+                          <div className="column">
+                            <p className="bd-notification">{task.name}</p>
+                            <div className="columns is-mobile">
+                              <div className="column">
+                                <p className="bd-notification">
+                                  <WrappedTimerComponent task={task} />
+                                </p>
+                              </div>
+                              <div className="column">
+                                <p className="bd-notification">{task.date}</p>
+                              </div>
                             </div>
                           </div>
                         </div>

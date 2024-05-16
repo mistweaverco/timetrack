@@ -28,6 +28,12 @@
   max-width: 100%;
 }
 
+.tasklist-item.is-active {
+  border-left: 5px solid;
+  color: var(--bulma-success-on-scheme);
+  border-left-color: var(--bulma-success-on-scheme) !important;
+}
+
 form.pdf-export-form .field,
 form.search-form .field {
 /* TODO: find a better way to do this
