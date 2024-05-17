@@ -32,3 +32,7 @@ The configuration file should be located at:
 # Windows: %APPDATA%\timetrack\timetrack.db
 database_file_path="/home/marco/Desktop/timetrack.db"
 ```
+
+## Development
+
+Checkout the [development guide](docs/development.md) for more information.
