@@ -9,8 +9,8 @@ interface SelectedProjectState {
 // Define the initial state using that type
 const initialState: SelectedProjectState = {
   value: {
-    name: null
-  }
+    name: null,
+  },
 }
 
 interface State {
@@ -31,11 +31,12 @@ export const selectedProjectSlice = createSlice({
     },
     removeSelectedProject: (state: State) => {
       state.value = {
-        name: null
+        name: null,
       }
-    }
+    },
   },
 })
 
-export const { setSelectedProject, removeSelectedProject } = selectedProjectSlice.actions
-export const selectedProjectReducer = selectedProjectSlice.reducer;
+export const { setSelectedProject, removeSelectedProject } =
+  selectedProjectSlice.actions
+export const selectedProjectReducer = selectedProjectSlice.reducer

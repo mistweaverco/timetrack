@@ -6,7 +6,7 @@ interface TaskDefinitionState {
 
 // Define the initial state using that type
 const initialState: TaskDefinitionState = {
-  value: []
+  value: [],
 }
 
 interface State {
@@ -42,7 +42,10 @@ export const taskDefinitionSlice = createSlice({
   reducers: {
     replaceTaskDefinition: (state: State, action: ReplaceSingleAction) => {
       state.value = state.value.map((t: DBTask) => {
-        if (t.name === action.payload.oldname && t.project_name === action.payload.project_name) {
+        if (
+          t.name === action.payload.oldname &&
+          t.project_name === action.payload.project_name
+        ) {
           t.name = action.payload.name
           return t
         } else {
@@ -56,7 +59,7 @@ export const taskDefinitionSlice = createSlice({
     appendTaskDefinition: (state: State, action: AppendAction) => {
       // make sure task task-definitions are unique
       const f = (e: DBTaskDefinition) => {
-          e.name === action.payload.name &&
+        e.name === action.payload.name &&
           e.project_name === action.payload.project_name
       }
       if (!state.value.some(f)) {
@@ -64,13 +67,20 @@ export const taskDefinitionSlice = createSlice({
       }
     },
     removeTaskDefinition: (state: State, action: RemoveAction) => {
-      const f = (t: DBTaskDefinition) => (action.payload.name !== t.name && action.payload.project_name !== t.project_name)
+      const f = (t: DBTaskDefinition) =>
+        action.payload.name !== t.name &&
+        action.payload.project_name !== t.project_name
       state.value = state.value.filter(f)
-    }
+    },
   },
 })
 
 // Action creators are generated for each case reducer function
-export const { replaceTaskDefinitions, replaceTaskDefinition, appendTaskDefinition, removeTaskDefinition } = taskDefinitionSlice.actions
+export const {
+  replaceTaskDefinitions,
+  replaceTaskDefinition,
+  appendTaskDefinition,
+  removeTaskDefinition,
+} = taskDefinitionSlice.actions
 
-export const taskDefinitionsReducer = taskDefinitionSlice.reducer;
+export const taskDefinitionsReducer = taskDefinitionSlice.reducer

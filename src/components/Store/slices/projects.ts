@@ -6,7 +6,7 @@ interface ProjectState {
 
 // Define the initial state using that type
 const initialState: ProjectState = {
-  value: []
+  value: [],
 }
 
 interface State {
@@ -60,10 +60,13 @@ export const projectsSlice = createSlice({
       }
     },
     deleteProject: (state: State, action: RemoveAction) => {
-      state.value = state.value.filter((p: DBProject) => action.payload.name !== p.name)
-    }
+      state.value = state.value.filter(
+        (p: DBProject) => action.payload.name !== p.name,
+      )
+    },
   },
 })
 
-export const { replaceProjects, replaceProject, appendProject, deleteProject } = projectsSlice.actions
-export const projectsReducer = projectsSlice.reducer;
+export const { replaceProjects, replaceProject, appendProject, deleteProject } =
+  projectsSlice.actions
+export const projectsReducer = projectsSlice.reducer

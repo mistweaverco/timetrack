@@ -11,8 +11,8 @@ interface SelectedTaskDefinitionState {
 const initialState: SelectedTaskDefinitionState = {
   value: {
     name: null,
-    project_name: null
-  }
+    project_name: null,
+  },
 }
 
 interface State {
@@ -33,11 +33,12 @@ export const selectedTaskDefinitionSlice = createSlice({
     },
     removeSelectedTaskDefinition: (state: State) => {
       state.value = initialState.value
-    }
+    },
   },
 })
 
 // Action creators are generated for each case reducer function
-export const { setSelectedTaskDefinition, removeSelectedTaskDefinition } = selectedTaskDefinitionSlice.actions
+export const { setSelectedTaskDefinition, removeSelectedTaskDefinition } =
+  selectedTaskDefinitionSlice.actions
 
-export const selectedTaskDefinitionReducer = selectedTaskDefinitionSlice.reducer;
+export const selectedTaskDefinitionReducer = selectedTaskDefinitionSlice.reducer
