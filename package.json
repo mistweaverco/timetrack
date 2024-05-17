@@ -9,7 +9,8 @@
     "package": "electron-forge package",
     "make": "electron-forge make",
     "publish": "electron-forge publish",
-    "lint": "eslint --ext .ts,.tsx ."
+    "lint": "eslint --ext .ts,.tsx .",
+    "docs:preview": "docsify serve docs"
   },
   "repository": {
     "type": "git",
@@ -42,6 +43,7 @@
     "@typescript-eslint/eslint-plugin": "5.62.0",
     "@typescript-eslint/parser": "5.62.0",
     "@vitejs/plugin-react": "4.2.1",
+    "docsify-cli": "4.4.2",
     "electron": "30.0.3",
     "electron-squirrel-startup": "1.0.1",
     "eslint": "8.57.0",
