@@ -1,12 +1,12 @@
-import type { ForgeConfig } from '@electron-forge/shared-types';
-import { MakerSquirrel } from '@electron-forge/maker-squirrel';
-import { MakerDeb } from '@electron-forge/maker-deb';
-import { MakerRpm } from '@electron-forge/maker-rpm';
-import { MakerDMG } from '@electron-forge/maker-dmg';
-import { VitePlugin } from '@electron-forge/plugin-vite';
-import { FusesPlugin } from '@electron-forge/plugin-fuses';
-import { FuseV1Options, FuseVersion } from '@electron/fuses';
-import path from 'path';
+import type { ForgeConfig } from '@electron-forge/shared-types'
+import { MakerSquirrel } from '@electron-forge/maker-squirrel'
+import { MakerDeb } from '@electron-forge/maker-deb'
+import { MakerRpm } from '@electron-forge/maker-rpm'
+import { MakerDMG } from '@electron-forge/maker-dmg'
+import { VitePlugin } from '@electron-forge/plugin-vite'
+import { FusesPlugin } from '@electron-forge/plugin-fuses'
+import { FuseV1Options, FuseVersion } from '@electron/fuses'
+import path from 'path'
 
 const config: ForgeConfig = {
   packagerConfig: {
@@ -16,22 +16,23 @@ const config: ForgeConfig = {
   rebuildConfig: {},
   makers: [
     new MakerSquirrel({
-      iconUrl: 'https://raw.githubusercontent.com/mistweaverco/timetrack.desktop/main/src/assets/icon/icon.ico',
+      iconUrl:
+        'https://raw.githubusercontent.com/mistweaverco/timetrack.desktop/main/src/assets/icon/icon.ico',
       setupIcon: path.resolve(__dirname, 'src/assets/icon/icon.ico'),
     }),
     new MakerRpm({
       options: {
         icon: path.resolve(__dirname, 'src/assets/icon/icon.png'),
-      }
+      },
     }),
     new MakerDeb({
       options: {
         icon: path.resolve(__dirname, 'src/assets/icon/icon.png'),
-      }
+      },
     }),
     new MakerDMG({
       icon: path.resolve(__dirname, 'src/assets/icon/icon.icns'),
-      format: 'ULFO'
+      format: 'ULFO',
     }),
   ],
   plugins: [
@@ -68,6 +69,6 @@ const config: ForgeConfig = {
       [FuseV1Options.OnlyLoadAppFromAsar]: true,
     }),
   ],
-};
+}
 
-export default config;
+export default config

@@ -8,8 +8,8 @@ interface PDFDocumentState {
 
 const initialState: PDFDocumentState = {
   value: {
-    name: []
-  }
+    name: [],
+  },
 }
 
 interface State {
@@ -30,9 +30,9 @@ export const pdfDocumentSlice = createSlice({
     },
     removePDFDocument: (state: State) => {
       state.value = initialState.value
-    }
+    },
   },
 })
 
 export const { setPDFDocument, removePDFDocument } = pdfDocumentSlice.actions
-export const pdfDocumentReducer = pdfDocumentSlice.reducer;
+export const pdfDocumentReducer = pdfDocumentSlice.reducer

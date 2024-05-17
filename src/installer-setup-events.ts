@@ -1,6 +1,6 @@
-import { app } from 'electron';
-import cp from 'child_process';
-import path from 'path';
+import { app } from 'electron'
+import cp from 'child_process'
+import path from 'path'
 
 export const windowsInstallerSetupEvents = () => {
   if (process.argv.length === 1) {
@@ -12,7 +12,7 @@ export const windowsInstallerSetupEvents = () => {
   const updateDotExe = path.resolve(path.join(rootAtomFolder, 'Update.exe'))
   const exeName = path.basename(process.execPath)
 
-  const spawn = function(command: any, args: any) {
+  const spawn = function (command: any, args: any) {
     let spawnedProcess: cp.ChildProcessWithoutNullStreams
 
     try {
@@ -24,7 +24,7 @@ export const windowsInstallerSetupEvents = () => {
     return spawnedProcess
   }
 
-  const spawnUpdate = function(args: any) {
+  const spawnUpdate = function (args: any) {
     return spawn(updateDotExe, args)
   }
 

@@ -15,10 +15,8 @@
     "target": "ESNext",
     "paths": {
       "@components/*": ["src/components/*"],
-      "@lib/*": [ "./lib/*" ]
+      "@lib/*": ["./lib/*"]
     }
   },
-  "include": [
-    "./src"
-  ]
+  "include": ["./src"]
 }

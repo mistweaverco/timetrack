@@ -6,7 +6,7 @@ interface ActiveTasksState {
 
 // Define the initial state using that type
 const initialState: ActiveTasksState = {
-  value: []
+  value: [],
 }
 
 interface State {
@@ -63,7 +63,11 @@ export const activeTasksSlice = createSlice({
   reducers: {
     replaceActiveTask: (state: State, action: ReplaceSingleAction) => {
       state.value = state.value.map((t: ActiveTask) => {
-        if (t.name === action.payload.oldname && t.date === action.payload.date && t.project_name === action.payload.project_name) {
+        if (
+          t.name === action.payload.oldname &&
+          t.date === action.payload.date &&
+          t.project_name === action.payload.project_name
+        ) {
           t.name = action.payload.name
           t.isActive = action.payload.isActive
           t.seconds = action.payload.seconds
@@ -76,7 +80,11 @@ export const activeTasksSlice = createSlice({
     },
     updateActiveTaskSeconds: (state: State, action: UpdateSecondsAction) => {
       state.value = state.value.map((t: ActiveTask) => {
-        if (t.name === action.payload.name && t.date === action.payload.date && t.project_name === action.payload.project_name) {
+        if (
+          t.name === action.payload.name &&
+          t.date === action.payload.date &&
+          t.project_name === action.payload.project_name
+        ) {
           t.seconds = action.payload.seconds
           return t
         } else {
@@ -86,7 +94,11 @@ export const activeTasksSlice = createSlice({
     },
     pauseActiveTask: (state: State, action: PauseAction) => {
       state.value = state.value.map((t: ActiveTask) => {
-        if (t.name === action.payload.name && t.date === action.payload.date && t.project_name === action.payload.project_name) {
+        if (
+          t.name === action.payload.name &&
+          t.date === action.payload.date &&
+          t.project_name === action.payload.project_name
+        ) {
           t.isActive = false
           return t
         } else {
@@ -100,7 +112,7 @@ export const activeTasksSlice = createSlice({
     appendActiveTask: (state: State, action: AppendAction) => {
       // make sure tasks are unique
       const f = (e: ActiveTask) => {
-          e.name === action.payload.name &&
+        e.name === action.payload.name &&
           e.date === action.payload.date &&
           e.project_name === action.payload.project_name
       }
@@ -109,10 +121,19 @@ export const activeTasksSlice = createSlice({
       }
     },
     removeActiveTask: (state: State, action: RemoveAction) => {
-      state.value = state.value.filter((t: ActiveTask) => action.payload.name !== t.name)
-    }
+      state.value = state.value.filter(
+        (t: ActiveTask) => action.payload.name !== t.name,
+      )
+    },
   },
 })
 
-export const { replaceActiveTasks, replaceActiveTask, appendActiveTask, removeActiveTask, pauseActiveTask, updateActiveTaskSeconds } = activeTasksSlice.actions
-export const activeTasksReducer = activeTasksSlice.reducer;
+export const {
+  replaceActiveTasks,
+  replaceActiveTask,
+  appendActiveTask,
+  removeActiveTask,
+  pauseActiveTask,
+  updateActiveTaskSeconds,
+} = activeTasksSlice.actions
+export const activeTasksReducer = activeTasksSlice.reducer

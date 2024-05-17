@@ -8,8 +8,8 @@ interface SelectedPanelState {
 
 const initialState: SelectedPanelState = {
   value: {
-    name: 'Overview'
-  }
+    name: 'Overview',
+  },
 }
 
 interface State {
@@ -30,9 +30,10 @@ export const selectedPanelSlice = createSlice({
     },
     removeSelectedPanel: (state: State) => {
       state.value = initialState.value
-    }
+    },
   },
 })
 
-export const { setSelectedPanel, removeSelectedPanel } = selectedPanelSlice.actions
-export const selectedPanelReducer = selectedPanelSlice.reducer;
+export const { setSelectedPanel, removeSelectedPanel } =
+  selectedPanelSlice.actions
+export const selectedPanelReducer = selectedPanelSlice.reducer
