@@ -12,6 +12,7 @@ import { ModalConfirm } from './ModalConfirm';
 import { EditTaskModal } from './EditTaskModal';
 import { TimerComponent } from './TimerComponent';
 import { TimeInputComponent } from './TimeInputComponent';
+import { InfoboxComponent } from './InfoboxComponent';
 
 type Props = {
   selectedProject: {
@@ -202,15 +203,10 @@ const Component: FC<Props> = ({ selectedProject, activeTasks, tasks }) => {
     const activeTask = activeTasks.find((at) => at.name === selectedTask.name && at.project_name === selectedTask.project_name && at.date === selectedTask.date)
     if (activeTask) {
       return <>
-        <article className="message is-warning">
-          <div className="message-header">
-            <p>Warning</p>
-          </div>
-          <div className="message-body">
-            Task is currently active,
-            you need to stop it to perform a delete action.
-          </div>
-        </article>
+        <InfoboxComponent title="Warning" type="warning">
+          Task is currently active,
+          you need to stop it to perform a delete action.
+        </InfoboxComponent>
         <button className="button is-warning m-1" onClick={onTaskEditClick}>Edit</button>
       </>
     } else {

@@ -34,13 +34,24 @@ const getSearchResult = async (db: Database, q: SearchQuery): Promise<SearchQuer
     .replace('all', 'active = 1 OR active = 0')
     .replace('active', 'active = 1')
     .replace('inactive', 'active = 0')
+  console.log('active_state', active_state)
+  const search_in = q.search_in;
   const project_name = q.task.project_name.replace(/\*/g, '%')
   const task_name = q.task.task_name.replace(/\*/g, '%')
   const task_description = q.task.task_description.replace(/\*/g, '%')
   const task_definition_name = q.task.task_definition_name.replace(/\*/g, '%')
-  const dbResultProjects = await db.all(`SELECT name FROM projects WHERE name LIKE ?`, project_name)
-  const dbResultTaskDefinitions = await db.all(`SELECT name FROM task_definitions WHERE name LIKE ? AND project_name LIKE ?`, task_definition_name, project_name)
-  const dbResultTasks = await db.all(`SELECT name, project_name, date, description FROM tasks WHERE date BETWEEN ? AND ? AND name LIKE ? AND name LIKE ? AND description LIKE ? AND project_name LIKE ?`, q.from_date, q.to_date, task_name, task_definition_name, task_description, project_name)
+  let dbResultProjects = []
+  if (search_in.includes('projects')) {
+    dbResultProjects = await db.all(`SELECT name FROM projects WHERE name LIKE ?`, project_name)
+  }
+  let dbResultTaskDefinitions = []
+  if (search_in.includes('task_definitions')) {
+    dbResultTaskDefinitions = await db.all(`SELECT name FROM task_definitions WHERE name LIKE ? AND project_name LIKE ?`, task_definition_name, project_name)
+  }
+  let dbResultTasks = [];
+  if (search_in.includes('tasks')) {
+    dbResultTasks = await db.all(`SELECT name, project_name, date, description FROM tasks WHERE date BETWEEN ? AND ? AND name LIKE ? AND name LIKE ? AND description LIKE ? AND project_name LIKE ?`, q.from_date, q.to_date, task_name, task_definition_name, task_description, project_name)
+  }
   return {
     projects: dbResultProjects,
     task_definitions: dbResultTaskDefinitions,
