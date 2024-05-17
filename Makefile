@@ -21,5 +21,8 @@ windows-release:
 macos-release:
 	REPLACE=1 PLATFORM=macos ./scripts/release.sh
 
+version:
+	./scripts/set-version.sh
+
 run:
 	npm run start

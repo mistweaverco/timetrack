@@ -1,7 +1,7 @@
 {
   "name": "timetrack.desktop",
   "productName": "timetrack.desktop",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "description": "Simple desktop application to track your time spent on different projects.",
   "main": ".vite/build/main.js",
   "scripts": {
