@@ -2,6 +2,7 @@ import React, { FC } from 'react';
 import { connect } from 'react-redux';
 import { RootState } from './Store';
 import { TimeInputComponent } from './TimeInputComponent';
+import { InfoboxComponent } from './InfoboxComponent';
 
 interface BaseLayoutProps {
   activeTasks: ActiveTask[];
@@ -46,16 +47,13 @@ const Component: FC<BaseLayoutProps> = ({ activeTasks, callback, task, useRef })
                 <label className="label">Task Duration</label>
                 <div className="control">
                   { (activeTask !== undefined) ?
-                    <article className="message is-warning">
-                      <div className="message-header">
-                        <p>Warning</p>
-                      </div>
-                      <div className="message-body">
+                    <>
+                      <InfoboxComponent title="Warning" type="warning" collapsed={true}>
                         Editing the <strong>duration</strong> of an <strong>active task</strong> is not allowed.
                         You can stop the task first, and then edit the duration.
-                      </div>
+                      </InfoboxComponent>
                       <TimeInputComponent task={activeTask} />
-                    </article>
+                    </>
                     : <TimeInputComponent task={task} addUpHours={true} />
                 }
                 </div>
