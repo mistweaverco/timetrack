@@ -11,6 +11,8 @@ update_package_json_version() {
 update_docsify_version() {
   local tmp
   tmp=$(mktemp)
-  jq --arg v "$VERSION" '.version = $v' docsify.json > "$tmp" && mv "$tmp" docsify.json
+  sed -e "s/<small>.*<\/small>/<small>$VERSION<\/small>/" docs/_coverpage.md > "$tmp" && mv "$tmp" docs/_coverpage.md
 }
 
+update_package_json_version
+update_docsify_version
