@@ -6,5 +6,5 @@ import { tasksReducer } from './tasks';
 export const rootReducer = combineReducers({
   projectsReducer,
   selectedProjectReducer,
-  tasksReducer
+  tasksReducer,
 })
