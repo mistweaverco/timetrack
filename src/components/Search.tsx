@@ -8,6 +8,12 @@ type Props = {
   searchResult: SearchQueryResult
 }
 
+type SearchResultsComponentProps = {
+  searchResult: SearchQueryResult
+  searchIn: React.RefObject<HTMLSelectElement>
+}
+
+
 const SearchResultsProjectsComponent: FC<Props> = ({ searchResult }) => {
   const [DeleteProjectConfirmModal, setDeleteProjectConfirmModal] = useState(null);
   const showDeleteProjectConfirmModal = (evt: React.MouseEvent<HTMLButtonElement>) => {
@@ -19,81 +25,7 @@ const SearchResultsProjectsComponent: FC<Props> = ({ searchResult }) => {
   }
   return <>
     { DeleteProjectConfirmModal }
-    { searchResult.projects.length ?
-      searchResult.projects.map((project: DBProject, idx: number) =>
-        <div key={idx} className="columns panel-block">
-          <div className="column">
-            {project.name}
-          </div>
-          <div className="column">
-            <div className="field">
-              <div className="control">
-                <button className="button is-warning" onClick={showDeleteProjectConfirmModal}>Edit</button>
-                <button className="button is-danger">Delete</button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )
-      : <div>No projects found</div>
-    }
-  </>;
-}
 
-const SearchResultsTaskDefinitionsComponent: FC<Props> = ({ searchResult }) => {
-  return <>
-    { searchResult.task_definitions.length ?
-      searchResult.task_definitions.map((taskdef: DBTaskDefinition, idx: number) =>
-        <div key={idx} className="columns panel-block">
-          <div className="column">
-            {taskdef.name}
-          </div>
-          <div className="column">
-            <div className="field">
-              <div className="control">
-                <button className="button is-warning">Edit</button>
-                <button className="button is-danger">Delete</button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )
-      : <div>No task definitions found</div>
-    }
-  </>;
-}
-const SearchResultsTasksComponent: FC<Props> = ({ searchResult }) => {
-  return <>
-    { searchResult.tasks.length ?
-      searchResult.tasks.map((task: DBTask, idx: number) =>
-        <div key={idx} className="columns panel-block">
-          <div className="column">
-            {task.name} - {task.project_name}
-            <div>
-              {task.description}
-            </div>
-          </div>
-          <div className="column">
-            <div className="field">
-              <div className="control">
-                <button className="button is-warning">Edit</button>
-                <button className="button is-danger">Delete</button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )
-      : <div>No tasks found</div>
-    }
-  </>;
-}
-
-
-const SearchResultsComponent: FC<Props> = ({ searchResult }) => {
-  if (!searchResult) {
-    return null;
-  }
-  return <>
     <div>
       <div className="field">
         <div className="control">
@@ -104,10 +36,30 @@ const SearchResultsComponent: FC<Props> = ({ searchResult }) => {
           </section>
         </div>
       </div>
-      <SearchResultsProjectsComponent searchResult={searchResult} />
+      { searchResult.projects.length ?
+        searchResult.projects.map((project: DBProject, idx: number) =>
+          <div key={idx} className="columns panel-block">
+            <div className="column">
+              {project.name}
+            </div>
+            <div className="column">
+              <div className="field">
+                <div className="control">
+                  <button className="button is-warning" onClick={showDeleteProjectConfirmModal}>Edit</button>
+                  <button className="button is-danger">Delete</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )
+        : <div>No projects found</div>
+      }
     </div>
+  </>;
+}
 
-
+const SearchResultsTaskDefinitionsComponent: FC<Props> = ({ searchResult }) => {
+  return <>
     <div>
       <div className="field">
         <div className="control">
@@ -118,9 +70,29 @@ const SearchResultsComponent: FC<Props> = ({ searchResult }) => {
           </section>
         </div>
       </div>
-      <SearchResultsTaskDefinitionsComponent searchResult={searchResult} />
+      { searchResult.task_definitions.length ?
+        searchResult.task_definitions.map((taskdef: DBTaskDefinition, idx: number) =>
+          <div key={idx} className="columns panel-block">
+            <div className="column">
+              {taskdef.name}
+            </div>
+            <div className="column">
+              <div className="field">
+                <div className="control">
+                  <button className="button is-warning">Edit</button>
+                  <button className="button is-danger">Delete</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )
+        : <div>No task definitions found</div>
+      }
     </div>
-
+  </>;
+}
+const SearchResultsTasksComponent: FC<Props> = ({ searchResult }) => {
+  return <>
     <div>
       <div className="field">
         <div className="control">
@@ -131,8 +103,43 @@ const SearchResultsComponent: FC<Props> = ({ searchResult }) => {
           </section>
         </div>
       </div>
-      <SearchResultsTasksComponent searchResult={searchResult} />
+      { searchResult.tasks.length ?
+        searchResult.tasks.map((task: DBTask, idx: number) =>
+          <div key={idx} className="columns panel-block">
+            <div className="column">
+              {task.name} - {task.project_name}
+              <div>
+                {task.description}
+              </div>
+            </div>
+            <div className="column">
+              <div className="field">
+                <div className="control">
+                  <button className="button is-warning">Edit</button>
+                  <button className="button is-danger">Delete</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )
+        : <div>No tasks found</div>
+      }
     </div>
+  </>;
+}
+
+
+const SearchResultsComponent: FC<SearchResultsComponentProps> = ({ searchIn, searchResult }) => {
+  if (!searchResult) {
+    return null;
+  }
+  const form = searchIn.current.closest('form') as HTMLFormElement;
+  const formData = new FormData(form);
+  const si = formData.getAll('search_in') as string[];
+  return <>
+    { si.includes('projects') ? <SearchResultsProjectsComponent searchResult={searchResult} /> : null }
+    { si.includes('task_definitions') ? <SearchResultsTaskDefinitionsComponent searchResult={searchResult} /> : null }
+    { si.includes('tasks') ? <SearchResultsTasksComponent searchResult={searchResult} /> : null }
   </>;
 }
 
@@ -140,6 +147,7 @@ const Component: FC = () => {
   const [searchResult, setSearchResults] = useState<SearchQueryResult>(null);
   const [loading, setLoading] = useState<LoadingComponent>(null);
   const searchRef = useRef<HTMLButtonElement>(null)
+  const searchInRef = useRef<HTMLSelectElement>(null)
   const dispatch = useAppDispatch();
 
   // This is by intention on every input element, instead of the form element onChange,
@@ -195,6 +203,7 @@ const Component: FC = () => {
     const task_definition_name = formData.get('task_definition_name') as string;
     const task_description = formData.get('task_description') as string;
     const query: SearchQuery = {
+      search_in: formData.getAll('search_in') as string[],
       from_date,
       to_date,
       active_state,
@@ -221,6 +230,16 @@ const Component: FC = () => {
             <div className="cell">
               <nav className="panel">
                 <p className="panel-heading">Query</p>
+                <div className="field">
+                  <label className="label">Search in</label>
+                  <div className="control has-icons-right select is-multiple">
+                    <select ref={searchInRef} required onChange={onInputChange} multiple name="search_in">
+                      <option value="projects">Projects</option>
+                      <option value="task_definitions">Task Definitions</option>
+                      <option value="tasks">Tasks</option>
+                    </select>
+                  </div>
+                </div>
                 <div className="field">
                   <label className="label">From</label>
                   <div className="control has-icons-right">
@@ -311,7 +330,7 @@ const Component: FC = () => {
                 <nav className="panel">
                   <p className="panel-heading">Results</p>
                   <div className="field">
-                    <SearchResultsComponent searchResult={searchResult} />
+                    <SearchResultsComponent searchIn={searchInRef} searchResult={searchResult} />
                   </div>
                 </nav>
               </div>

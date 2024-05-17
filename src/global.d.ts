@@ -41,6 +41,7 @@ type SearchQueryTask = {
 }
 
 type SearchQuery = {
+  search_in: string[],
   active_state: string,
   from_date: string,
   task: SearchQueryTask,
