@@ -14,7 +14,6 @@ export const Projects: FC = () => {
   const selectedProject = useAppSelector((state) => state.selectedProject.value)
   const [useModalConfirm, setModalConfirm] = useState(null)
   const [useModalEdit, setModalEdit] = useState(null)
-  const useModalEditRef = useRef(null)
 
   const onFormSubmit = async (evt: React.FormEvent) => {
     evt.preventDefault();
@@ -57,24 +56,17 @@ export const Projects: FC = () => {
     setModalConfirm(<ModalConfirm message="Are you sure you want to delete this project?" callback={onConfirmCallback} />)
   }
 
-  const onEditProjectCallback = async (status: boolean) => {
+  const onEditProjectCallback = async (status: boolean, project: DBProject) => {
     if (status) {
-      const form = useModalEditRef.current.querySelector('form') as HTMLFormElement;
-      const formData = new FormData(form);
-      const oldname = formData.get("oldname") as string
-      const name = formData.get("name") as string
-      const rpcResult = await window.electron.editProject({ oldname, name })
-      if (rpcResult.success) {
-        dispatch(replaceProject({ name, oldname }));
-        dispatch(setSelectedProject({ name: name }));
-      }
+      dispatch(setSelectedProject({ name: project.name }));
     }
     setModalEdit(null)
   }
 
-  const onEditButtonClick = async (evt: React.MouseEvent) => {
+  const onEditButtonClick = async (evt: React.MouseEvent<HTMLButtonElement>) => {
     evt.preventDefault();
-    setModalEdit(<EditProjectModal useRef={useModalEditRef} name={selectedProject.name} callback={onEditProjectCallback} />)
+    const data = JSON.parse(evt.currentTarget.dataset.data as string) as DBProject
+    setModalEdit(<EditProjectModal  project={data} callback={(status) => onEditProjectCallback(status, data)} />)
   }
 
   const fetchProjects = async () => {
@@ -131,8 +123,8 @@ export const Projects: FC = () => {
               <form data-buttons className="p-4">
                 <div className="field">
                   <div className="control">
-                    <button className="button is-warning m-1" onClick={onEditButtonClick}>Edit</button>
-                    <button className="button is-danger m-1" onClick={onDeleteButtonClick}>Delete</button>
+                    <button className="button is-warning m-1" data-data={JSON.stringify(selectedProject)} onClick={onEditButtonClick}>Edit</button>
+                    <button className="button is-danger m-1" data-data={JSON.stringify(selectedProject)} onClick={onDeleteButtonClick}>Delete</button>
                   </div>
                 </div>
               </form>

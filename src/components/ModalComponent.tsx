@@ -1,23 +1,29 @@
-import React, { FC, ReactNode } from 'react';
-import { clsx } from 'clsx';
+import { FC, ReactNode } from 'react';
 
 interface BaseLayoutProps {
-  title?: string;
+  title: string;
   children: ReactNode;
   buttons: ReactNode;
 }
 
-const Component: FC<BaseLayoutProps> = ({ children, buttons }) => {
+const Component: FC<BaseLayoutProps> = ({ title, children, buttons }) => {
   return <>
     <div className="modal is-active">
       <div className="modal-background"></div>
-      <div className="modal-content">
-        <div className="box">
-          {children ? children : null }
-          <div className="buttons">
-            { buttons ? buttons : null }
-          </div>
-        </div>
+      <div className="modal-card">
+        <form>
+          <header className="modal-card-head">
+            <p className="modal-card-title">{title}</p>
+          </header>
+          <section className="modal-card-body">
+            {children ? children : null }
+          </section>
+          <footer className="modal-card-foot">
+            <div className="buttons">
+              { buttons ? buttons : null }
+            </div>
+          </footer>
+        </form>
       </div>
     </div>
   </>;

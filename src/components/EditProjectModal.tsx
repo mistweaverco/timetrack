@@ -1,32 +1,40 @@
-import React, { FC, ReactNode } from 'react';
+import React, { FC, ReactNode, useRef } from 'react';
+import { replaceProject } from './Store/slices/projects'
+import { useAppDispatch } from './Store/hooks'
 
 interface BaseLayoutProps {
   children?: ReactNode;
-  name: string;
-  useRef: React.RefObject<HTMLDivElement>;
+  project: DBProject;
   callback?: (status: boolean) => void;
 }
 
-export const EditProjectModal: FC<BaseLayoutProps> = ({ callback, name, useRef }) => {
-  const onEditButtonClick = (evt: React.MouseEvent) => {
+export const EditProjectModal: FC<BaseLayoutProps> = ({ callback, project }) => {
+  const ref = useRef<HTMLFormElement>(null);
+  const dispatch = useAppDispatch();
+
+  const onEditButtonClick = async (evt: React.MouseEvent) => {
     evt.preventDefault();
-    if (callback) {
-      callback(true);
+    const form = ref.current.querySelector('form') as HTMLFormElement;
+    const formData = new FormData(form);
+    const oldname = formData.get("oldname") as string
+    const name = formData.get("name") as string
+    const rpcResult = await window.electron.editProject({ oldname, name })
+    if (rpcResult.success) {
+      dispatch(replaceProject({ name, oldname }));
     }
+    callback && callback(true);
   }
 
   const onCancelButtonClick = (evt: React.MouseEvent) => {
     evt.preventDefault();
-    if (callback) {
-      callback(false);
-    }
+    callback && callback(false);
   }
 
   return <>
-    <div className="modal is-active" ref={useRef}>
+    <div className="modal is-active">
       <div className="modal-background"></div>
       <div className="modal-card">
-        <form>
+        <form ref={ref}>
           <header className="modal-card-head">
             <p className="modal-card-title">Edit Project</p>
           </header>
@@ -34,8 +42,8 @@ export const EditProjectModal: FC<BaseLayoutProps> = ({ callback, name, useRef }
             <div className="field">
               <label className="label">Project Name</label>
               <div className="control">
-                <input type="hidden" name="oldname" defaultValue={name} />
-                <input className="input" name="name" required defaultValue={name} type="text" placeholder="Project Name" />
+                <input type="hidden" name="oldname" defaultValue={project.name} />
+                <input className="input" name="name" required defaultValue={project.name} type="text" placeholder="Project Name" />
               </div>
             </div>
           </section>

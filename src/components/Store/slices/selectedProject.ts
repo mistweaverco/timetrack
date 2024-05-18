@@ -1,9 +1,7 @@
 import { createSlice } from '@reduxjs/toolkit'
 
 interface SelectedProjectState {
-  value: {
-    name: string | null
-  }
+  value: DBProject
 }
 
 // Define the initial state using that type

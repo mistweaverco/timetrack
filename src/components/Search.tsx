@@ -1,7 +1,9 @@
 import React, { FC, useRef, useState  } from 'react';
 import moment from 'moment';
 import { LoadingComponent } from './LoadingComponent';
+import { EditProjectModal } from './EditProjectModal'
 import { DeleteProjectModal } from './DeleteProjectModal'
+import { EditTaskModal } from './EditTaskModal'
 import { DeleteTaskModal } from './DeleteTaskModal'
 import { DeleteTaskDefinitionModal } from './DeleteTaskDefinitionModal'
 
@@ -36,6 +38,22 @@ const SearchResultsProjectsComponent: FC<Props> = ({ searchResult, setSearchResu
     setModal(<DeleteProjectModal project={data} callback={(status) => delModalCallback(status, data)} />);
   }
 
+  const editModalCallback = (status: boolean, data: DBProject) => {
+    if (status) {
+      const filteredProjects = searchResult.projects.filter((project: DBProject) => project.name !== data.name);
+      searchResult.projects = filteredProjects;
+      setSearchResults(searchResult);
+    }
+    setModal(null)
+  }
+
+  const showEditModal = (evt: React.MouseEvent<HTMLButtonElement>) => {
+    evt.preventDefault();
+    const data = JSON.parse(evt.currentTarget.dataset.data) as DBProject;
+    setModal(<EditProjectModal project={data} callback={(status: boolean) => editModalCallback(status, data)} />);
+  }
+
+
   return <>
     <div>
       <div className="field">
@@ -56,7 +74,7 @@ const SearchResultsProjectsComponent: FC<Props> = ({ searchResult, setSearchResu
             <div className="column">
               <div className="field">
                 <div className="control">
-                  <button className="button is-warning" data-data={JSON.stringify(project)} onClick={showDeleteConfirmModal}>Edit</button>
+                  <button className="button is-warning" data-data={JSON.stringify(project)} onClick={showEditModal}>Edit</button>
                   <button className="button is-danger" data-data={JSON.stringify(project)} onClick={showDeleteConfirmModal}>Delete</button>
                 </div>
               </div>
