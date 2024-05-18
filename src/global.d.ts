@@ -194,7 +194,10 @@ interface Window {
       date: string
     }) => Promise<{ success: boolean }>
     getTasks: (project_name: string) => Promise<DBTask[]>
-    getTasksByNameAndProject: (opts: { name: string, project_name: string }) => Promise<DBTask[]>
+    getTasksByNameAndProject: (opts: {
+      name: string
+      project_name: string
+    }) => Promise<DBTask[]>
     getActiveTasks: () => Promise<ActiveTask[]>
     startActiveTask: (
       opts: ActiveTask,

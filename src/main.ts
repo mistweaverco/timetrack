@@ -376,7 +376,7 @@ const setupIPCHandles = async () => {
     },
     {
       id: 'getTasksByNameAndProject',
-      cb: async (_: string, opts: { name: string, project_name: string }) => {
+      cb: async (_: string, opts: { name: string; project_name: string }) => {
         const json = await getTasksByNameAndProject(DB, opts)
         return json
       },

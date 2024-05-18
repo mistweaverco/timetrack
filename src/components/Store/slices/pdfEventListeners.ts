@@ -33,5 +33,6 @@ export const pdfEventlistenersSlice = createSlice({
   },
 })
 
-export const { setPDFEventlisteners, removePDFEventlisteners } = pdfEventlistenersSlice.actions
+export const { setPDFEventlisteners, removePDFEventlisteners } =
+  pdfEventlistenersSlice.actions
 export const pdfEventlistenersReducer = pdfEventlistenersSlice.reducer
