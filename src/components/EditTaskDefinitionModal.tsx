@@ -11,7 +11,7 @@ import { removeSelectedTaskDefinition } from './Store/slices/selectedTaskDefinit
 interface BaseLayoutProps {
   children?: ReactNode;
   taskDefinition: DBTaskDefinition;
-  callback?: (status: boolean, editedTaskDefintionData?: DBTaskDefinition) => void;
+  callback?: (status: boolean, editedTaskDefinitionData?: DBTaskDefinition) => void;
 }
 
 export const EditTaskDefinitionModal: FC<BaseLayoutProps> = ({ callback, taskDefinition }) => {

@@ -39,7 +39,6 @@ const getSearchResult = async (
     .replace('all', 'active = 1 OR active = 0')
     .replace('active', 'active = 1')
     .replace('inactive', 'active = 0')
-  console.log('active_state', active_state)
   const search_in = q.search_in
   const project_name = q.task.project_name.replace(/\*/g, '%')
   const task_name = q.task.task_name.replace(/\*/g, '%')
@@ -278,7 +277,7 @@ const getTasksToday = async (
   project_name: string,
 ): Promise<DBTask[]> => {
   const tasks = await db.all(
-    'SELECT * FROM tasks WHERE project_name = ? AND date=DATE("now")',
+    'SELECT * FROM tasks WHERE project_name = ? AND date=DATE("now", "localtime")',
     project_name,
   )
   return tasks

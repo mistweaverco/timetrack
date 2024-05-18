@@ -1,4 +1,5 @@
 import { FC, useEffect, useRef, useState } from 'react';
+import moment from 'moment';
 import { connect } from 'react-redux';
 import { Datafetcher } from './../lib/Datafetcher';
 import type { RootState } from './Store'
@@ -7,12 +8,12 @@ import { replaceTask, replaceTasks, appendTask, deleteTask } from './Store/slice
 import { replaceTaskDefinitions } from './Store/slices/taskDefinitions'
 import { setSelectedTask, removeSelectedTask } from './Store/slices/selectedTask'
 import { appendActiveTask, replaceActiveTask } from './Store/slices/activeTasks'
-import { ModalConfirm } from './ModalConfirm';
 import { EditTaskModal } from './EditTaskModal';
 import { TimerComponent } from './TimerComponent';
 import { TimeInputComponent } from './TimeInputComponent';
 import { InfoboxComponent } from './InfoboxComponent';
 import clsx from 'clsx';
+import { DeleteTaskModal } from './DeleteTaskModal';
 
 type Props = {
   selectedProject: {
@@ -30,9 +31,7 @@ const Component: FC<Props> = ({ selectedProject, activeTasks, tasks }) => {
   const dispatch = useAppDispatch();
   const tasksDefinitions = useAppSelector((state) => state.taskDefinitions.value)
   const selectedTask = useAppSelector((state) => state.selectedTask.value)
-  const [useModalConfirm, setModalConfirm] = useState(null)
-  const [useModalEdit, setModalEdit] = useState(null)
-  const useModalEditRef = useRef(null)
+  const [modal, setModal] = useState(null)
 
   const WrappedTimerComponent: FC<WrappedTimerComponentProps> = ({ task }) => {
     const activeTask = activeTasks.find((at) => at.name === task.name && at.project_name === task.project_name && at.date === task.date)
@@ -54,7 +53,7 @@ const Component: FC<Props> = ({ selectedProject, activeTasks, tasks }) => {
       description: formData.get('description') as string,
       project_name: selectedProject.name as string,
       seconds: parseInt(formData.get('seconds') as string),
-      date: new Date().toISOString().split('T')[0]
+      date: moment().local().format('YYYY-MM-DD')
     }
     const rpcResult = await window.electron.addTask({
       name: task.name,
@@ -93,84 +92,29 @@ const Component: FC<Props> = ({ selectedProject, activeTasks, tasks }) => {
     }
   }
 
-  const onTaskEditCallback = async (status: boolean) => {
-    if (status) {
-      const form = useModalEditRef.current.querySelector('form') as HTMLFormElement;
-      const formData = new FormData(form);
-      const task = {
-        name: selectedTask.name,
-        description: formData.get('description') as string,
-        project_name: selectedTask.project_name as string,
-        seconds: parseInt(formData.get('seconds') as string, 10),
-        date: selectedTask.date
-      }
-      const rpcResult = await window.electron.editTask({
-        name: task.name,
-        description: task.description,
-        project_name: task.project_name,
-        seconds: task.seconds,
-        date: task.date
-      })
-
-      if (rpcResult.success) {
-        const activeTask = activeTasks.find((at) => at.name === task.name && at.project_name === task.project_name && at.date === task.date)
-        if (activeTask) {
-          dispatch(replaceActiveTask({
-            name: rpcResult.name,
-            oldname: rpcResult.name,
-            project_name: rpcResult.project_name,
-            description: rpcResult.description,
-            date: rpcResult.date,
-            seconds: rpcResult.seconds,
-            isActive: activeTask.isActive
-          }))
-        }
-        dispatch(replaceTask({
-          name: rpcResult.name,
-          oldname: rpcResult.name,
-          seconds: rpcResult.seconds,
-          project_name: rpcResult.project_name,
-          date: rpcResult.date,
-          description: rpcResult.description,
-        }))
-      }
-    }
-    setModalEdit(null)
+  const onTaskEditCallback = async () => {
+    setModal(null)
   }
 
   const onTaskEditClick = async (evt: React.MouseEvent) => {
     evt.preventDefault();
     const task = tasks.find((t) => t.name === selectedTask.name && t.project_name === selectedTask.project_name && t.date === selectedTask.date)
     if (task) {
-      setModalEdit(<EditTaskModal callback={onTaskEditCallback} useRef={useModalEditRef} task={task} />)
+      setModal(<EditTaskModal callback={onTaskEditCallback} task={task} />)
     }
   }
 
-  const onConfirmCallback = async (status: boolean) => {
+  const onTaskDeleteCallback = async (status: boolean) => {
     if (status) {
-      const task = tasks.find((t) => t.name === selectedTask.name && t.project_name === selectedTask.project_name && t.date === selectedTask.date)
-      if (task) {
-        // TODO make sure task is not running on the backend
-        const rpcResult = await window.electron.deleteTask({
-          name: task.name,
-          project_name: task.project_name,
-          date: task.date
-        })
-        if (rpcResult.success) {
-          dispatch(deleteTask({ name: task.name, project_name: task.project_name, date: task.date }));
-          dispatch(removeSelectedTask());
-          // TODO fix
-          // dirty hack to update
-          window.location.reload()
-        }
-      }
+      dispatch(removeSelectedTask());
     }
-    setModalConfirm(null)
+    setModal(null)
   }
 
-  const onTaskDeleteClick = async (evt: React.MouseEvent) => {
+  const onTaskDeleteClick = async (evt: React.MouseEvent<HTMLButtonElement>) => {
     evt.preventDefault();
-    setModalConfirm(<ModalConfirm message="Are you sure you want to delete this task?" callback={onConfirmCallback} />)
+    const task = JSON.parse(evt.currentTarget.dataset.data as string);
+    setModal(<DeleteTaskModal task={task} callback={onTaskDeleteCallback} />)
   }
 
   const fetchTaskDefinitions = async () => {
@@ -211,7 +155,7 @@ const Component: FC<Props> = ({ selectedProject, activeTasks, tasks }) => {
       return <>
         <button className="button is-primary m-1" onClick={onTaskStartClick}>Start</button>
         <button className="button is-warning m-1" onClick={onTaskEditClick}>Edit</button>
-        <button className="button is-danger m-1" onClick={onTaskDeleteClick}>Delete</button>
+        <button className="button is-danger m-1" data-data={JSON.stringify(selectedTask)} onClick={onTaskDeleteClick}>Delete</button>
       </>
     }
   }
@@ -231,8 +175,7 @@ const Component: FC<Props> = ({ selectedProject, activeTasks, tasks }) => {
 
   if (tasksDefinitions.length) {
     return <>
-      {useModalConfirm}
-      {useModalEdit}
+      {modal}
       <section className="section">
         <h1 className="title">Tasks</h1>
         <h2 className="subtitle">All available Tasks for a given project</h2>
