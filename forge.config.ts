@@ -17,7 +17,7 @@ const config: ForgeConfig = {
   makers: [
     new MakerSquirrel({
       iconUrl:
-        'https://raw.githubusercontent.com/mistweaverco/timetrack.desktop/main/src/assets/icon/icon.ico',
+        'https://raw.githubusercontent.com/mistweaverco/timetrack/main/src/assets/icon/icon.ico',
       setupIcon: path.resolve(__dirname, 'src/assets/icon/icon.ico'),
     }),
     new MakerRpm({
