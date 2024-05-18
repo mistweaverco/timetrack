@@ -8,6 +8,7 @@ import { tasksReducer } from './slices/tasks';
 import { selectedTaskReducer } from './slices/selectedTask';
 import { activeTasksReducer } from './slices/activeTasks';
 import { pdfDocumentReducer } from './slices/pdfDocument';
+import { pdfEventlistenersReducer } from './slices/pdfEventListeners';
 
 
 export const store = configureStore({
@@ -21,6 +22,7 @@ export const store = configureStore({
     selectedTask: selectedTaskReducer,
     activeTasks: activeTasksReducer,
     pdfDocument: pdfDocumentReducer,
+    pdfEventlisteners: pdfEventlistenersReducer,
   },
 })
 

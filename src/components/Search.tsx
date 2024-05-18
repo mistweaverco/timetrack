@@ -6,14 +6,20 @@ import { DeleteProjectModal } from './DeleteProjectModal'
 import { EditTaskModal } from './EditTaskModal'
 import { DeleteTaskModal } from './DeleteTaskModal'
 import { DeleteTaskDefinitionModal } from './DeleteTaskDefinitionModal'
+import { RootState } from './Store';
+import { connect } from 'react-redux';
+import { InfoboxComponent } from './InfoboxComponent';
+import { watch } from 'original-fs';
 
 type Props = {
+  activeTasks: ActiveTask[]
   searchResult: SearchQueryResult
   setSearchResults: React.RefCallback<SearchQueryResult>
   setModal: React.Dispatch<React.SetStateAction<React.ReactNode>>
 }
 
 type SearchResultsComponentProps = {
+  activeTasks: ActiveTask[]
   searchResult: SearchQueryResult
   setSearchResults: React.RefCallback<SearchQueryResult>
   searchIn: React.RefObject<HTMLSelectElement>
@@ -21,7 +27,7 @@ type SearchResultsComponentProps = {
 }
 
 
-const SearchResultsProjectsComponent: FC<Props> = ({ searchResult, setSearchResults, setModal }) => {
+const SearchResultsProjectsComponent: FC<Props> = ({ activeTasks, searchResult, setSearchResults, setModal }) => {
 
   const delModalCallback = (status: boolean, data: DBProject) => {
     if (status) {
@@ -59,6 +65,26 @@ const SearchResultsProjectsComponent: FC<Props> = ({ searchResult, setSearchResu
     setModal(<EditProjectModal project={data} callback={(status: boolean, editedData: DBProject) => editModalCallback(status, data, editedData)} />);
   }
 
+  type ButtonWrapperProps = {
+    project: DBProject
+  }
+
+  const ButtonWrapperComponent: FC<ButtonWrapperProps> = ({ project }) => {
+    const activeTask = activeTasks.find((at) => at.project_name === project.name)
+    if (activeTask) {
+      return <>
+        <InfoboxComponent title="Warning" type="warning">
+          A task belonging to this project is currently active,
+          you need to stop it to perform any action.
+        </InfoboxComponent>
+      </>
+    } else {
+      return <>
+        <button className="button is-warning" data-data={JSON.stringify(project)} onClick={showEditModal}>Edit</button>
+        <button className="button is-danger" data-data={JSON.stringify(project)} onClick={showDeleteConfirmModal}>Delete</button>
+      </>
+    }
+  }
 
   return <>
     <div>
@@ -80,8 +106,7 @@ const SearchResultsProjectsComponent: FC<Props> = ({ searchResult, setSearchResu
             <div className="column">
               <div className="field">
                 <div className="control">
-                  <button className="button is-warning" data-data={JSON.stringify(project)} onClick={showEditModal}>Edit</button>
-                  <button className="button is-danger" data-data={JSON.stringify(project)} onClick={showDeleteConfirmModal}>Delete</button>
+                  <ButtonWrapperComponent project={project} />
                 </div>
               </div>
             </div>
@@ -93,7 +118,7 @@ const SearchResultsProjectsComponent: FC<Props> = ({ searchResult, setSearchResu
   </>;
 }
 
-const SearchResultsTaskDefinitionsComponent: FC<Props> = ({ searchResult, setModal, setSearchResults }) => {
+const SearchResultsTaskDefinitionsComponent: FC<Props> = ({ activeTasks, searchResult, setModal, setSearchResults }) => {
   const delModalCallback = (status: boolean, data: DBTaskDefinition) => {
     if (status) {
       const f = (td: DBTaskDefinition) => {
@@ -111,6 +136,27 @@ const SearchResultsTaskDefinitionsComponent: FC<Props> = ({ searchResult, setMod
     evt.preventDefault();
     const data = JSON.parse(evt.currentTarget.dataset.data) as DBTaskDefinition;
     setModal(<DeleteTaskDefinitionModal taskDefinition={data} callback={(status) => delModalCallback(status, data)} />);
+  }
+
+  type ButtonWrapperProps = {
+    taskdef: DBTaskDefinition
+  }
+
+  const ButtonWrapperComponent: FC<ButtonWrapperProps> = ({ taskdef }) => {
+    const activeTask = activeTasks.find((at) => at.name === taskdef.name && at.project_name === taskdef.project_name)
+    if (activeTask) {
+      return <>
+        <InfoboxComponent title="Warning" type="warning">
+          A task belonging to this task definition is currently active,
+          you need to stop it to perform any action.
+        </InfoboxComponent>
+      </>
+    } else {
+      return <>
+        <button className="button is-warning" data-data={JSON.stringify(taskdef)}>Edit</button>
+        <button className="button is-danger" data-data={JSON.stringify(taskdef)} onClick={showDeleteConfirmModal}>Delete</button>
+      </>
+    }
   }
 
   return <>
@@ -133,8 +179,7 @@ const SearchResultsTaskDefinitionsComponent: FC<Props> = ({ searchResult, setMod
             <div className="column">
               <div className="field">
                 <div className="control">
-                  <button className="button is-warning" data-data={JSON.stringify(taskdef)}>Edit</button>
-                  <button className="button is-danger" data-data={JSON.stringify(taskdef)} onClick={showDeleteConfirmModal}>Delete</button>
+                  <ButtonWrapperComponent taskdef={taskdef} />
                 </div>
               </div>
             </div>
@@ -145,7 +190,7 @@ const SearchResultsTaskDefinitionsComponent: FC<Props> = ({ searchResult, setMod
     </div>
   </>;
 }
-const SearchResultsTasksComponent: FC<Props> = ({ searchResult, setModal, setSearchResults }) => {
+const SearchResultsTasksComponent: FC<Props> = ({ activeTasks, searchResult, setModal, setSearchResults }) => {
   const delModalCallback = (status: boolean, data: DBTask) => {
     if (status) {
       const f = (t: DBTask) => {
@@ -164,6 +209,28 @@ const SearchResultsTasksComponent: FC<Props> = ({ searchResult, setModal, setSea
     const data = JSON.parse(evt.currentTarget.dataset.data) as DBTask;
     setModal(<DeleteTaskModal task={data} callback={(status) => delModalCallback(status, data)} />);
   }
+
+  type ButtonWrapperProps = {
+    task: DBTask
+  }
+
+  const ButtonWrapperComponent: FC<ButtonWrapperProps> = ({ task }) => {
+    const activeTask = activeTasks.find((at) => at.name === task.name && at.project_name === task.project_name)
+    if (activeTask) {
+      return <>
+        <InfoboxComponent title="Warning" type="warning">
+          This task is currently active,
+          you need to stop it to perform any action.
+        </InfoboxComponent>
+      </>
+    } else {
+      return <>
+        <button className="button is-warning" data-data={JSON.stringify(task)}>Edit</button>
+        <button className="button is-danger" data-data={JSON.stringify(task)} onClick={showDeleteConfirmModal}>Delete</button>
+      </>
+    }
+  }
+
   return <>
     <div>
       <div className="field">
@@ -187,8 +254,7 @@ const SearchResultsTasksComponent: FC<Props> = ({ searchResult, setModal, setSea
             <div className="column">
               <div className="field">
                 <div className="control">
-                  <button className="button is-warning" data-data={JSON.stringify(task)}>Edit</button>
-                  <button className="button is-danger" data-data={JSON.stringify(task)} onClick={showDeleteConfirmModal}>Delete</button>
+                  <ButtonWrapperComponent task={task} />
                 </div>
               </div>
             </div>
@@ -201,7 +267,7 @@ const SearchResultsTasksComponent: FC<Props> = ({ searchResult, setModal, setSea
 }
 
 
-const SearchResultsComponent: FC<SearchResultsComponentProps> = ({ searchIn, searchResult, setModal, setSearchResults}) => {
+const SearchResultsComponent: FC<SearchResultsComponentProps> = ({ activeTasks, searchIn, searchResult, setModal, setSearchResults}) => {
   if (!searchResult) {
     return null;
   }
@@ -209,13 +275,17 @@ const SearchResultsComponent: FC<SearchResultsComponentProps> = ({ searchIn, sea
   const formData = new FormData(form);
   const si = formData.getAll('search_in') as string[];
   return <>
-    { si.includes('projects') ? <SearchResultsProjectsComponent setModal={setModal} searchResult={searchResult} setSearchResults={setSearchResults} /> : null }
-    { si.includes('task_definitions') ? <SearchResultsTaskDefinitionsComponent setModal={setModal} searchResult={searchResult} setSearchResults={setSearchResults} /> : null }
-    { si.includes('tasks') ? <SearchResultsTasksComponent setModal={setModal} searchResult={searchResult} setSearchResults={setSearchResults} /> : null }
+    { si.includes('projects') ? <SearchResultsProjectsComponent activeTasks={activeTasks} setModal={setModal} searchResult={searchResult} setSearchResults={setSearchResults} /> : null }
+    { si.includes('task_definitions') ? <SearchResultsTaskDefinitionsComponent activeTasks={activeTasks} setModal={setModal} searchResult={searchResult} setSearchResults={setSearchResults} /> : null }
+    { si.includes('tasks') ? <SearchResultsTasksComponent activeTasks={activeTasks} setModal={setModal} searchResult={searchResult} setSearchResults={setSearchResults} /> : null }
   </>;
 }
 
-const Component: FC = () => {
+type ComponentProps = {
+  activeTasks: ActiveTask[]
+}
+
+const Component: FC<ComponentProps> = ({ activeTasks }) => {
   const [searchResult, setSearchResults] = useState<SearchQueryResult>(null);
   const [showLoading, setLoading] = useState<boolean>(false);
   const [modal, setModal] = useState<React.ReactNode>(null);
@@ -309,9 +379,9 @@ const Component: FC = () => {
                   <label className="label">Search in</label>
                   <div className="control has-icons-right select is-multiple">
                     <select ref={searchInRef} required onChange={onInputChange} multiple name="search_in">
+                      <option value="tasks">Tasks</option>
                       <option value="projects">Projects</option>
                       <option value="task_definitions">Task Definitions</option>
-                      <option value="tasks">Tasks</option>
                     </select>
                   </div>
                 </div>
@@ -406,6 +476,7 @@ const Component: FC = () => {
                   <p className="panel-heading">Results</p>
                   <div className="field">
                     <SearchResultsComponent
+                      activeTasks={activeTasks}
                       setModal={setModal}
                       searchIn={searchInRef}
                       setSearchResults={setSearchResults}
@@ -422,5 +493,11 @@ const Component: FC = () => {
   </>;
 };
 
-export const Search = Component;
+const mapStateToProps = (state: RootState) => {
+  return {
+    activeTasks: state.activeTasks.value
+  }
+}
+const connected = connect(mapStateToProps)(Component);
+export const Search = connected
 

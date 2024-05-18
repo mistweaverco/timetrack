@@ -197,7 +197,7 @@ const Component: FC<Props> = ({ selectedProject, activeTasks, tasks }) => {
     }))
   }
 
-  const ButtonWrapperComponent: FC = ({ children }) => {
+  const ButtonWrapperComponent: FC = () => {
     const activeTask = activeTasks.find((at) => at.name === selectedTask.name && at.project_name === selectedTask.project_name && at.date === selectedTask.date)
     if (activeTask) {
       return <>

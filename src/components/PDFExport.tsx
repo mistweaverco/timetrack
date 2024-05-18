@@ -5,6 +5,9 @@ import { Datafetcher } from './../lib/Datafetcher';
 import { useAppDispatch, useAppSelector } from './Store/hooks'
 import { setPDFDocument, removePDFDocument } from './Store/slices/pdfDocument'
 import { setSelectedPanel } from './Store/slices/selectedPanel'
+import { RootState } from './Store';
+import { connect } from 'react-redux';
+import { setPDFEventlisteners } from './Store/slices/pdfEventListeners';
 
 type ProjectTaskDefintion = {
   project_name: string,
@@ -66,12 +69,13 @@ const ProjectsComponent: FC<{ projects: DBProject[], taskdefs: ProjectTaskDefint
   })
 }
 
-const Component: FC = () => {
+type Props = {
+  pdfEventlistenersAdded: boolean
+}
+
+const Component: FC<Props> = ({ pdfEventlistenersAdded }) => {
   const [projects, setProjects] = useState([]);
   const [tasksDefinitions, setTaskDefinitions] = useState([]);
-  const fromRef = useRef<HTMLInputElement>(null)
-  const toRef = useRef<HTMLInputElement>(null)
-  const genRef = useRef<HTMLButtonElement>(null)
   const dispatch = useAppDispatch();
 
   const onFormSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -98,19 +102,6 @@ const Component: FC = () => {
     dispatch(setPDFDocument({ name: rpcResult }));
   }
 
-  window.electron.on('on-pdf-export-file-selected', ({ filePath, canceled }) => {
-    if (canceled) {
-      dispatch(removePDFDocument());
-      dispatch(setSelectedPanel({ name: 'PDFExport' }));
-    }
-  })
-
-  window.electron.on('on-pdf-export-file-saved', () => {
-    dispatch(removePDFDocument());
-    dispatch(setSelectedPanel({ name: 'PDFExport' }));
-  })
-
-
   const fetchAllProjects = async () => {
     const p = await Datafetcher.getProjects();
     setProjects(p);
@@ -121,9 +112,31 @@ const Component: FC = () => {
     setTaskDefinitions(td);
   }
 
+  const onPDFExportFileSelected = ({ canceled }) => {
+    if (canceled) {
+      dispatch(removePDFDocument());
+      dispatch(setSelectedPanel({ name: 'PDFExport' }));
+    }
+  }
+
+  const onPDFExportFileSaved = () => {
+    dispatch(removePDFDocument());
+    dispatch(setSelectedPanel({ name: 'PDFExport' }));
+  }
+
   useEffect(() => {
     fetchAllProjects();
     fetchAllTaskDefinitions();
+    // this leaks, we need to make sure to not add the same listener multiple times
+    // we could remove the listener in the cleanup function, that
+    // that would mess up the pdf export functionality
+    // so we keep track of added listeners in a redux state
+    if (pdfEventlistenersAdded) {
+      return;
+    }
+    window.electron.on('on-pdf-export-file-selected', onPDFExportFileSelected);
+    window.electron.on('on-pdf-export-file-saved', onPDFExportFileSaved);
+    dispatch(setPDFEventlisteners());
   }, [])
 
   if (tasksDefinitions.length) {
@@ -175,5 +188,11 @@ const Component: FC = () => {
   }
 };
 
-export const PDFExport = Component;
+const mapStateToProps = (state: RootState) => {
+  return {
+    pdfEventlistenersAdded: state.pdfEventlisteners.value.added
+  }
+}
+const connected = connect(mapStateToProps)(Component);
+export const PDFExport = connected
 

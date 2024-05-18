@@ -152,7 +152,8 @@ interface Window {
     electron: string
   }
   electron: {
-    on: (channel: string, callback: (data: any) => void) => void // eslint-disable-line @typescript-eslint/no-explicit-any
+    on: (channel: string, callback: ElectronOnCallback) => void
+    off: (channel: string) => void
     addProject: (name: string) => Promise<{ success: boolean }>
     editProject: (opts: {
       name: string

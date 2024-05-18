@@ -14,6 +14,9 @@ contextBridge.exposeInMainWorld('electron', {
   on: (channel: string, callback: ElectronOnCallback) => {
     ipcRenderer.on(channel, (_, data) => callback(data))
   },
+  off: (channel: string) => {
+    ipcRenderer.removeAllListeners(channel)
+  },
   showFileSaveDialog: () =>
     ipcRenderer.invoke('showFileSaveDialog').then(result => result),
   addProject: (name: string) =>

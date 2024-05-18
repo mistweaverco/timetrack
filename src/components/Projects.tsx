@@ -7,9 +7,17 @@ import { removeSelectedTask } from './Store/slices/selectedTask'
 import { Datafetcher } from './../lib/Datafetcher';
 import { DeleteProjectModal } from './DeleteProjectModal';
 import { EditProjectModal } from './EditProjectModal';
+import { InfoboxComponent } from './InfoboxComponent';
 import clsx from 'clsx';
+import { RootState } from './Store';
+import { connect } from 'react-redux';
 
-export const Projects: FC = () => {
+type Props = {
+  activeTasks: ActiveTask[],
+}
+
+
+export const Component: FC<Props> = ({ activeTasks }) => {
   const dispatch = useAppDispatch();
   const projects = useAppSelector((state) => state.projects.value)
   const selectedProject = useAppSelector((state) => state.selectedProject.value)
@@ -71,6 +79,24 @@ export const Projects: FC = () => {
     dispatch(replaceProjects(ps))
   }
 
+  const ButtonWrapperComponent: FC = () => {
+    const activeTask = activeTasks.find((at) => at.project_name === selectedProject.name)
+    if (activeTask) {
+      return <>
+        <InfoboxComponent title="Warning" type="warning">
+          A task belonging to this project is currently active,
+          you need to stop it to perform any action.
+        </InfoboxComponent>
+      </>
+    } else {
+      return <>
+        <button className="button is-warning m-1" data-data={JSON.stringify(selectedProject)} onClick={onEditButtonClick}>Edit</button>
+        <button className="button is-danger m-1" data-data={JSON.stringify(selectedProject)} onClick={onDeleteButtonClick}>Delete</button>
+      </>
+    }
+  }
+
+
   useEffect(() => {
     fetchProjects();
   }, [])
@@ -119,8 +145,7 @@ export const Projects: FC = () => {
               <form data-buttons className="p-4">
                 <div className="field">
                   <div className="control">
-                    <button className="button is-warning m-1" data-data={JSON.stringify(selectedProject)} onClick={onEditButtonClick}>Edit</button>
-                    <button className="button is-danger m-1" data-data={JSON.stringify(selectedProject)} onClick={onDeleteButtonClick}>Delete</button>
+                    <ButtonWrapperComponent />
                   </div>
                 </div>
               </form>
@@ -132,3 +157,13 @@ export const Projects: FC = () => {
     </section>
   </>;
 };
+
+const mapStateToProps = (state: RootState) => {
+  return {
+    activeTasks: state.activeTasks.value,
+  }
+}
+
+const connected = connect(mapStateToProps)(Component);
+export const Projects = connected
+
