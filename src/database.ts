@@ -190,6 +190,11 @@ const deleteTaskDefinition = async (
     opts.name,
     opts.project_name,
   )
+  await db.run(
+    'DELETE FROM tasks WHERE name = ? AND project_name = ?',
+    opts.name,
+    opts.project_name,
+  )
   return { success: true }
 }
 

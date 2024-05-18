@@ -1,11 +1,10 @@
-import { FC, useState, useRef } from 'react';
+import { FC, useState } from 'react';
 import { connect } from 'react-redux';
 import { RootState } from './Store';
-import { removeActiveClassnameTaskDefinitions } from './../lib/Utils';
-import { ModalConfirm } from './ModalConfirm';
+import { DeleteTaskDefinitionModal } from './DeleteTaskDefinitionModal';
 import { useAppDispatch, useAppSelector } from './Store/hooks'
-import { removeTaskDefinition, appendTaskDefinition, replaceTaskDefinition } from './Store/slices/taskDefinitions'
-import { setSelectedTaskDefinition, removeSelectedTaskDefinition } from './Store/slices/selectedTaskDefinition'
+import { appendTaskDefinition } from './Store/slices/taskDefinitions'
+import { setSelectedTaskDefinition } from './Store/slices/selectedTaskDefinition'
 import { EditTaskDefinitionModal } from './EditTaskDefinitionModal';
 import clsx from 'clsx';
 
@@ -47,32 +46,13 @@ const Component: FC<Props> = ({ activeTasks, selectedProject, taskDefinitions })
     setModal(<EditTaskDefinitionModal taskDefinition={selectedTaskDefinition} callback={onEditCallback} />)
   }
 
-  const onModalConfirmCallback = async (status: boolean) => {
-    if (status) {
-      const taskDefinition = taskDefinitions.find((td) => td.name === selectedTaskDefinition.name)
-      if (taskDefinition) {
-        const rpcResult = await window.electron.deleteTaskDefinition({
-          name: taskDefinition.name,
-          project_name: taskDefinition.project_name
-        })
-        if (rpcResult.success) {
-          dispatch(removeTaskDefinition({
-            name: selectedTaskDefinition.name,
-            project_name: taskDefinition.project_name
-          }));
-          dispatch(removeSelectedTaskDefinition());
-          // TODO fix
-          // dirty hack to force a reload of the task definitions
-          window.location.reload();
-        }
-      }
-    }
+  const onDeleteCallback = () => {
     setModal(null)
   }
 
   const onDeleteButtonClick = async (evt: React.MouseEvent) => {
     evt.preventDefault();
-    setModal(<ModalConfirm message="Are you sure you want to delete this task definition?" callback={onModalConfirmCallback} />)
+    setModal(<DeleteTaskDefinitionModal taskDefinition={selectedTaskDefinition} callback={onDeleteCallback} />)
   }
 
   const onTaskDefintionSelect = async (evt: React.MouseEvent) => {
