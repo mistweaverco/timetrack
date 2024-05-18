@@ -8,14 +8,14 @@ interface BaseLayoutProps {
 }
 
 export const EditProjectModal: FC<BaseLayoutProps> = ({ callback, name, useRef }) => {
-  const onEditButtonClick = (evt: MouseEvent) => {
+  const onEditButtonClick = (evt: React.MouseEvent) => {
     evt.preventDefault();
     if (callback) {
       callback(true);
     }
   }
 
-  const onCancelButtonClick = (evt: MouseEvent) => {
+  const onCancelButtonClick = (evt: React.MouseEvent) => {
     evt.preventDefault();
     if (callback) {
       callback(false);

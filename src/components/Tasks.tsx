@@ -287,9 +287,7 @@ const Component: FC<Props> = ({ selectedProject, activeTasks, tasks }) => {
                             <p className="bd-notification">{task.name}</p>
                             <div className="columns is-mobile">
                               <div className="column">
-                                <p className="bd-notification">
-                                  <WrappedTimerComponent task={task} />
-                                </p>
+                                <WrappedTimerComponent task={task} />
                               </div>
                               <div className="column">
                                 <p className="bd-notification">{task.date}</p>

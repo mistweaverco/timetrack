@@ -55,7 +55,7 @@ const getSearchResult = async (
   let dbResultTaskDefinitions = []
   if (search_in.includes('task_definitions')) {
     dbResultTaskDefinitions = await db.all(
-      `SELECT name FROM task_definitions WHERE name LIKE ? AND project_name LIKE ?`,
+      `SELECT name, project_name FROM task_definitions WHERE name LIKE ? AND project_name LIKE ?`,
       task_definition_name,
       project_name,
     )

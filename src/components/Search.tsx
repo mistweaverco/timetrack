@@ -1,10 +1,9 @@
 import React, { FC, useRef, useState  } from 'react';
 import moment from 'moment';
 import { LoadingComponent } from './LoadingComponent';
-import { useAppDispatch } from './Store/hooks'
-import { deleteProject } from './Store/slices/projects'
-import { InfoboxComponent } from './InfoboxComponent';
-import { ModalComponent } from './ModalComponent'
+import { DeleteProjectModal } from './DeleteProjectModal'
+import { DeleteTaskModal } from './DeleteTaskModal'
+import { DeleteTaskDefinitionModal } from './DeleteTaskDefinitionModal'
 
 type Props = {
   searchResult: SearchQueryResult
@@ -21,42 +20,20 @@ type SearchResultsComponentProps = {
 
 
 const SearchResultsProjectsComponent: FC<Props> = ({ searchResult, setSearchResults, setModal }) => {
-  const dispatch = useAppDispatch();
-  let itemData: DBProject|DBTask|DBTaskDefinition = null;
 
-  const deleteConfirmModalCallback = async (result: boolean) => {
-    if (result) {
-      const rpcResult = await window.electron.deleteProject(itemData.name);
-      if (!rpcResult.success) {
-        return;
-      }
-      dispatch(deleteProject({ name: itemData.name }));
-      const filteredArray = searchResult.projects.filter((project: DBProject) => project.name !== itemData.name);
-      searchResult.projects = filteredArray;
+  const delModalCallback = (status: boolean, data: DBProject) => {
+    if (status) {
+      const filteredProjects = searchResult.projects.filter((project: DBProject) => project.name !== data.name);
+      searchResult.projects = filteredProjects;
       setSearchResults(searchResult);
     }
-    setModal(null);
+    setModal(null)
   }
 
   const showDeleteConfirmModal = (evt: React.MouseEvent<HTMLButtonElement>) => {
     evt.preventDefault();
     const data = JSON.parse(evt.currentTarget.dataset.data) as DBProject;
-    itemData = data;
-    setModal(ModalComponent({
-      title: 'Delete Project',
-      children: <>
-        <p>Are you sure you want to delete this project?</p>
-        <InfoboxComponent type="danger" title="Warning">
-          <p>Deleting a project is a hazardious action.</p>
-          <p>If you delete a project, it'll also delete all it's tasks and task-definitions.</p>
-          <p>Maybe consider marking it as inactive?</p>
-        </InfoboxComponent>
-      </>,
-      buttons: <>
-        <button className="button is-danger" onClick={() => deleteConfirmModalCallback(true)}>Yes</button>
-        <button className="button is-primary" onClick={() => deleteConfirmModalCallback(false)}>No</button>
-      </>
-    }));
+    setModal(<DeleteProjectModal project={data} callback={(status) => delModalCallback(status, data)} />);
   }
 
   return <>
@@ -92,7 +69,26 @@ const SearchResultsProjectsComponent: FC<Props> = ({ searchResult, setSearchResu
   </>;
 }
 
-const SearchResultsTaskDefinitionsComponent: FC<Props> = ({ searchResult }) => {
+const SearchResultsTaskDefinitionsComponent: FC<Props> = ({ searchResult, setModal, setSearchResults }) => {
+  const delModalCallback = (status: boolean, data: DBTaskDefinition) => {
+    if (status) {
+      const f = (td: DBTaskDefinition) => {
+        if (td.name !== data.name || td.project_name !== data.project_name) {
+          return td;
+        }
+      }
+      searchResult.task_definitions = searchResult.task_definitions.filter(f);
+      setSearchResults(searchResult);
+    }
+    setModal(null)
+  }
+
+  const showDeleteConfirmModal = (evt: React.MouseEvent<HTMLButtonElement>) => {
+    evt.preventDefault();
+    const data = JSON.parse(evt.currentTarget.dataset.data) as DBTaskDefinition;
+    setModal(<DeleteTaskDefinitionModal taskDefinition={data} callback={(status) => delModalCallback(status, data)} />);
+  }
+
   return <>
     <div>
       <div className="field">
@@ -113,8 +109,8 @@ const SearchResultsTaskDefinitionsComponent: FC<Props> = ({ searchResult }) => {
             <div className="column">
               <div className="field">
                 <div className="control">
-                  <button className="button is-warning">Edit</button>
-                  <button className="button is-danger">Delete</button>
+                  <button className="button is-warning" data-data={JSON.stringify(taskdef)}>Edit</button>
+                  <button className="button is-danger" data-data={JSON.stringify(taskdef)} onClick={showDeleteConfirmModal}>Delete</button>
                 </div>
               </div>
             </div>
@@ -125,7 +121,25 @@ const SearchResultsTaskDefinitionsComponent: FC<Props> = ({ searchResult }) => {
     </div>
   </>;
 }
-const SearchResultsTasksComponent: FC<Props> = ({ searchResult }) => {
+const SearchResultsTasksComponent: FC<Props> = ({ searchResult, setModal, setSearchResults }) => {
+  const delModalCallback = (status: boolean, data: DBTask) => {
+    if (status) {
+      const f = (t: DBTask) => {
+        if (t.name !== data.name || t.project_name !== data.project_name || t.date !== data.date) {
+          return t;
+        }
+      }
+      searchResult.tasks = searchResult.tasks.filter(f);
+      setSearchResults(searchResult);
+    }
+    setModal(null)
+  }
+
+  const showDeleteConfirmModal = (evt: React.MouseEvent<HTMLButtonElement>) => {
+    evt.preventDefault();
+    const data = JSON.parse(evt.currentTarget.dataset.data) as DBTask;
+    setModal(<DeleteTaskModal task={data} callback={(status) => delModalCallback(status, data)} />);
+  }
   return <>
     <div>
       <div className="field">
@@ -149,8 +163,8 @@ const SearchResultsTasksComponent: FC<Props> = ({ searchResult }) => {
             <div className="column">
               <div className="field">
                 <div className="control">
-                  <button className="button is-warning">Edit</button>
-                  <button className="button is-danger">Delete</button>
+                  <button className="button is-warning" data-data={JSON.stringify(task)}>Edit</button>
+                  <button className="button is-danger" data-data={JSON.stringify(task)} onClick={showDeleteConfirmModal}>Delete</button>
                 </div>
               </div>
             </div>
