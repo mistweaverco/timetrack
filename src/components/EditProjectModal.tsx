@@ -5,7 +5,7 @@ import { useAppDispatch } from './Store/hooks'
 interface BaseLayoutProps {
   children?: ReactNode;
   project: DBProject;
-  callback?: (status: boolean) => void;
+  callback?: (status: boolean, project?: DBProject) => void;
 }
 
 export const EditProjectModal: FC<BaseLayoutProps> = ({ callback, project }) => {
@@ -14,7 +14,7 @@ export const EditProjectModal: FC<BaseLayoutProps> = ({ callback, project }) => 
 
   const onEditButtonClick = async (evt: React.MouseEvent) => {
     evt.preventDefault();
-    const form = ref.current.querySelector('form') as HTMLFormElement;
+    const form = ref.current as HTMLFormElement;
     const formData = new FormData(form);
     const oldname = formData.get("oldname") as string
     const name = formData.get("name") as string
@@ -22,7 +22,7 @@ export const EditProjectModal: FC<BaseLayoutProps> = ({ callback, project }) => 
     if (rpcResult.success) {
       dispatch(replaceProject({ name, oldname }));
     }
-    callback && callback(true);
+    callback && callback(true, { name });
   }
 
   const onCancelButtonClick = (evt: React.MouseEvent) => {

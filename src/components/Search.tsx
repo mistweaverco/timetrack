@@ -38,9 +38,15 @@ const SearchResultsProjectsComponent: FC<Props> = ({ searchResult, setSearchResu
     setModal(<DeleteProjectModal project={data} callback={(status) => delModalCallback(status, data)} />);
   }
 
-  const editModalCallback = (status: boolean, data: DBProject) => {
+  const editModalCallback = (status: boolean, data: DBProject, editedData: DBProject) => {
     if (status) {
-      const filteredProjects = searchResult.projects.filter((project: DBProject) => project.name !== data.name);
+      const filteredProjects = searchResult.projects.map((project: DBProject) => {
+        if (project.name === data.name) {
+          data.name = editedData.name;
+          return data;
+        }
+        return project;
+      });
       searchResult.projects = filteredProjects;
       setSearchResults(searchResult);
     }
@@ -50,7 +56,7 @@ const SearchResultsProjectsComponent: FC<Props> = ({ searchResult, setSearchResu
   const showEditModal = (evt: React.MouseEvent<HTMLButtonElement>) => {
     evt.preventDefault();
     const data = JSON.parse(evt.currentTarget.dataset.data) as DBProject;
-    setModal(<EditProjectModal project={data} callback={(status: boolean) => editModalCallback(status, data)} />);
+    setModal(<EditProjectModal project={data} callback={(status: boolean, editedData: DBProject) => editModalCallback(status, data, editedData)} />);
   }
 
 

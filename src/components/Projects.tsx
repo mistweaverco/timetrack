@@ -6,6 +6,7 @@ import { removeSelectedTaskDefinition } from './Store/slices/selectedTaskDefinit
 import { Datafetcher } from './../lib/Datafetcher';
 import { removeActiveClassnameProjects, removeActiveClassnameTaskDefinitions } from './../lib/Utils';
 import { ModalConfirm } from './ModalConfirm';
+import { DeleteProjectModal } from './DeleteProjectModal';
 import { EditProjectModal } from './EditProjectModal';
 
 export const Projects: FC = () => {
@@ -41,11 +42,7 @@ export const Projects: FC = () => {
     if (status) {
       const project = projects.find((p) => p.name === selectedProject.name)
       if (project) {
-        const rpcResult = await window.electron.deleteProject(project.name)
-        if (rpcResult.success) {
-          dispatch(deleteProject({ name: selectedProject.name }));
-          dispatch(removeSelectedProject());
-        }
+        dispatch(removeSelectedProject());
       }
     }
     setModalConfirm(null)
@@ -53,12 +50,12 @@ export const Projects: FC = () => {
 
   const onDeleteButtonClick = async (evt: React.MouseEvent) => {
     evt.preventDefault();
-    setModalConfirm(<ModalConfirm message="Are you sure you want to delete this project?" callback={onConfirmCallback} />)
+    setModalConfirm(<DeleteProjectModal project={selectedProject} callback={onConfirmCallback} />)
   }
 
-  const onEditProjectCallback = async (status: boolean, project: DBProject) => {
+  const onEditProjectCallback = async (status: boolean, editedProjectData: DBProject) => {
     if (status) {
-      dispatch(setSelectedProject({ name: project.name }));
+      dispatch(setSelectedProject({ name: editedProjectData.name }));
     }
     setModalEdit(null)
   }
@@ -66,7 +63,7 @@ export const Projects: FC = () => {
   const onEditButtonClick = async (evt: React.MouseEvent<HTMLButtonElement>) => {
     evt.preventDefault();
     const data = JSON.parse(evt.currentTarget.dataset.data as string) as DBProject
-    setModalEdit(<EditProjectModal  project={data} callback={(status) => onEditProjectCallback(status, data)} />)
+    setModalEdit(<EditProjectModal  project={data} callback={(status, data) => onEditProjectCallback(status, data)} />)
   }
 
   const fetchProjects = async () => {
