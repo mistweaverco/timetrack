@@ -32,7 +32,6 @@ const Component: FC<Props> = ({ selectedProject, activeTasks, tasks }) => {
   const tasksDefinitions = useAppSelector((state) => state.taskDefinitions.value)
   const selectedTask = useAppSelector((state) => state.selectedTask.value)
   const [modal, setModal] = useState(null)
-  const useModalEditRef = useRef(null)
 
   const WrappedTimerComponent: FC<WrappedTimerComponentProps> = ({ task }) => {
     const activeTask = activeTasks.find((at) => at.name === task.name && at.project_name === task.project_name && at.date === task.date)
