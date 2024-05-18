@@ -10,6 +10,7 @@ import { RootState } from './Store';
 import { connect } from 'react-redux';
 import { InfoboxComponent } from './InfoboxComponent';
 import { watch } from 'original-fs';
+import { getHMSStringFromSeconds } from '@lib/Utils';
 
 type Props = {
   activeTasks: ActiveTask[]
@@ -80,8 +81,8 @@ const SearchResultsProjectsComponent: FC<Props> = ({ activeTasks, searchResult, 
       </>
     } else {
       return <>
-        <button className="button is-warning" data-data={JSON.stringify(project)} onClick={showEditModal}>Edit</button>
-        <button className="button is-danger" data-data={JSON.stringify(project)} onClick={showDeleteConfirmModal}>Delete</button>
+        <button className="button is-warning card-footer-item" data-data={JSON.stringify(project)} onClick={showEditModal}>Edit</button>
+        <button className="button is-danger card-footer-item" data-data={JSON.stringify(project)} onClick={showDeleteConfirmModal}>Delete</button>
       </>
     }
   }
@@ -99,16 +100,18 @@ const SearchResultsProjectsComponent: FC<Props> = ({ activeTasks, searchResult, 
       </div>
       { searchResult.projects.length ?
         searchResult.projects.map((project: DBProject, idx: number) =>
-          <div key={idx} className="columns panel-block">
-            <div className="column">
-              {project.name}
-            </div>
-            <div className="column">
-              <div className="field">
-                <div className="control">
-                  <ButtonWrapperComponent project={project} />
+          <div key={idx}>
+            <div className="card">
+              <div className="card-content">
+                <div className="media">
+                  <div className="media-content">
+                    <p className="title is-4">{project.name}</p>
+                  </div>
                 </div>
               </div>
+              <footer className="card-footer">
+                <ButtonWrapperComponent project={project} />
+              </footer>
             </div>
           </div>
         )
@@ -138,6 +141,12 @@ const SearchResultsTaskDefinitionsComponent: FC<Props> = ({ activeTasks, searchR
     setModal(<DeleteTaskDefinitionModal taskDefinition={data} callback={(status) => delModalCallback(status, data)} />);
   }
 
+  const showEditModal = (evt: React.MouseEvent<HTMLButtonElement>) => {
+    evt.preventDefault();
+    const data = JSON.parse(evt.currentTarget.dataset.data) as DBTaskDefinition;
+    // setModal(<EditTaskDefinitionModal task={data} callback={(status) => editModalCallback(status, data)} />);
+  }
+
   type ButtonWrapperProps = {
     taskdef: DBTaskDefinition
   }
@@ -153,8 +162,8 @@ const SearchResultsTaskDefinitionsComponent: FC<Props> = ({ activeTasks, searchR
       </>
     } else {
       return <>
-        <button className="button is-warning" data-data={JSON.stringify(taskdef)}>Edit</button>
-        <button className="button is-danger" data-data={JSON.stringify(taskdef)} onClick={showDeleteConfirmModal}>Delete</button>
+        <button className="button is-warning card-footer-item" data-data={JSON.stringify(taskdef)} onClick={showEditModal}>Edit</button>
+        <button className="button is-danger card-footer-item" data-data={JSON.stringify(taskdef)} onClick={showDeleteConfirmModal}>Delete</button>
       </>
     }
   }
@@ -172,16 +181,19 @@ const SearchResultsTaskDefinitionsComponent: FC<Props> = ({ activeTasks, searchR
       </div>
       { searchResult.task_definitions.length ?
         searchResult.task_definitions.map((taskdef: DBTaskDefinition, idx: number) =>
-          <div key={idx} className="columns panel-block">
-            <div className="column">
-              {taskdef.name}
-            </div>
-            <div className="column">
-              <div className="field">
-                <div className="control">
-                  <ButtonWrapperComponent taskdef={taskdef} />
+          <div key={idx}>
+            <div className="card">
+              <div className="card-content">
+                <div className="media">
+                  <div className="media-content">
+                    <p className="title is-4">{taskdef.name}</p>
+                    <p className="subtitle is-6">{taskdef.project_name}</p>
+                  </div>
                 </div>
               </div>
+              <footer className="card-footer">
+                <ButtonWrapperComponent taskdef={taskdef} />
+              </footer>
             </div>
           </div>
         )
@@ -210,6 +222,12 @@ const SearchResultsTasksComponent: FC<Props> = ({ activeTasks, searchResult, set
     setModal(<DeleteTaskModal task={data} callback={(status) => delModalCallback(status, data)} />);
   }
 
+  const showEditModal = (evt: React.MouseEvent<HTMLButtonElement>) => {
+    evt.preventDefault();
+    const data = JSON.parse(evt.currentTarget.dataset.data) as DBTask;
+    // setModal(<EditTaskModal task={data} callback={(status) => editModalCallback(status, data)} />);
+  }
+
   type ButtonWrapperProps = {
     task: DBTask
   }
@@ -225,8 +243,8 @@ const SearchResultsTasksComponent: FC<Props> = ({ activeTasks, searchResult, set
       </>
     } else {
       return <>
-        <button className="button is-warning" data-data={JSON.stringify(task)}>Edit</button>
-        <button className="button is-danger" data-data={JSON.stringify(task)} onClick={showDeleteConfirmModal}>Delete</button>
+        <button className="button is-warning card-footer-item" data-data={JSON.stringify(task)} onClick={showEditModal}>Edit</button>
+        <button className="button is-danger card-footer-item" data-data={JSON.stringify(task)} onClick={showDeleteConfirmModal}>Delete</button>
       </>
     }
   }
@@ -244,19 +262,35 @@ const SearchResultsTasksComponent: FC<Props> = ({ activeTasks, searchResult, set
       </div>
       { searchResult.tasks.length ?
         searchResult.tasks.map((task: DBTask, idx: number) =>
-          <div key={idx} className="columns panel-block">
-            <div className="column">
-              {task.name} - {task.project_name}
-              <div>
-                {task.description}
-              </div>
-            </div>
-            <div className="column">
-              <div className="field">
-                <div className="control">
-                  <ButtonWrapperComponent task={task} />
+          <div key={idx}>
+            <div className="card">
+              <div className="card-content">
+                <div className="media">
+                  <div className="media-content">
+                    <p className="title is-4">{task.name}</p>
+                    <p className="subtitle is-6">{task.project_name}</p>
+                  </div>
+                </div>
+                <div className="content">
+                  {task.description}
+                  <br />
+                  <div className="icon-text">
+                    <span className="icon has-text-info">
+                      <i className="fas fa-calendar"></i>
+                    </span>
+                    <span>{task.date}</span>
+                  </div>
+                  <div className="icon-text">
+                    <span className="icon has-text-info">
+                      <i className="fas fa-clock"></i>
+                    </span>
+                    <span>{getHMSStringFromSeconds(task.seconds)}</span>
+                  </div>
                 </div>
               </div>
+              <footer className="card-footer">
+                <ButtonWrapperComponent task={task} />
+              </footer>
             </div>
           </div>
         )

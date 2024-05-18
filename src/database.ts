@@ -63,7 +63,7 @@ const getSearchResult = async (
   let dbResultTasks = []
   if (search_in.includes('tasks')) {
     dbResultTasks = await db.all(
-      `SELECT name, project_name, date, description FROM tasks WHERE date BETWEEN ? AND ? AND name LIKE ? AND name LIKE ? AND description LIKE ? AND project_name LIKE ?`,
+      `SELECT name, project_name, date, description, seconds FROM tasks WHERE date BETWEEN ? AND ? AND name LIKE ? AND name LIKE ? AND description LIKE ? AND project_name LIKE ?`,
       q.from_date,
       q.to_date,
       task_name,
