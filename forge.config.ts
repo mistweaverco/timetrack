@@ -11,7 +11,7 @@ import path from 'path'
 const config: ForgeConfig = {
   packagerConfig: {
     asar: true,
-    icon: path.resolve(__dirname, 'src/assets/icon'),
+    icon: path.resolve(__dirname, 'src/assets/icon/icon'), // this will auto resolve to the correct extension, depending on the platform
   },
   rebuildConfig: {},
   makers: [
