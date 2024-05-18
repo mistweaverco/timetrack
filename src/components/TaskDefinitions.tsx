@@ -12,17 +12,13 @@ import clsx from 'clsx';
 type Props = {
   taskDefinitions: DBTaskDefinition[]
   activeTasks: ActiveTask[]
-  selectedProject: {
-    name: string | null
-  }
+  selectedProject: DBProject
 }
 
 const Component: FC<Props> = ({ activeTasks, selectedProject, taskDefinitions }) => {
   const dispatch = useAppDispatch();
   const selectedTaskDefinition = useAppSelector((state) => state.selectedTaskDefinition.value)
-  const [useModalConfirm, setModalConfirm] = useState(null)
-  const [useModalEdit, setModalEdit] = useState(null)
-  const useModalEditRef = useRef(null)
+  const [modal, setModal] = useState(null)
 
   const onFormSubmit = async (evt: React.FormEvent) => {
     evt.preventDefault();
@@ -39,36 +35,16 @@ const Component: FC<Props> = ({ activeTasks, selectedProject, taskDefinitions })
     }
   }
 
-  const onEditTaskDefinitionCallback = async (status: boolean) => {
+  const onEditCallback = async (status: boolean, data: DBTaskDefinition) => {
     if (status) {
-      const form = useModalEditRef.current.querySelector('form') as HTMLFormElement;
-      const formData = new FormData(form);
-      const oldname = formData.get("oldname") as string
-      const name = formData.get("name") as string
-      const project_name = selectedProject.name
-
-      const rpcResult = await window.electron.editTaskDefinition({
-        oldname: oldname,
-        name: name,
-        project_name
-      })
-      if (rpcResult.success) {
-        dispatch(replaceTaskDefinition({
-          name, oldname, project_name: project_name
-        }));
-        dispatch(setSelectedTaskDefinition({ name, project_name }));
-        // TODO fix
-        // dirty hack to force a reload of the task definitions
-        window.location.reload();
-      }
+      dispatch(setSelectedTaskDefinition({ name: data.name, project_name: data.project_name }));
     }
-    setModalEdit(null)
+    setModal(null)
   }
 
   const onEditButtonClick = async (evt: React.MouseEvent) => {
     evt.preventDefault();
-    const name = selectedTaskDefinition.name
-    setModalEdit(<EditTaskDefinitionModal name={name} useRef={useModalEditRef} callback={onEditTaskDefinitionCallback} />)
+    setModal(<EditTaskDefinitionModal taskDefinition={selectedTaskDefinition} callback={onEditCallback} />)
   }
 
   const onModalConfirmCallback = async (status: boolean) => {
@@ -91,12 +67,12 @@ const Component: FC<Props> = ({ activeTasks, selectedProject, taskDefinitions })
         }
       }
     }
-    setModalConfirm(null)
+    setModal(null)
   }
 
   const onDeleteButtonClick = async (evt: React.MouseEvent) => {
     evt.preventDefault();
-    setModalConfirm(<ModalConfirm message="Are you sure you want to delete this task definition?" callback={onModalConfirmCallback} />)
+    setModal(<ModalConfirm message="Are you sure you want to delete this task definition?" callback={onModalConfirmCallback} />)
   }
 
   const onTaskDefintionSelect = async (evt: React.MouseEvent) => {
@@ -130,8 +106,7 @@ const Component: FC<Props> = ({ activeTasks, selectedProject, taskDefinitions })
   }
 
   return <>
-    {useModalConfirm}
-    {useModalEdit}
+    {modal}
     {selectedProject.name ?
       <section className="section" data-taskdef-section>
         <h1 className="title">Tasksdefinitions</h1>

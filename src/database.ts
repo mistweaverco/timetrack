@@ -256,6 +256,18 @@ const getTasks = async (
   return tasks
 }
 
+const getTasksByNameAndProject = async (
+  db: Database,
+  opts: { name: string, project_name: string },
+): Promise<DBTask[]> => {
+  const tasks = await db.all(
+    'SELECT * FROM tasks WHERE name = ? AND project_name = ?',
+    opts.name,
+    opts.project_name,
+  )
+  return tasks
+}
+
 const getTasksToday = async (
   db: Database,
   project_name: string,
@@ -282,6 +294,7 @@ export {
   editTask,
   deleteTask,
   getTasks,
+  getTasksByNameAndProject,
   getTasksToday,
   saveActiveTasks,
   saveActiveTask,

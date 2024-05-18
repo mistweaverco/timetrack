@@ -1,6 +1,6 @@
-import { FC, useEffect, useRef, useState } from 'react';
+import { FC, useEffect, useState } from 'react';
 import { useAppDispatch, useAppSelector } from './Store/hooks'
-import { replaceProjects, appendProject, deleteProject } from './Store/slices/projects'
+import { replaceProjects, appendProject } from './Store/slices/projects'
 import { setSelectedProject, removeSelectedProject } from './Store/slices/selectedProject'
 import { removeSelectedTaskDefinition } from './Store/slices/selectedTaskDefinition'
 import { removeSelectedTask } from './Store/slices/selectedTask'

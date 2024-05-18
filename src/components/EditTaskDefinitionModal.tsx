@@ -1,32 +1,80 @@
-import React, { FC, ReactNode } from 'react';
+import React, { FC, ReactNode, useRef } from 'react';
+import { useAppDispatch } from './Store/hooks';
+import { replaceTask } from './Store/slices/tasks';
+import { replaceTaskDefinition } from './Store/slices/taskDefinitions';
+import { removeSelectedTask } from './Store/slices/selectedTask';
+import { removeSelectedTaskDefinition } from './Store/slices/selectedTaskDefinition';
+
+// TODO: Make sure that task definitions are either not updated when a task is active that belongs to them,
+// or we need to make sure that the task is updated as well
 
 interface BaseLayoutProps {
   children?: ReactNode;
-  name: string;
-  useRef: React.RefObject<HTMLDivElement>;
-  callback?: (status: boolean) => void;
+  taskDefinition: DBTaskDefinition;
+  callback?: (status: boolean, editedTaskDefintionData?: DBTaskDefinition) => void;
 }
 
-export const EditTaskDefinitionModal: FC<BaseLayoutProps> = ({ callback, name, useRef }) => {
-  const onEditButtonClick = (evt: React.MouseEvent) => {
+export const EditTaskDefinitionModal: FC<BaseLayoutProps> = ({ callback, taskDefinition }) => {
+  const ref = useRef<HTMLFormElement>(null)
+  const dispatch = useAppDispatch();
+
+  const onEditButtonClick = async (evt: React.MouseEvent) => {
     evt.preventDefault();
-    if (callback) {
-      callback(true);
+    const form = ref.current;
+    const formData = new FormData(form);
+    const oldname = taskDefinition.name
+    const name = formData.get("name") as string
+    const project_name = taskDefinition.project_name
+
+    // we need to first fetch the tasks that are using this task definition
+    // and update them with the new name (in the redux store)
+    // then we can update the task definition name
+    // this is because the task definition name is used as a foreign key in the tasks table
+    const rpcTasks = await window.electron.getTasksByNameAndProject({
+      name: oldname,
+      project_name
+    })
+
+    const rpcResult = await window.electron.editTaskDefinition({
+      oldname: oldname,
+      name: name,
+      project_name
+    })
+
+    if (rpcResult.success) {
+      dispatch(replaceTaskDefinition({
+        name, oldname, project_name: project_name
+      }));
+
+      rpcTasks.forEach((task: DBTask) => {
+        dispatch(replaceTask({
+          name,
+          oldname,
+          project_name,
+          description: task.description,
+          seconds: task.seconds,
+          date: task.date
+        }));
+      });
+
+      // we also need to unset the selections
+      // it's up to the callback to decide if it wants to set the new selection
+      dispatch(removeSelectedTask());
+      dispatch(removeSelectedTaskDefinition());
     }
+    callback && callback(true, { name, project_name });
   }
 
   const onCancelButtonClick = (evt: React.MouseEvent) => {
     evt.preventDefault();
-    if (callback) {
-      callback(false);
-    }
+    callback && callback(false);
   }
 
   return <>
-    <div className="modal is-active" ref={useRef}>
+    <div className="modal is-active">
       <div className="modal-background"></div>
       <div className="modal-card">
-        <form>
+        <form ref={ref}>
           <header className="modal-card-head">
             <p className="modal-card-title">Edit Task Definition</p>
           </header>
@@ -34,8 +82,7 @@ export const EditTaskDefinitionModal: FC<BaseLayoutProps> = ({ callback, name, u
             <div className="field">
               <label className="label">Task Definition Name</label>
               <div className="control">
-                <input type="hidden" name="oldname" defaultValue={name} />
-                <input className="input" name="name" required defaultValue={name} type="text" placeholder="Task Definition Name" />
+                <input className="input" name="name" required defaultValue={taskDefinition.name} type="text" placeholder="Task Definition Name" />
               </div>
             </div>
           </section>

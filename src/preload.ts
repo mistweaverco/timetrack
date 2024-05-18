@@ -41,6 +41,8 @@ contextBridge.exposeInMainWorld('electron', {
     ipcRenderer.invoke('deleteTask', opts).then(result => result),
   getTasks: (project_name: string) =>
     ipcRenderer.invoke('getTasks', project_name).then(result => result),
+  getTasksByNameAndProject: (opts: { name: string, project_name: string }) =>
+    ipcRenderer.invoke('getTasksByNameAndProject', opts).then(result => result),
   getTasksToday: (project_name: string) =>
     ipcRenderer.invoke('getTasksToday', project_name).then(result => result),
   getActiveTasks: () =>

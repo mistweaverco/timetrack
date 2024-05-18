@@ -27,6 +27,7 @@ import {
   editTask,
   deleteTask,
   getTasks,
+  getTasksByNameAndProject,
   getTasksToday,
   saveActiveTasks,
   saveActiveTask,
@@ -370,6 +371,13 @@ const setupIPCHandles = async () => {
       id: 'getTasks',
       cb: async (_: string, name: string) => {
         const json = await getTasks(DB, name)
+        return json
+      },
+    },
+    {
+      id: 'getTasksByNameAndProject',
+      cb: async (_: string, opts: { name: string, project_name: string }) => {
+        const json = await getTasksByNameAndProject(DB, opts)
         return json
       },
     },

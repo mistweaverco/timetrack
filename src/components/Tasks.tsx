@@ -1,7 +1,6 @@
 import { FC, useEffect, useRef, useState } from 'react';
 import { connect } from 'react-redux';
 import { Datafetcher } from './../lib/Datafetcher';
-import { removeActiveClassnameTasks } from './../lib/Utils';
 import type { RootState } from './Store'
 import { useAppDispatch, useAppSelector } from './Store/hooks'
 import { replaceTask, replaceTasks, appendTask, deleteTask } from './Store/slices/tasks'
