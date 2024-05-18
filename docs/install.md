@@ -4,7 +4,7 @@ Installation is pretty easy and straightforward.
 
 Just head over to the releases page and download the latest version of the app.
 
- - [Latest Release](https://github.com/mistweaverco/timetrack.desktop/releases/latest)
+ - [Latest Release](https://github.com/mistweaverco/timetrack/releases/latest)
 
 ### Windows
 

@@ -1,4 +1,4 @@
-BIN_NAME = timetrack.desktop
+BIN_NAME = timetrack
 
 macos:
 	PLATFORM=macos ./scripts/build.sh

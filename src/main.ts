@@ -270,7 +270,7 @@ const setupIPCHandles = async () => {
         const datestr = moment().format('YYYY-MM-DD')
         const dialogResult = await dialog.showSaveDialog(WINDOW, {
           properties: ['showOverwriteConfirmation'],
-          defaultPath: `timetrack.desktop-report-${datestr}.pdf`,
+          defaultPath: `timetrack-report-${datestr}.pdf`,
         })
         evt.sender.send('on-pdf-export-file-selected', dialogResult)
         if (dialogResult.canceled) {

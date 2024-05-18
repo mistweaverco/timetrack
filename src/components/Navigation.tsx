@@ -28,14 +28,14 @@ const Component: FC<Props> = ({ selectedPanel }) => {
         setTimeout(() => {
           root.classList.remove('is-loading');
         }, 3000);
-        window.open('https://github.com/mistweaverco/timetrack.desktop/issues/new');
+        window.open('https://github.com/mistweaverco/timetrack/issues/new');
         break;
       case 'seeTheCode':
         root.classList.add('is-loading');
         setTimeout(() => {
           root.classList.remove('is-loading');
         }, 3000);
-        window.open('https://github.com/mistweaverco/timetrack.desktop');
+        window.open('https://github.com/mistweaverco/timetrack');
         break;
       default:
         break;

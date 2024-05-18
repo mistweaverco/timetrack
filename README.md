@@ -1,4 +1,4 @@
-# timetrack.desktop
+# timetrack
 
 Simple desktop 🖥️ application to track your time ⏰ spent on different projects 🎉.
 

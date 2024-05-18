@@ -13,7 +13,7 @@ This document describes how to setup the development environment for timetrack.
 1. Clone the repository:
 
 ```sh
-git clone git@github.com:misteavercom/timetrack.desktop.git
+git clone git@github.com:misteavercom/timetrack.git
 ```
 
 2. Install the dependencies:

@@ -48,7 +48,7 @@ const BasicView: FC = (pdfDocument: PDFQueryResult[]) => {
   return <>
     <section className="hero">
       <div className="hero-body">
-        <p className="title">timetrack.desktop</p>
+        <p className="title">timetrack</p>
         <p className="subtitle"></p>Simple desktop 🖥️ application to track your time ⏰ spent on different projects 🎉.</div>
     </section>
     { pdfDocument.map((item: PDFQueryResult, idx: number) => (
