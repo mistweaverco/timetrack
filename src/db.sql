@@ -5,7 +5,7 @@ CREATE TABLE IF NOT EXISTS tasks (
   name TEXT NOT NULL DEFAULT 'default',
   project_name TEXT NOT NULL,
   description TEXT NULL DEFAULT NULL,
-  date DATE NOT NULL DEFAULT (DATE('now')),
+  date DATE NOT NULL DEFAULT (DATE('now','localtime')),
   seconds INTEGER NOT NULL DEFAULT 0
 );
 CREATE UNIQUE INDEX tasks_name_date_pjn_IDX ON tasks (name,date,project_name);

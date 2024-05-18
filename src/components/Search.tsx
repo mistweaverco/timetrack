@@ -1,4 +1,6 @@
 import React, { FC, useRef, useState  } from 'react';
+import Markdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import moment from 'moment';
 import { LoadingComponent } from './LoadingComponent';
 import { EditProjectModal } from './EditProjectModal'
@@ -9,8 +11,8 @@ import { DeleteTaskDefinitionModal } from './DeleteTaskDefinitionModal'
 import { RootState } from './Store';
 import { connect } from 'react-redux';
 import { InfoboxComponent } from './InfoboxComponent';
-import { watch } from 'original-fs';
 import { getHMSStringFromSeconds } from '@lib/Utils';
+import { EditTaskDefinitionModal } from './EditTaskDefinitionModal';
 
 type Props = {
   activeTasks: ActiveTask[]
@@ -141,10 +143,24 @@ const SearchResultsTaskDefinitionsComponent: FC<Props> = ({ activeTasks, searchR
     setModal(<DeleteTaskDefinitionModal taskDefinition={data} callback={(status) => delModalCallback(status, data)} />);
   }
 
+  const editModalCallback = (status: boolean, data: DBTaskDefinition,  editedData: DBTaskDefinition) => {
+    if (status) {
+      const f = (td: DBTaskDefinition) => {
+        if (td.name === data.name && td.project_name === data.project_name) {
+          return editedData;
+        }
+        return td;
+      }
+      searchResult.task_definitions = searchResult.task_definitions.map(f);
+      setSearchResults(searchResult);
+    }
+    setModal(null)
+  }
+
   const showEditModal = (evt: React.MouseEvent<HTMLButtonElement>) => {
     evt.preventDefault();
     const data = JSON.parse(evt.currentTarget.dataset.data) as DBTaskDefinition;
-    // setModal(<EditTaskDefinitionModal task={data} callback={(status) => editModalCallback(status, data)} />);
+    setModal(<EditTaskDefinitionModal taskDefinition={data} callback={(status, editedData) => editModalCallback(status, data, editedData)} />);
   }
 
   type ButtonWrapperProps = {
@@ -222,10 +238,24 @@ const SearchResultsTasksComponent: FC<Props> = ({ activeTasks, searchResult, set
     setModal(<DeleteTaskModal task={data} callback={(status) => delModalCallback(status, data)} />);
   }
 
+  const editModalCallback = (status: boolean, data: DBTask) => {
+    if (status) {
+      const f = (t: DBTask) => {
+        if (t.name === data.name && t.project_name === data.project_name && t.date === data.date) {
+          return data;
+        }
+        return t;
+      }
+      searchResult.tasks = searchResult.tasks.map(f);
+      setSearchResults(searchResult);
+    }
+    setModal(null)
+  }
+
   const showEditModal = (evt: React.MouseEvent<HTMLButtonElement>) => {
     evt.preventDefault();
     const data = JSON.parse(evt.currentTarget.dataset.data) as DBTask;
-    // setModal(<EditTaskModal task={data} callback={(status) => editModalCallback(status, data)} />);
+    setModal(<EditTaskModal task={data} callback={(status, editedData) => editModalCallback(status, editedData)} />);
   }
 
   type ButtonWrapperProps = {
@@ -272,7 +302,9 @@ const SearchResultsTasksComponent: FC<Props> = ({ activeTasks, searchResult, set
                   </div>
                 </div>
                 <div className="content">
-                  {task.description}
+                  { task.description.length > 0 ?
+                    <Markdown remarkPlugins={[remarkGfm]}>{task.description}</Markdown>
+                  : null }
                   <br />
                   <div className="icon-text">
                     <span className="icon has-text-info">

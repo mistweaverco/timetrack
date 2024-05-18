@@ -30,8 +30,7 @@ const Component: FC<Props> = ({ selectedProject, activeTasks, tasks }) => {
   const dispatch = useAppDispatch();
   const tasksDefinitions = useAppSelector((state) => state.taskDefinitions.value)
   const selectedTask = useAppSelector((state) => state.selectedTask.value)
-  const [useModalConfirm, setModalConfirm] = useState(null)
-  const [useModalEdit, setModalEdit] = useState(null)
+  const [modal, setModal] = useState(null)
   const useModalEditRef = useRef(null)
 
   const WrappedTimerComponent: FC<WrappedTimerComponentProps> = ({ task }) => {
@@ -93,56 +92,15 @@ const Component: FC<Props> = ({ selectedProject, activeTasks, tasks }) => {
     }
   }
 
-  const onTaskEditCallback = async (status: boolean) => {
-    if (status) {
-      const form = useModalEditRef.current.querySelector('form') as HTMLFormElement;
-      const formData = new FormData(form);
-      const task = {
-        name: selectedTask.name,
-        description: formData.get('description') as string,
-        project_name: selectedTask.project_name as string,
-        seconds: parseInt(formData.get('seconds') as string, 10),
-        date: selectedTask.date
-      }
-      const rpcResult = await window.electron.editTask({
-        name: task.name,
-        description: task.description,
-        project_name: task.project_name,
-        seconds: task.seconds,
-        date: task.date
-      })
-
-      if (rpcResult.success) {
-        const activeTask = activeTasks.find((at) => at.name === task.name && at.project_name === task.project_name && at.date === task.date)
-        if (activeTask) {
-          dispatch(replaceActiveTask({
-            name: rpcResult.name,
-            oldname: rpcResult.name,
-            project_name: rpcResult.project_name,
-            description: rpcResult.description,
-            date: rpcResult.date,
-            seconds: rpcResult.seconds,
-            isActive: activeTask.isActive
-          }))
-        }
-        dispatch(replaceTask({
-          name: rpcResult.name,
-          oldname: rpcResult.name,
-          seconds: rpcResult.seconds,
-          project_name: rpcResult.project_name,
-          date: rpcResult.date,
-          description: rpcResult.description,
-        }))
-      }
-    }
-    setModalEdit(null)
+  const onTaskEditCallback = async () => {
+    setModal(null)
   }
 
   const onTaskEditClick = async (evt: React.MouseEvent) => {
     evt.preventDefault();
     const task = tasks.find((t) => t.name === selectedTask.name && t.project_name === selectedTask.project_name && t.date === selectedTask.date)
     if (task) {
-      setModalEdit(<EditTaskModal callback={onTaskEditCallback} useRef={useModalEditRef} task={task} />)
+      setModal(<EditTaskModal callback={onTaskEditCallback} task={task} />)
     }
   }
 
@@ -165,12 +123,12 @@ const Component: FC<Props> = ({ selectedProject, activeTasks, tasks }) => {
         }
       }
     }
-    setModalConfirm(null)
+    setModal(null)
   }
 
   const onTaskDeleteClick = async (evt: React.MouseEvent) => {
     evt.preventDefault();
-    setModalConfirm(<ModalConfirm message="Are you sure you want to delete this task?" callback={onConfirmCallback} />)
+    setModal(<ModalConfirm message="Are you sure you want to delete this task?" callback={onConfirmCallback} />)
   }
 
   const fetchTaskDefinitions = async () => {
@@ -231,8 +189,7 @@ const Component: FC<Props> = ({ selectedProject, activeTasks, tasks }) => {
 
   if (tasksDefinitions.length) {
     return <>
-      {useModalConfirm}
-      {useModalEdit}
+      {modal}
       <section className="section">
         <h1 className="title">Tasks</h1>
         <h2 className="subtitle">All available Tasks for a given project</h2>

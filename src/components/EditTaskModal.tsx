@@ -1,38 +1,81 @@
-import React, { FC } from 'react';
+import React, { FC, useRef } from 'react';
 import { connect } from 'react-redux';
 import { RootState } from './Store';
 import { TimeInputComponent } from './TimeInputComponent';
 import { InfoboxComponent } from './InfoboxComponent';
+import { useAppDispatch } from './Store/hooks';
+import { replaceActiveTask } from './Store/slices/activeTasks';
+import { replaceTask } from './Store/slices/tasks';
 
 interface BaseLayoutProps {
   activeTasks: ActiveTask[];
   task: DBTask;
-  useRef: React.RefObject<HTMLDivElement>;
-  callback: (status: boolean) => void;
+  callback?: (status: boolean, editedTaskData?: DBTask) => void;
 }
 
-const Component: FC<BaseLayoutProps> = ({ activeTasks, callback, task, useRef }) => {
-  const onEditButtonClick = (evt: React.MouseEvent) => {
+const Component: FC<BaseLayoutProps> = ({ activeTasks, callback, task }) => {
+  const ref = useRef<HTMLFormElement>(null)
+  const dispatch = useAppDispatch();
+
+  const onEditButtonClick = async (evt: React.MouseEvent) => {
     evt.preventDefault();
-    if (callback) {
-      callback(true);
+    const form = ref.current;
+    const formData = new FormData(form);
+    const description = formData.get("description") as string
+    const seconds = formData.get("seconds") as string
+
+    const rpcResult = await window.electron.editTask({
+      name: task.name,
+      description,
+      project_name: task.project_name,
+      seconds: parseInt(seconds, 10),
+      date: task.date
+    })
+
+    if (rpcResult.success) {
+      const activeTask = activeTasks.find((at) => at.name === task.name && at.project_name === task.project_name && at.date === task.date)
+      if (activeTask) {
+        dispatch(replaceActiveTask({
+          name: rpcResult.name,
+          oldname: rpcResult.name,
+          project_name: rpcResult.project_name,
+          description: rpcResult.description,
+          date: rpcResult.date,
+          seconds: rpcResult.seconds,
+          isActive: activeTask.isActive
+        }))
+      }
+      dispatch(replaceTask({
+        name: rpcResult.name,
+        oldname: rpcResult.name,
+        seconds: rpcResult.seconds,
+        project_name: rpcResult.project_name,
+        date: rpcResult.date,
+        description: rpcResult.description,
+      }))
     }
+
+    callback && callback(true, {
+      name: task.name,
+      project_name: task.project_name,
+      description,
+      seconds: parseInt(seconds),
+      date: task.date
+    })
   }
 
   const onCancelButtonClick = (evt: React.MouseEvent) => {
     evt.preventDefault();
-    if (callback) {
-      callback(false);
-    }
+    callback && callback(false)
   }
 
   const activeTask = activeTasks.find(t => t.name === task.name && t.date === task.date && t.project_name === task.project_name)
 
   return <>
-    <div className="modal is-active" ref={useRef}>
+    <div className="modal is-active">
       <div className="modal-background"></div>
       <div className="modal-card">
-          <form>
+          <form ref={ref}>
             <header className="modal-card-head">
               <p className="modal-card-title">Edit Task</p>
             </header>
