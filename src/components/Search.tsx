@@ -404,7 +404,7 @@ const Component: FC<ComponentProps> = ({ activeTasks }) => {
       <h1 className="title">Search</h1>
       <h2 className="subtitle">You can export search across tasks and projects.</h2>
       <form className="search-form" onSubmit={onFormSubmit}>
-        <div className="fixed-grid has-2-cols">
+        <div className="fixed-grid has-3-cols">
           <div className="grid">
             <div className="cell">
               <nav className="panel">
@@ -494,7 +494,7 @@ const Component: FC<ComponentProps> = ({ activeTasks }) => {
             </div>
 
             {showLoading ?
-              <div className="cell">
+              <div className="cell is-col-span-2">
                 <nav className="panel">
                   <p className="panel-heading">Loading</p>
                   <div className="field">
@@ -505,7 +505,7 @@ const Component: FC<ComponentProps> = ({ activeTasks }) => {
               : null}
 
             {searchResult ?
-              <div className="cell">
+              <div className="cell is-col-span-2">
                 <nav className="panel">
                   <p className="panel-heading">Results</p>
                   <div className="field">
