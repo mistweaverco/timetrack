@@ -1,20 +1,19 @@
 import { FC, useEffect, useRef, useState } from 'react';
 import { useAppDispatch, useAppSelector } from './Store/hooks'
-import { replaceProject, replaceProjects, appendProject, deleteProject } from './Store/slices/projects'
+import { replaceProjects, appendProject, deleteProject } from './Store/slices/projects'
 import { setSelectedProject, removeSelectedProject } from './Store/slices/selectedProject'
 import { removeSelectedTaskDefinition } from './Store/slices/selectedTaskDefinition'
+import { removeSelectedTask } from './Store/slices/selectedTask'
 import { Datafetcher } from './../lib/Datafetcher';
-import { removeActiveClassnameProjects, removeActiveClassnameTaskDefinitions } from './../lib/Utils';
-import { ModalConfirm } from './ModalConfirm';
 import { DeleteProjectModal } from './DeleteProjectModal';
 import { EditProjectModal } from './EditProjectModal';
+import clsx from 'clsx';
 
 export const Projects: FC = () => {
   const dispatch = useAppDispatch();
   const projects = useAppSelector((state) => state.projects.value)
   const selectedProject = useAppSelector((state) => state.selectedProject.value)
-  const [useModalConfirm, setModalConfirm] = useState(null)
-  const [useModalEdit, setModalEdit] = useState(null)
+  const [useModal, setModal] = useState<React.ReactNode>(null)
 
   const onFormSubmit = async (evt: React.FormEvent) => {
     evt.preventDefault();
@@ -31,11 +30,9 @@ export const Projects: FC = () => {
     const target = evt.target as HTMLDivElement
     const root = target.closest('[data-name]') as HTMLDivElement
     const name = root.dataset.name as string
-    removeActiveClassnameProjects();
-    removeActiveClassnameTaskDefinitions();
+    dispatch(removeSelectedTask())
     dispatch(removeSelectedTaskDefinition())
     dispatch(setSelectedProject({ name: name }))
-    root.classList.add('is-active');
   }
 
   const onConfirmCallback = async (status: boolean) => {
@@ -45,25 +42,28 @@ export const Projects: FC = () => {
         dispatch(removeSelectedProject());
       }
     }
-    setModalConfirm(null)
+    setModal(null)
   }
 
   const onDeleteButtonClick = async (evt: React.MouseEvent) => {
     evt.preventDefault();
-    setModalConfirm(<DeleteProjectModal project={selectedProject} callback={onConfirmCallback} />)
+    setModal(<DeleteProjectModal project={selectedProject} callback={onConfirmCallback} />)
   }
 
   const onEditProjectCallback = async (status: boolean, editedProjectData: DBProject) => {
     if (status) {
       dispatch(setSelectedProject({ name: editedProjectData.name }));
     }
-    setModalEdit(null)
+    setModal(null)
   }
 
   const onEditButtonClick = async (evt: React.MouseEvent<HTMLButtonElement>) => {
     evt.preventDefault();
+    // TODO - fix this - this is a problem when there is an associated task or task definition
+    // active and we edit the project name ... we need to update the selected project name
+    // in the redux store, but we also need to update the active tasks in the backend ...
     const data = JSON.parse(evt.currentTarget.dataset.data as string) as DBProject
-    setModalEdit(<EditProjectModal  project={data} callback={(status, data) => onEditProjectCallback(status, data)} />)
+    setModal(<EditProjectModal  project={data} callback={(status, data) => onEditProjectCallback(status, data)} />)
   }
 
   const fetchProjects = async () => {
@@ -76,8 +76,7 @@ export const Projects: FC = () => {
   }, [])
 
   return <>
-    {useModalConfirm}
-    {useModalEdit}
+    {useModal}
     <section className="section">
       <h1 className="title">Projects</h1>
       <h2 className="subtitle">All available projects</h2>
@@ -104,9 +103,9 @@ export const Projects: FC = () => {
           <div className="cell">
             <nav className="panel">
               <p className="panel-heading">Available</p>
-              <div data-projects-list>
+              <div>
                 {projects.map((project, idx: number) => (
-                  <div key={idx} className="panel-block" data-idx={idx} data-name={project.name} onClick={onProjectSelect}>
+                  <div key={idx} className={clsx('panel-block', (project.name === selectedProject.name ? 'is-active' : null))} data-idx={idx} data-name={project.name} onClick={onProjectSelect}>
                     <p data-project-item-header className="bd-notification is-info">{project.name}</p>
                   </div>
                 ))}

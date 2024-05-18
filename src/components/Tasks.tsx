@@ -13,6 +13,7 @@ import { EditTaskModal } from './EditTaskModal';
 import { TimerComponent } from './TimerComponent';
 import { TimeInputComponent } from './TimeInputComponent';
 import { InfoboxComponent } from './InfoboxComponent';
+import clsx from 'clsx';
 
 type Props = {
   selectedProject: {
@@ -189,8 +190,6 @@ const Component: FC<Props> = ({ selectedProject, activeTasks, tasks }) => {
     const target = evt.target as HTMLDivElement
     const root = target.closest('[data-name]') as HTMLDivElement
     const name = root.dataset.name as string
-    removeActiveClassnameTasks();
-    root.classList.add('is-active');
     dispatch(setSelectedTask({
       name: name,
       seconds: parseInt(root.dataset.seconds as string, 10),
@@ -281,7 +280,7 @@ const Component: FC<Props> = ({ selectedProject, activeTasks, tasks }) => {
                   <p className="panel-heading">Today</p>
                   <div data-tasks-list>
                     {tasks.map((task, idx: number) => {
-                      return <div className="p-4 tasklist-item" key={idx} data-name={task.name} data-description={task.description} data-seconds={task.seconds} data-project-name={task.project_name} data-date={task.date} onClick={onTaskSelect}>
+                      return <div className={clsx('p-4', 'tasklist-item', (task.name === selectedTask.name && task.project_name === selectedTask.project_name && task.date === selectedTask.date ? 'is-active': null))} key={idx} data-name={task.name} data-description={task.description} data-seconds={task.seconds} data-project-name={task.project_name} data-date={task.date} onClick={onTaskSelect}>
                         <div className="columns">
                           <div className="column">
                             <p className="bd-notification">{task.name}</p>

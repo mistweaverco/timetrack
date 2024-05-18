@@ -7,6 +7,7 @@ import { useAppDispatch, useAppSelector } from './Store/hooks'
 import { removeTaskDefinition, appendTaskDefinition, replaceTaskDefinition } from './Store/slices/taskDefinitions'
 import { setSelectedTaskDefinition, removeSelectedTaskDefinition } from './Store/slices/selectedTaskDefinition'
 import { EditTaskDefinitionModal } from './EditTaskDefinitionModal';
+import clsx from 'clsx';
 
 type Props = {
   taskDefinitions: DBTaskDefinition[]
@@ -102,8 +103,6 @@ const Component: FC<Props> = ({ activeTasks, selectedProject, taskDefinitions })
     evt.preventDefault();
     const target = evt.target as HTMLDivElement
     const root = target.closest('[data-name]') as HTMLDivElement
-    removeActiveClassnameTaskDefinitions();
-    root.classList.add('is-active');
     const name = root.dataset.name as string
     const project_name = root.dataset.projectName as string
     dispatch(setSelectedTaskDefinition({ name, project_name }))
@@ -162,13 +161,13 @@ const Component: FC<Props> = ({ activeTasks, selectedProject, taskDefinitions })
               <div className="cell">
                 <nav className="panel">
                   <p className="panel-heading">Available</p>
-                  <div data-taskdef-list>
+                  <div>
                     { taskDefinitions.map((taskdef, idx: number) => (
-                      <div key={idx} onClick={onTaskDefintionSelect} className="panel-block" data-idx={idx} data-project-name={taskdef.project_name} data-name={taskdef.name}>
+                      <div key={idx} onClick={onTaskDefintionSelect} className={clsx('panel-block', (taskdef.name === selectedTaskDefinition.name && taskdef.project_name && selectedTaskDefinition.project_name ? 'is-active' : null))} data-idx={idx} data-project-name={taskdef.project_name} data-name={taskdef.name}>
                         <span className="panel-icon">
                           <i className="fas fa-book" aria-hidden="true"></i>
                         </span>
-                        <p data-taskdef-name className="bd-notification is-info">{taskdef.name}</p>
+                        <p className="bd-notification is-info">{taskdef.name}</p>
                       </div>
                     )) }
                   </div>
