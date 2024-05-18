@@ -46,7 +46,7 @@
     "@typescript-eslint/parser": "5.62.0",
     "@vitejs/plugin-react": "4.2.1",
     "docsify-cli": "4.4.2",
-    "electron": "30.0.3",
+    "electron": "30.0.6",
     "eslint": "8.57.0",
     "eslint-config-prettier": "9.1.0",
     "eslint-import-resolver-typescript": "3.6.1",
