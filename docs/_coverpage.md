@@ -1,4 +1,4 @@
-# timetrack <small>2.2.0</small>
+# timetrack <small>3.0.0</small>
 
 > Simple desktop 🖥️ application to track your time ⏰ spent on different projects 🎉.
 
