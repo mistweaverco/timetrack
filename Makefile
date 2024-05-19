@@ -1,13 +1,13 @@
 BIN_NAME = timetrack
 
 macos:
-	PLATFORM=macos ./scripts/build.sh
+	PLATFORM=macos DEBUG=electron-packager ./scripts/build.sh
 
 linux:
-	PLATFORM=linux ./scripts/build.sh
+	PLATFORM=linux DEBUG=electron-packager ./scripts/build.sh
 
 windows:
-	PLATFORM=windows ./scripts/build.sh
+	PLATFORM=windows DEBUG=electron-packager ./scripts/build.sh
 
 archives:
 	CREATE_ARCHIVES=1 PLATFORM=linux ./scripts/release.sh
