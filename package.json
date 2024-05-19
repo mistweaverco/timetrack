@@ -1,7 +1,7 @@
 {
   "name": "timetrack",
   "productName": "timetrack",
-  "version": "3.3.0",
+  "version": "3.4.0",
   "description": "Simple desktop application to track your time spent on different projects.",
   "main": ".vite/build/main.js",
   "scripts": {
@@ -37,7 +37,7 @@
     "@electron-forge/maker-zip": "7.4.0",
     "@electron-forge/plugin-auto-unpack-natives": "7.4.0",
     "@electron-forge/plugin-fuses": "7.4.0",
-    "@electron-forge/plugin-vite": "7.4.0",
+    "@mistweaverco/electron-forge-plugin-vite": "7.4.2",
     "@electron/fuses": "1.8.0",
     "@types/js-yaml": "4.0.9",
     "@types/react": "18.3.2",
