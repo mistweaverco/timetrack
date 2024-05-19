@@ -1,4 +1,6 @@
-import React, { FC } from 'react';
+import { FC } from 'react';
+import Markdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import { connect } from 'react-redux';
 import type { RootState } from './Store'
 import { getHMSStringFromSeconds } from './../lib/Utils';
@@ -58,8 +60,8 @@ const BasicView: FC = (pdfDocument: PDFQueryResult[]) => {
         </header>
         <div className="card-content">
           <div className="content">
-            <h1>{item.name}</h1>
-            <p>{item.description}</p>
+            <p className="subtitle is-6">{item.name}</p>
+            <Markdown remarkPlugins={[remarkGfm]}>{item.description}</Markdown>
             <br />
             <time dateTime={item.date}>{item.date}</time>
           </div>
