@@ -27,6 +27,10 @@ export default defineConfig((env) => {
           {
             src: normalizePath('src/db.sql'),
             dest: normalizePath('.')
+          },
+          {
+            src: normalizePath('db-migrations'),
+            dest: normalizePath('.')
           }
         ]
       })

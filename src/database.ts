@@ -1,8 +1,50 @@
-import { readFile } from 'node:fs/promises'
+import { readFile, readdir } from 'node:fs/promises'
+import logger from 'node-color-log'
 import path from 'node:path'
 import { Database as Sqlite3Database } from 'sqlite3'
 import { open, Database } from 'sqlite'
 import { getUserDataPath, getUserConfig } from './lib/ConfigFile'
+
+const dbMigrate = async (db: Database, version: string | null) => {
+  // read directory and get all migration files in order start from 'version' (excluded)
+  // and run all migration files in order
+  const migrationFiles = path.join(__dirname, 'db-migrations')
+  const files = await readdir(migrationFiles)
+  const migrationFilesToRun = files
+    .filter(f => {
+      const file = f.replace('.sql', '')
+      if (version === null || version === '') {
+        return true
+      }
+      return file > version
+    })
+    .sort()
+  if (migrationFilesToRun.length === 0) {
+    logger.info('🗃️ No migrations to run')
+    return
+  }
+  migrationFilesToRun.forEach(async file => {
+    logger.warn('🗃️ Running migration', file)
+    const sql = await readFile(path.join(migrationFiles, file), 'utf8')
+    await db.exec(sql)
+    await db.run('UPDATE db_version SET version = ?', file.replace('.sql', ''))
+  })
+}
+
+const initDBMigration = async (db: Database) => {
+  const versionTableExits = await db.all(
+    "SELECT name FROM sqlite_master WHERE type='table' AND name=?",
+    'db_version',
+  )
+  if (versionTableExits.length === 0) {
+    await db.exec('CREATE TABLE db_version (version TEXT)')
+    await db.run('INSERT INTO db_version (version) VALUES ("")')
+    await dbMigrate(db, null)
+  } else {
+    const version = await db.get('SELECT version FROM db_version')
+    await dbMigrate(db, version.version)
+  }
+}
 
 const initDB = async (): Promise<Database> => {
   const userConfig = await getUserConfig()
@@ -10,9 +52,15 @@ const initDB = async (): Promise<Database> => {
   let sqlFilePath = path.join(userDataPath, 'timetrack.db')
   if (userConfig && userConfig.database_file_path) {
     sqlFilePath = userConfig.database_file_path
-    console.warn('Using custom database file path 🗃️', sqlFilePath)
+    console.warn('🗃️ Using custom database file path', sqlFilePath)
   }
-  const db = await open({ filename: sqlFilePath, driver: Sqlite3Database })
+  let db: Database
+  try {
+    db = await open({ filename: sqlFilePath, driver: Sqlite3Database })
+  } catch (err) {
+    logger.error('📢 Error opening database file:', sqlFilePath)
+    electron.app.quit()
+  }
   const atable = await db.all(
     "SELECT name FROM sqlite_master WHERE type='table' AND name=?",
     'projects',
@@ -20,6 +68,9 @@ const initDB = async (): Promise<Database> => {
   if (atable.length === 0) {
     const sql = await readFile(path.join(__dirname, 'db.sql'), 'utf8')
     await db.exec(sql)
+  } else {
+    // files exists, and projects table exist check if migration is needed
+    await initDBMigration(db)
   }
   return db
 }
