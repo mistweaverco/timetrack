@@ -11,7 +11,7 @@
     "plugin:import/recommended",
     "plugin:import/electron",
     "plugin:import/typescript",
-    "plugin:import/prettier"
+    "plugin:eslint-plugin-prettier/recommended"
   ],
   "plugins": ["@typescript-eslint"],
   "settings": {
