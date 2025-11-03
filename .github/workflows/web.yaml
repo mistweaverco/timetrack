@@ -45,7 +45,7 @@ jobs:
           restore-keys: |
             linux-bun-web-${{ hashFiles('**/bun.lock') }}
       - name: Install dependencies
-        run: apt-get install -y imagemagick
+        run: sudo apt-get install -y imagemagick
       - name: Generate assets, install node dependencies and build website
         run: ./scripts/build-web.sh
       - name: Generate assets, install dependencies and build website
