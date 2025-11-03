@@ -6,7 +6,7 @@ Simple desktop 🖥️ application to track your time ⏰ spent on different pro
 
 ### Overview
 
-![Overview](docs/screenshots/overview.png)
+![Overview](assets/screenshots/overview.png)
 
 ## Configuration
 
