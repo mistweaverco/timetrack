@@ -11,13 +11,13 @@ if command -v magick &> /dev/null
 then
   IMAGEMAGICK_FOUND=true
   IMAGEMAGICK_VERSION="ok"
-fi
-
-# Older versions of ImageMagick use the 'convert' command
-if command -v convert &> /dev/null
-then
-  IMAGEMAGICK_FOUND=true
-  IMAGEMAGICK_VERSION="nok"
+else
+  # Older versions of ImageMagick use the 'convert' command
+  if command -v convert &> /dev/null
+  then
+    IMAGEMAGICK_FOUND=true
+    IMAGEMAGICK_VERSION="nok"
+  fi
 fi
 
 # Check if ImageMagick is found
