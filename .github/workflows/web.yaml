@@ -48,8 +48,6 @@ jobs:
         run: sudo apt-get install -y imagemagick
       - name: Generate assets, install node dependencies and build website
         run: ./scripts/build-web.sh
-      - name: Generate assets, install dependencies and build website
-        run: ./scripts/build-web.sh
       - name: Setup Pages
         uses: actions/configure-pages@v5
       - name: Upload artifact
