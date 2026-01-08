@@ -26,7 +26,7 @@ nsis:
   shortcutName: ${productName}
   uninstallDisplayName: ${productName}
   createDesktopShortcut: always
-  installerIcon: build/icon.ico
+  installerIcon: resources/icon.ico
   oneClick: false
   perMachine: false
   allowToChangeInstallationDirectory: true
