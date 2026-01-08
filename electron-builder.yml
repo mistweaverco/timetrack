@@ -1,0 +1,54 @@
+---
+appId: app.mwco.timetrack
+productName: timetrack
+directories:
+  buildResources: build
+files:
+  - 'out/**/*'
+  - 'node_modules/@prisma/client/**/*'
+  - 'generated/**/*'
+  - '!**/.vscode/*'
+  - '!src/*'
+  - '!electron.vite.config.{js,ts,mjs,cjs}'
+  - '!{.eslintignore,.eslintrc.cjs,.prettierignore,.prettierrc.yaml,CHANGELOG.md,README.md}'
+  - '!{.env,.env.*,.npmrc,pnpm-lock.yaml,bun.lock}'
+  - '!{tsconfig.json,tsconfig.node.json}'
+  - '!prisma/schema.prisma'
+  - 'prisma/migrations/**'
+asarUnpack:
+  - 'generated/prisma/client/*'
+  - 'node_modules/@prisma/client/*'
+win:
+  executableName: timetrack
+  icon: build/icon.ico
+nsis:
+  artifactName: ${name}-setup_${arch}.${ext}
+  shortcutName: ${productName}
+  uninstallDisplayName: ${productName}
+  createDesktopShortcut: always
+  installerIcon: build/icon.ico
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+mac:
+  icon: build/icon.icns
+  target:
+    - target: dmg
+      arch:
+        - x64
+        - arm64
+dmg:
+  artifactName: ${name}_${arch}.${ext}
+  icon: build/icon.icns
+linux:
+  target:
+    - AppImage
+    - deb
+  maintainer: timetrack.mwco.app
+  category: Utility
+  icon: build/
+appImage:
+  artifactName: ${name}_${arch}.${ext}
+deb:
+  artifactName: ${name}_${arch}.${ext}
+npmRebuild: false

@@ -1,0 +1,52 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "./../generated/prisma/client"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model Company {
+  name     String   @id
+  status   String   @default("active")
+  projects Project[]
+
+  @@map("companies")
+}
+
+model Project {
+  name        String   @id
+  companyName String   @map("company_name")
+  status      String   @default("active")
+  company     Company  @relation(fields: [companyName], references: [name], onDelete: Cascade)
+  tasks       Task[]
+  taskDefinitions TaskDefinition[]
+
+  @@map("projects")
+}
+
+model Task {
+  name        String   @default("default")
+  projectName String   @map("project_name")
+  description String?
+  date        DateTime @default(now())
+  seconds     Int      @default(0)
+  status      String   @default("active")
+
+  project Project @relation(fields: [projectName], references: [name], onDelete: Cascade)
+
+  @@unique([name, date, projectName], name: "tasks_name_date_pjn_IDX")
+  @@map("tasks")
+}
+
+model TaskDefinition {
+  name        String
+  projectName String @map("project_name")
+  status      String @default("active")
+
+  project Project @relation(fields: [projectName], references: [name], onDelete: Cascade)
+
+  @@id([name, projectName])
+  @@map("task_definitions")
+}

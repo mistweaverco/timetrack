@@ -9,19 +9,18 @@ GH_TAG="v$VERSION"
 FILES=()
 
 LINUX_FILES=(
-  "out/make/deb/x64/${BIN_NAME}_${VERSION}_amd64.deb"
-  "out/make/rpm/x64/${BIN_NAME}-${VERSION}-1.x86_64.rpm"
+  "dist/${BIN_NAME}_x86_64.deb"
+  "dist/${BIN_NAME}_x86_64.AppImage"
 )
 
 WINDOWS_FILES=(
-  "out/make/squirrel.windows/x64/${BIN_NAME}-${VERSION} Setup.exe"
-  "out/make/squirrel.windows/x64/${BIN_NAME}-${VERSION}-full.nupkg"
+  "dist/${BIN_NAME}-setup_x64.exe"
 )
 
 MACOS_FILES=(
-  "out/make/$BIN_NAME-$VERSION-x64.dmg"
+  "dist/${BIN_NAME}_x64.dmg"
+  "dist/${BIN_NAME}_arm64.dmg"
 )
-
 
 set_release_action() {
   if gh release view "$GH_TAG" --json id --jq .id > /dev/null 2>&1; then
@@ -45,6 +44,8 @@ check_files_exist() {
     for file in "${files[@]}"; do
       printf " - %s\n" "$file"
     done
+    echo "This is the content of the dist directory:"
+    ls -l dist/ 2>/dev/null || echo "dist/ directory does not exist"
     exit 1
   fi
 }
@@ -92,10 +93,6 @@ do_gh_release() {
   fi
 }
 
-create_archives() {
-	cd out/ && tar -czvf "${BIN_NAME}_${VERSION}_linux-x64.tar.gz" "${BIN_NAME}-linux-x64"
-}
-
 release() {
   set_release_action
   set_files_based_on_platform
@@ -103,12 +100,4 @@ release() {
   do_gh_release
 }
 
-boot() {
-  if [ -z "$CREATE_ARCHIVES" ]; then
-    release
-  else
-    create_archives
-  fi
-}
-
-boot
+release

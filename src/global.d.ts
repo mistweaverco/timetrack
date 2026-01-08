@@ -38,6 +38,7 @@ type SearchQueryTask = {
   task_name: string
   task_definition_name: string
   task_description: string
+  company_name: string
 }
 
 type SearchQuery = {
@@ -49,18 +50,27 @@ type SearchQuery = {
 }
 
 type SearchQueryResult = {
+  companies: DBCompany[]
   projects: DBProject[]
   task_definitions: DBTaskDefinition[]
   tasks: DBTask[]
 }
 
+type DBCompany = {
+  name: string
+  status?: string
+}
+
 type DBProject = {
   name: string
+  company_name: string
+  status?: string
 }
 
 type DBTaskDefinition = {
   name: string
   project_name: string
+  status?: string
 }
 
 type DBTask = {
@@ -69,6 +79,7 @@ type DBTask = {
   description: string
   seconds: number
   date: string
+  status?: string
 }
 
 type MainProcessActiveTaskMapped = {
@@ -94,9 +105,17 @@ type MainProccessAddActiveTaskOpts = {
   seconds: number
 }
 
+type DBEditCompanyOpts = {
+  name: string
+  oldname: string
+  status?: string
+}
+
 type DBEditProjectOpts = {
   name: string
   oldname: string
+  company_name: string
+  status?: string
 }
 
 type DBAddTaskDefinitionOpts = {
@@ -108,6 +127,7 @@ type DBEditTaskDefinitionOpts = {
   name: string
   oldname: string
   project_name: string
+  status?: string
 }
 
 type DBDeleteTaskDefinitionOpts = {
@@ -127,7 +147,9 @@ type DBEditTaskOpts = {
   description: string
   seconds: number
   date: string
+  old_date: string
   project_name: string
+  status?: string
 }
 
 type DBDeleteTaskOpts = {
@@ -145,6 +167,11 @@ declare const MAIN_WINDOW_VITE_DEV_SERVER_URL: string | undefined
 declare const MAIN_WINDOW_VITE_NAME: string
 declare const electron: any // eslint-disable-line @typescript-eslint/no-explicit-any
 
+declare module '*?asset' {
+  const content: string
+  export default content
+}
+
 interface Window {
   versions: {
     node: string
@@ -154,10 +181,28 @@ interface Window {
   electron: {
     on: (channel: string, callback: ElectronOnCallback) => void
     off: (channel: string) => void
-    addProject: (name: string) => Promise<{ success: boolean }>
+    getCompanies: () => Promise<DBCompany[]>
+    addCompany: (name: string) => Promise<{ success: boolean }>
+    editCompany: (opts: {
+      name: string
+      oldname: string
+      status?: string
+    }) => Promise<{ success: boolean }>
+    deleteCompany: (name: string) => Promise<{ success: boolean }>
+    addProject: (
+      name: string,
+      companyName: string,
+    ) => Promise<{ success: boolean }>
     editProject: (opts: {
       name: string
       oldname: string
+      company_name: string
+      status?: string
+    }) => Promise<{ success: boolean }>
+    editCompany: (opts: {
+      name: string
+      oldname: string
+      status?: string
     }) => Promise<{ success: boolean }>
     deleteProject: (name: string) => Promise<{ success: boolean }>
     getProjects: () => Promise<DBProject[]>
@@ -169,6 +214,7 @@ interface Window {
       project_name: string
       name: string
       oldname: string
+      status?: string
     }) => Promise<{ success: boolean }>
     deleteTaskDefinition: (opts: {
       project_name: string
@@ -187,6 +233,8 @@ interface Window {
       description: string
       seconds: number
       date: string
+      old_date: string
+      status?: string
     }) => Promise<DBTask & { success: boolean }>
     deleteTask: (opts: {
       project_name: string

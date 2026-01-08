@@ -7,14 +7,14 @@
     "module": "commonjs",
     "moduleResolution": "node",
     "noImplicitAny": true,
-    "outDir": "dist",
-    "jsx": "react-jsx",
+    "outDir": "out",
     "resolveJsonModule": true,
     "skipLibCheck": true,
     "sourceMap": true,
     "target": "ESNext",
+    "types": ["@electron-toolkit/preload", "vite/client", "./src/global.d.ts"],
     "paths": {
-      "@components/*": ["src/components/*"],
+      "@components/*": ["./src/components/*"],
       "@lib/*": ["./lib/*"]
     }
   },
