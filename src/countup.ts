@@ -17,6 +17,7 @@ class CountUp {
   isActive: boolean
 
   constructor(opts: CountUpOpts) {
+    this.count = 0
     this.name = opts.name
     this.project_name = opts.project_name
     this.description = opts.description
@@ -33,12 +34,16 @@ class CountUp {
   }
 
   pause() {
+    if (!this.isActive) return
+    if (this.tick === null) return
     clearInterval(this.tick)
     this.tick = null
     this.isActive = false
   }
 
   stop() {
+    if (!this.isActive) return
+    if (this.tick === null) return
     clearInterval(this.tick)
     this.tick = null
     this.isActive = false

@@ -3,39 +3,38 @@ import {
   BrowserWindow,
   dialog,
   ipcMain,
-  shell,
   IpcMainInvokeEvent,
+  shell,
 } from 'electron'
 import moment from 'moment'
 import fs from 'fs'
 import path from 'path'
-import { PrismaClient } from '@prisma/client'
 import { CountUp } from './countup'
 import { windowsInstallerSetupEvents } from './installer-setup-events'
 import {
-  initDB,
-  getProjects,
   addProject,
-  editProject,
-  deleteProject,
-  addTaskDefinition,
-  editTaskDefinition,
-  deleteTaskDefinition,
-  getTaskDefinitions,
-  getAllTaskDefinitions,
   addTask,
-  editTask,
+  addTaskDefinition,
+  deleteProject,
   deleteTask,
+  deleteTaskDefinition,
+  editProject,
+  editTask,
+  editTaskDefinition,
+  getAllTaskDefinitions,
+  getDataForPDFExport,
+  getPrismaClient,
+  getProjects,
+  getSearchResult,
+  getTaskDefinitions,
   getTasks,
   getTasksByNameAndProject,
   getTasksToday,
-  saveActiveTasks,
+  PrismaClient,
   saveActiveTask,
-  getDataForPDFExport,
-  getSearchResult,
+  saveActiveTasks,
 } from './database'
 
-if (require('electron-squirrel-startup')) app.quit()
 // if first time install on windows, do not run application, rather
 // let squirrel installer do its work
 if (windowsInstallerSetupEvents()) {
@@ -437,7 +436,7 @@ const setupIPCHandles = async () => {
 }
 
 const onWhenReady = async () => {
-  DB = await initDB()
+  DB = await getPrismaClient()
 
   await setupIPCHandles()
 

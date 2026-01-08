@@ -1,16 +1,29 @@
 generator client {
   provider = "prisma-client-js"
+  output   = "./../generated/prisma/client"
 }
 
 datasource db {
   provider = "sqlite"
 }
 
+model Company {
+  name     String   @id
+  status   String   @default("active")
+  projects Project[]
+
+  @@map("companies")
+}
+
 model Project {
-  name   String  @id
-  status String  @default("active")
-  tasks  Task[]
+  name        String   @id
+  companyName String   @map("company_name")
+  status      String   @default("active")
+  company     Company  @relation(fields: [companyName], references: [name], onDelete: Cascade)
+  tasks       Task[]
   taskDefinitions TaskDefinition[]
+
+  @@map("projects")
 }
 
 model Task {

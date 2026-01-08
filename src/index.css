@@ -36,15 +36,15 @@
 
 form.pdf-export-form .field,
 form.search-form .field {
-/* TODO: find a better way to do this
+  /* TODO: find a better way to do this
   bulma p-2
 */
-  padding: .5rem!important
+  padding: 0.5rem !important;
 }
 
 form.search-form .field .control button {
-/* TODO: find a better way to do this
+  /* TODO: find a better way to do this
   bulma m-2
 */
-  margin: .5rem!important
+  margin: 0.5rem !important;
 }

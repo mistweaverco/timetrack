@@ -17,20 +17,26 @@ jobs:
         run: |
           VERSION=${GITHUB_REF_NAME#v}
           echo "VERSION=$VERSION" >> $GITHUB_ENV
-      - name: Set up Node
-        uses: actions/setup-node@v4
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+      - name: Cache Bun
+        uses: actions/cache@v4
         with:
-          node-version: 20
-      - name: Install node dependencies
-        run: npm ci
+          path: ~/.bun/install/cache
+          key: linux-bun-${{ hashFiles('**/bun.lock') }}
+          restore-keys: |
+            linux-bun-${{ hashFiles('**/bun.lock') }}
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
       - name: Build Linux
         run: make linux
-      - name: Archive
-        run: make archives PLATFORM=linux VERSION=$VERSION
+        env:
+          VERSION: ${{ env.VERSION }}
       - name: Linux Release
         run: make linux-release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ env.VERSION }}
   build-windows:
     name: Build Windows
     runs-on: windows-latest
@@ -44,20 +50,28 @@ jobs:
         run: |
           VERSION=${GITHUB_REF_NAME#v}
           echo "VERSION=$VERSION" >> $GITHUB_ENV
-      - name: Set up Node
-        uses: actions/setup-node@v4
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+      - name: Cache Bun
+        uses: actions/cache@v4
         with:
-          node-version: 20
-      - name: Install node dependencies
-        run: npm ci
+          path: ~/.bun/install/cache
+          key: windows-bun-${{ hashFiles('**/bun.lock') }}
+          restore-keys: |
+            windows-bun-${{ hashFiles('**/bun.lock') }}
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
       - name: Build Windows
         shell: bash
         run: make windows
+        env:
+          VERSION: ${{ env.VERSION }}
       - name: Windows Release
         shell: bash
         run: make windows-release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ env.VERSION }}
   build-macos:
     name: Build MacOS
     runs-on: macos-latest
@@ -66,22 +80,27 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      # https://github.com/electron/forge/issues/2807
-      - name: Install python3-setuptools and bash
-        run: brew install python-setuptools bash
       - name: Set up env
         run: |
           VERSION=${GITHUB_REF_NAME#v}
           echo "VERSION=$VERSION" >> $GITHUB_ENV
-      - name: Set up Node
-        uses: actions/setup-node@v4
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+      - name: Cache Bun
+        uses: actions/cache@v4
         with:
-          node-version: 20
-      - name: Install node dependencies
-        run: npm ci
+          path: ~/.bun/install/cache
+          key: macos-bun-${{ hashFiles('**/bun.lock') }}
+          restore-keys: |
+            macos-bun-${{ hashFiles('**/bun.lock') }}
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
       - name: Build MacOS
         run: make macos
+        env:
+          VERSION: ${{ env.VERSION }}
       - name: MacOS Release
         run: make macos-release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ env.VERSION }}

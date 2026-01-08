@@ -1,0 +1,19 @@
+{
+  "extends": "@electron-toolkit/tsconfig/tsconfig.node.json",
+  "include": ["electron.vite.config.*", "src/main/**/*", "src/preload/**/*"],
+  "exclude": ["node_modules", "out", "src/renderer", "src/shared"],
+  "compilerOptions": {
+    "baseUrl": "./src",
+    "lib": ["esnext"],
+    "moduleResolution": "bundler",
+    "target": "ESNext",
+    "noEmit": true,
+    "composite": false,
+    "skipLibCheck": true,
+    "types": ["node", "electron", "./src/global.d.ts", "vite/client"],
+    "paths": {
+      "@components/*": ["src/components/*"],
+      "@lib/*": ["./lib/*"]
+    }
+  }
+}
