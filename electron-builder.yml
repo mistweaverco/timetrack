@@ -31,7 +31,7 @@ nsis:
   perMachine: false
   allowToChangeInstallationDirectory: true
 mac:
-  icon: build/icon.icns
+  icon: resources/icon.icns
   target:
     - target: dmg
       arch:
@@ -39,14 +39,14 @@ mac:
         - arm64
 dmg:
   artifactName: ${name}_${arch}.${ext}
-  icon: build/icon.icns
+  icon: resources/icon.icns
 linux:
   target:
     - AppImage
     - deb
   maintainer: timetrack.mwco.app
   category: Utility
-  icon: build/
+  icon: resources/icon.png
 appImage:
   artifactName: ${name}_${arch}.${ext}
 deb:
