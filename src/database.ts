@@ -1,79 +1,10 @@
-import { readFile, readdir } from 'node:fs/promises'
+import { PrismaClient } from '@prisma/client'
 import logger from 'node-color-log'
 import path from 'node:path'
-import { Database as Sqlite3Database } from 'sqlite3'
-import { open, Database } from 'sqlite'
-import { getUserDataPath, getUserConfig } from './lib/ConfigFile'
+import { execSync } from 'child_process'
+import { getUserConfig, getUserDataPath } from './lib/ConfigFile'
 
-const dbMigrate = async (db: Database, version: string | null) => {
-  // read directory and get all migration files in order start from 'version' (excluded)
-  // and run all migration files in order
-  const migrationFiles = path.join(__dirname, 'db-migrations')
-  const files = await readdir(migrationFiles)
-  const migrationFilesToRun = files
-    .filter(f => {
-      const file = f.replace('.sql', '')
-      if (version === null || version === '') {
-        return true
-      }
-      return file > version
-    })
-    .sort()
-  if (migrationFilesToRun.length === 0) {
-    logger.info('🗃️ No migrations to run')
-    return
-  }
-  migrationFilesToRun.forEach(async file => {
-    logger.warn('🗃️ Running migration', file)
-    const sql = await readFile(path.join(migrationFiles, file), 'utf8')
-    await db.exec(sql)
-    await db.run('UPDATE db_version SET version = ?', file.replace('.sql', ''))
-  })
-}
-
-const initDBMigration = async (db: Database) => {
-  const versionTableExits = await db.all(
-    "SELECT name FROM sqlite_master WHERE type='table' AND name=?",
-    'db_version',
-  )
-  if (versionTableExits.length === 0) {
-    await db.exec('CREATE TABLE db_version (version TEXT)')
-    await db.run('INSERT INTO db_version (version) VALUES ("")')
-    await dbMigrate(db, null)
-  } else {
-    const version = await db.get('SELECT version FROM db_version')
-    await dbMigrate(db, version.version)
-  }
-}
-
-const initDB = async (): Promise<Database> => {
-  const userConfig = await getUserConfig()
-  const userDataPath = await getUserDataPath()
-  let sqlFilePath = path.join(userDataPath, 'timetrack.db')
-  if (userConfig && userConfig.database_file_path) {
-    sqlFilePath = userConfig.database_file_path
-    console.warn('🗃️ Using custom database file path', sqlFilePath)
-  }
-  let db: Database
-  try {
-    db = await open({ filename: sqlFilePath, driver: Sqlite3Database })
-  } catch (err) {
-    logger.error('📢 Error opening database file:', sqlFilePath)
-    electron.app.quit()
-  }
-  const atable = await db.all(
-    "SELECT name FROM sqlite_master WHERE type='table' AND name=?",
-    'projects',
-  )
-  if (atable.length === 0) {
-    const sql = await readFile(path.join(__dirname, 'db.sql'), 'utf8')
-    await db.exec(sql)
-  } else {
-    // files exists, and projects table exist check if migration is needed
-    await initDBMigration(db)
-  }
-  return db
-}
+let prisma: PrismaClient
 
 type Task = {
   name: string
@@ -82,277 +13,450 @@ type Task = {
   seconds: number
 }
 
+const initDB = async (): Promise<PrismaClient> => {
+  const userConfig = await getUserConfig()
+  const userDataPath = await getUserDataPath()
+  let sqlFilePath = path.join(userDataPath, 'timetrack.db')
+  if (userConfig && userConfig.database_file_path) {
+    sqlFilePath = userConfig.database_file_path
+    console.warn('🗃️ Using custom database file path', sqlFilePath)
+  }
+
+  // Set DATABASE_URL for Prisma before creating client
+  process.env.DATABASE_URL = `file:${sqlFilePath}`
+
+  // Create Prisma Client with explicit datasource URL
+  prisma = new PrismaClient({
+    datasources: {
+      db: {
+        url: `file:${sqlFilePath}`,
+      },
+    },
+  })
+
+  try {
+    // Test connection
+    await prisma.$connect()
+    await prisma.$executeRawUnsafe('PRAGMA foreign_keys = ON')
+
+    // Check if Project table exists (indicates new Prisma schema is initialized)
+    const newSchemaTable = await prisma.$queryRaw<Array<{ name: string }>>`
+      SELECT name FROM sqlite_master WHERE type='table' AND name='Project'
+    `
+
+    if (newSchemaTable.length === 0) {
+      logger.info('🗃️ Initializing database schema with Prisma...')
+      try {
+        execSync(`npx prisma db push --skip-generate --accept-data-loss`, {
+          env: { ...process.env, DATABASE_URL: `file:${sqlFilePath}` },
+          stdio: 'pipe',
+          cwd: path.join(__dirname, '../..'),
+        })
+        logger.info('🗃️ Database schema initialized successfully')
+      } catch (pushError) {
+        logger.error('📢 Error pushing schema:', pushError)
+        // Re-throw to prevent app from starting with invalid database
+        throw pushError
+      }
+    }
+
+    logger.info('🗃️ Database connected successfully')
+  } catch (err) {
+    logger.error('📢 Error connecting to database file:', sqlFilePath, err)
+    throw err
+  }
+
+  return prisma
+}
+
 const getSearchResult = async (
-  db: Database,
+  prisma: PrismaClient,
   q: SearchQuery,
 ): Promise<SearchQueryResult> => {
-  const active_state = q.active_state
-    .replace('all', 'active = 1 OR active = 0')
-    .replace('active', 'active = 1')
-    .replace('inactive', 'active = 0')
-  const search_in = q.search_in
   const project_name = q.task.project_name.replace(/\*/g, '%')
   const task_name = q.task.task_name.replace(/\*/g, '%')
   const task_description = q.task.task_description.replace(/\*/g, '%')
   const task_definition_name = q.task.task_definition_name.replace(/\*/g, '%')
-  let dbResultProjects = []
-  if (search_in.includes('projects')) {
-    dbResultProjects = await db.all(
-      `SELECT name FROM projects WHERE name LIKE ?`,
-      project_name,
-    )
+
+  const results: SearchQueryResult = {
+    projects: [],
+    task_definitions: [],
+    tasks: [],
   }
-  let dbResultTaskDefinitions = []
-  if (search_in.includes('task_definitions')) {
-    dbResultTaskDefinitions = await db.all(
-      `SELECT name, project_name FROM task_definitions WHERE name LIKE ? AND project_name LIKE ?`,
-      task_definition_name,
-      project_name,
-    )
+
+  if (q.search_in.includes('projects')) {
+    results.projects = await prisma.project.findMany({
+      where: {
+        name: {
+          contains: project_name.replace(/%/g, ''),
+        },
+      },
+      select: {
+        name: true,
+      },
+    })
   }
-  let dbResultTasks = []
-  if (search_in.includes('tasks')) {
-    dbResultTasks = await db.all(
-      `SELECT name, project_name, date, description, seconds FROM tasks WHERE date BETWEEN ? AND ? AND name LIKE ? AND name LIKE ? AND description LIKE ? AND project_name LIKE ?`,
-      q.from_date,
-      q.to_date,
-      task_name,
-      task_definition_name,
-      task_description,
-      project_name,
-    )
+
+  if (q.search_in.includes('task_definitions')) {
+    const taskDefs = await prisma.taskDefinition.findMany({
+      where: {
+        name: {
+          contains: task_definition_name.replace(/%/g, ''),
+        },
+        projectName: {
+          contains: project_name.replace(/%/g, ''),
+        },
+      },
+      select: {
+        name: true,
+        projectName: true,
+      },
+    })
+    results.task_definitions = taskDefs.map(td => ({
+      name: td.name,
+      project_name: td.projectName,
+    }))
   }
-  return {
-    projects: dbResultProjects,
-    task_definitions: dbResultTaskDefinitions,
-    tasks: dbResultTasks,
+
+  if (q.search_in.includes('tasks')) {
+    const tasks = await prisma.task.findMany({
+      where: {
+        date: {
+          gte: new Date(q.from_date),
+          lte: new Date(q.to_date),
+        },
+        name: {
+          contains: task_name.replace(/%/g, ''),
+        },
+        description: {
+          contains: task_description.replace(/%/g, ''),
+        },
+        projectName: {
+          contains: project_name.replace(/%/g, ''),
+        },
+      },
+      select: {
+        name: true,
+        projectName: true,
+        date: true,
+        description: true,
+        seconds: true,
+      },
+    })
+    results.tasks = tasks.map(t => ({
+      name: t.name,
+      project_name: t.projectName,
+      date: t.date.toISOString().split('T')[0],
+      description: t.description || '',
+      seconds: t.seconds,
+    }))
   }
+
+  return results
 }
 
 const getDataForPDFExport = async (
-  db: Database,
+  prisma: PrismaClient,
   q: PDFQuery,
-): Promise<DBProject[]> => {
-  const inTaskClause = q.tasks.map(task => `'${task.name}'`).join(',')
-  const res = await db.all(
-    `SELECT * FROM tasks WHERE date BETWEEN ? AND ? AND name IN(${inTaskClause})`,
-    q.from,
-    q.to,
-  )
-  return res
+): Promise<PDFQueryResult[]> => {
+  const taskNames = q.tasks.map(task => task.name)
+  const res = await prisma.task.findMany({
+    where: {
+      date: {
+        gte: new Date(q.from),
+        lte: new Date(q.to),
+      },
+      name: {
+        in: taskNames,
+      },
+    },
+  })
+  return res.map(t => ({
+    name: t.name,
+    project_name: t.projectName,
+    date: t.date.toISOString().split('T')[0],
+    description: t.description || '',
+    seconds: t.seconds,
+  }))
 }
 
-const saveActiveTask = async (db: Database, task: Task) => {
-  await db.run(
-    'UPDATE tasks SET seconds = ? WHERE name = ? AND project_name = ? AND date = ?',
-    task.seconds,
-    task.name,
-    task.project_name,
-    task.date,
-  )
-}
-
-const saveActiveTasks = async (db: Database, tasks: Task[]) => {
-  tasks.forEach(async task => {
-    await db.run(
-      'UPDATE tasks SET seconds = ? WHERE name = ? AND project_name = ? AND date = ?',
-      task.seconds,
-      task.name,
-      task.project_name,
-      task.date,
-    )
+const saveActiveTask = async (prisma: PrismaClient, task: Task) => {
+  await prisma.task.updateMany({
+    where: {
+      name: task.name,
+      projectName: task.project_name,
+      date: new Date(task.date),
+    },
+    data: {
+      seconds: task.seconds,
+    },
   })
 }
 
-const getProjects = async (db: Database): Promise<DBProject[]> => {
-  const projects = await db.all('SELECT * FROM projects')
-  return projects
+const saveActiveTasks = async (prisma: PrismaClient, tasks: Task[]) => {
+  await Promise.all(
+    tasks.map(task =>
+      prisma.task.updateMany({
+        where: {
+          name: task.name,
+          projectName: task.project_name,
+          date: new Date(task.date),
+        },
+        data: {
+          seconds: task.seconds,
+        },
+      }),
+    ),
+  )
 }
 
-const addProject = async (db: Database, name: string) => {
-  await db.run('INSERT INTO projects (name) VALUES (?)', name)
+const getProjects = async (prisma: PrismaClient): Promise<DBProject[]> => {
+  const projects = await prisma.project.findMany()
+  return projects.map(p => ({ name: p.name }))
+}
+
+const addProject = async (prisma: PrismaClient, name: string) => {
+  await prisma.project.create({
+    data: {
+      name,
+    },
+  })
   return { success: true }
 }
 
-const editProject = async (db: Database, opts: DBEditProjectOpts) => {
-  await db.run(
-    'UPDATE projects SET name = ? WHERE name = ?',
-    opts.name,
-    opts.oldname,
-  )
-  await db.run(
-    'UPDATE tasks SET project_name = ? WHERE project_name = ?',
-    opts.name,
-    opts.oldname,
-  )
-  await db.run(
-    'UPDATE task_definitions SET project_name = ? WHERE project_name = ?',
-    opts.name,
-    opts.oldname,
-  )
+const editProject = async (prisma: PrismaClient, opts: DBEditProjectOpts) => {
+  await prisma.$transaction([
+    prisma.project.update({
+      where: { name: opts.oldname },
+      data: { name: opts.name },
+    }),
+    prisma.task.updateMany({
+      where: { projectName: opts.oldname },
+      data: { projectName: opts.name },
+    }),
+    prisma.taskDefinition.updateMany({
+      where: { projectName: opts.oldname },
+      data: { projectName: opts.name },
+    }),
+  ])
   return { success: true }
 }
 
-const deleteProject = async (db: Database, name: string) => {
-  await db.run('DELETE FROM projects WHERE name = ?', name)
-  await db.run('DELETE FROM task_definitions WHERE project_name = ?', name)
-  await db.run('DELETE FROM tasks WHERE project_name = ?', name)
+const deleteProject = async (prisma: PrismaClient, name: string) => {
+  await prisma.project.delete({
+    where: { name },
+  })
   return { success: true }
 }
 
 const addTaskDefinition = async (
-  db: Database,
+  prisma: PrismaClient,
   opts: DBAddTaskDefinitionOpts,
 ) => {
-  await db.run(
-    'INSERT INTO task_definitions (name, project_name) VALUES (?, ?)',
-    opts.name,
-    opts.project_name,
-  )
+  await prisma.taskDefinition.create({
+    data: {
+      name: opts.name,
+      projectName: opts.project_name,
+    },
+  })
   return { success: true }
 }
 
 const editTaskDefinition = async (
-  db: Database,
+  prisma: PrismaClient,
   opts: DBEditTaskDefinitionOpts,
 ) => {
-  await db.run(
-    'UPDATE task_definitions SET name = ? WHERE name=? AND project_name = ?',
-    opts.name,
-    opts.oldname,
-    opts.project_name,
-  )
-  await db.run(
-    'UPDATE tasks SET name = ? WHERE name=? AND project_name = ?',
-    opts.name,
-    opts.oldname,
-    opts.project_name,
-  )
+  await prisma.$transaction([
+    prisma.taskDefinition.updateMany({
+      where: {
+        name: opts.oldname,
+        projectName: opts.project_name,
+      },
+      data: {
+        name: opts.name,
+      },
+    }),
+    prisma.task.updateMany({
+      where: {
+        name: opts.oldname,
+        projectName: opts.project_name,
+      },
+      data: {
+        name: opts.name,
+      },
+    }),
+  ])
   return { success: true }
 }
 
 const deleteTaskDefinition = async (
-  db: Database,
+  prisma: PrismaClient,
   opts: DBDeleteTaskDefinitionOpts,
 ) => {
-  await db.run(
-    'DELETE FROM task_definitions WHERE name = ? AND project_name = ?',
-    opts.name,
-    opts.project_name,
-  )
-  await db.run(
-    'DELETE FROM tasks WHERE name = ? AND project_name = ?',
-    opts.name,
-    opts.project_name,
-  )
+  await prisma.$transaction([
+    prisma.taskDefinition.deleteMany({
+      where: {
+        name: opts.name,
+        projectName: opts.project_name,
+      },
+    }),
+    prisma.task.deleteMany({
+      where: {
+        name: opts.name,
+        projectName: opts.project_name,
+      },
+    }),
+  ])
   return { success: true }
 }
 
 const getTaskDefinitions = async (
-  db: Database,
+  prisma: PrismaClient,
   project_name: string,
 ): Promise<DBTaskDefinition[]> => {
-  const tasks = await db.all(
-    'SELECT * FROM task_definitions WHERE project_name = ?',
-    project_name,
-  )
-  return tasks
+  const tasks = await prisma.taskDefinition.findMany({
+    where: {
+      projectName: project_name,
+    },
+  })
+  return tasks.map(t => ({
+    name: t.name,
+    project_name: t.projectName,
+  }))
 }
 
 const getAllTaskDefinitions = async (
-  db: Database,
+  prisma: PrismaClient,
 ): Promise<DBTaskDefinition[]> => {
-  const res = await db.all('SELECT * FROM task_definitions')
-  return res
+  const res = await prisma.taskDefinition.findMany()
+  return res.map(t => ({
+    name: t.name,
+    project_name: t.projectName,
+  }))
 }
 
-const addTask = async (db: Database, opts: DBAddTaskOpts) => {
-  await db.run(
-    'INSERT INTO tasks (name, description, project_name, seconds) VALUES (?, ?, ?, ?)',
-    opts.name,
-    opts.description,
-    opts.project_name,
-    opts.seconds,
-  )
+const addTask = async (prisma: PrismaClient, opts: DBAddTaskOpts) => {
+  await prisma.task.create({
+    data: {
+      name: opts.name,
+      description: opts.description,
+      projectName: opts.project_name,
+      seconds: opts.seconds,
+    },
+  })
   return { success: true }
 }
 
-const editTask = async (db: Database, opts: DBEditTaskOpts) => {
-  await db.run(
-    'UPDATE tasks SET name = ?, description = ?, seconds = ? WHERE name=? AND date=? AND project_name = ?',
-    opts.name,
-    opts.description,
-    opts.seconds,
-    opts.name,
-    opts.date,
-    opts.project_name,
-  )
+const editTask = async (prisma: PrismaClient, opts: DBEditTaskOpts) => {
+  await prisma.task.updateMany({
+    where: {
+      name: opts.name,
+      date: new Date(opts.date),
+      projectName: opts.project_name,
+    },
+    data: {
+      name: opts.name,
+      description: opts.description,
+      seconds: opts.seconds,
+    },
+  })
   return { success: true }
 }
 
-const deleteTask = async (db: Database, opts: DBDeleteTaskOpts) => {
-  await db.run(
-    'DELETE FROM tasks WHERE name = ? AND date = ? AND project_name = ?',
-    opts.name,
-    opts.date,
-    opts.project_name,
-  )
+const deleteTask = async (prisma: PrismaClient, opts: DBDeleteTaskOpts) => {
+  await prisma.task.deleteMany({
+    where: {
+      name: opts.name,
+      date: new Date(opts.date),
+      projectName: opts.project_name,
+    },
+  })
   return { success: true }
 }
 
 const getTasks = async (
-  db: Database,
+  prisma: PrismaClient,
   project_name: string,
 ): Promise<DBTask[]> => {
-  const tasks = await db.all(
-    'SELECT * FROM tasks WHERE project_name = ?',
-    project_name,
-  )
-  return tasks
+  const tasks = await prisma.task.findMany({
+    where: {
+      projectName: project_name,
+    },
+  })
+  return tasks.map(t => ({
+    name: t.name,
+    project_name: t.projectName,
+    description: t.description || '',
+    seconds: t.seconds,
+    date: t.date.toISOString().split('T')[0],
+  }))
 }
 
 const getTasksByNameAndProject = async (
-  db: Database,
+  prisma: PrismaClient,
   opts: { name: string; project_name: string },
 ): Promise<DBTask[]> => {
-  const tasks = await db.all(
-    'SELECT * FROM tasks WHERE name = ? AND project_name = ?',
-    opts.name,
-    opts.project_name,
-  )
-  return tasks
+  const tasks = await prisma.task.findMany({
+    where: {
+      name: opts.name,
+      projectName: opts.project_name,
+    },
+  })
+  return tasks.map(t => ({
+    name: t.name,
+    project_name: t.projectName,
+    description: t.description || '',
+    seconds: t.seconds,
+    date: t.date.toISOString().split('T')[0],
+  }))
 }
 
 const getTasksToday = async (
-  db: Database,
+  prisma: PrismaClient,
   project_name: string,
 ): Promise<DBTask[]> => {
-  const tasks = await db.all(
-    'SELECT * FROM tasks WHERE project_name = ? AND date=DATE("now", "localtime")',
-    project_name,
-  )
-  return tasks
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const tomorrow = new Date(today)
+  tomorrow.setDate(tomorrow.getDate() + 1)
+
+  const tasks = await prisma.task.findMany({
+    where: {
+      projectName: project_name,
+      date: {
+        gte: today,
+        lt: tomorrow,
+      },
+    },
+  })
+  return tasks.map(t => ({
+    name: t.name,
+    project_name: t.projectName,
+    description: t.description || '',
+    seconds: t.seconds,
+    date: t.date.toISOString().split('T')[0],
+  }))
 }
 
 export {
-  initDB,
   addProject,
-  editProject,
-  deleteProject,
-  getProjects,
-  addTaskDefinition,
-  editTaskDefinition,
-  deleteTaskDefinition,
-  getTaskDefinitions,
-  getAllTaskDefinitions,
   addTask,
-  editTask,
+  addTaskDefinition,
+  deleteProject,
   deleteTask,
+  deleteTaskDefinition,
+  editProject,
+  editTask,
+  editTaskDefinition,
+  getAllTaskDefinitions,
+  getDataForPDFExport,
+  getProjects,
+  getSearchResult,
+  getTaskDefinitions,
   getTasks,
   getTasksByNameAndProject,
   getTasksToday,
-  saveActiveTasks,
+  initDB,
   saveActiveTask,
-  getDataForPDFExport,
-  getSearchResult,
+  saveActiveTasks,
 }

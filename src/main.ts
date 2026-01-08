@@ -9,7 +9,7 @@ import {
 import moment from 'moment'
 import fs from 'fs'
 import path from 'path'
-import { Database } from 'sqlite'
+import { PrismaClient } from '@prisma/client'
 import { CountUp } from './countup'
 import { windowsInstallerSetupEvents } from './installer-setup-events'
 import {
@@ -43,7 +43,7 @@ if (windowsInstallerSetupEvents()) {
 }
 
 let WINDOW: BrowserWindow = null
-let DB: Database
+let DB: PrismaClient
 const activeTasks: InstanceType<typeof CountUp>[] = []
 
 const getPDFExport = async (evt: IpcMainInvokeEvent, filepath: string) => {
@@ -452,7 +452,7 @@ app.whenReady().then(onWhenReady)
 
 const onWindowAllClosed = async () => {
   await periodicSaveActiveTasks()
-  DB.close()
+  await DB.$disconnect()
   if (process.platform !== 'darwin') {
     app.quit()
   }

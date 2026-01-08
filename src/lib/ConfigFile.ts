@@ -1,4 +1,4 @@
-import { app } from 'electron'
+import os from 'node:os'
 import logger from 'node-color-log'
 import path from 'node:path'
 import { access, mkdir, readFile } from 'node:fs/promises'
@@ -8,26 +8,64 @@ type UserConfigFile = null | {
   database_file_path: string
 }
 
-export const getUserDataPath = async (): Promise<string | null> => {
-  const userDataPath = path.join(app.getPath('userData'), '..', 'timetrack')
+function getUserConfigDir() {
+  const appName = 'timetrack'
+
+  const platform = process.platform
+
+  if (platform === 'win32') {
+    // Windows: C:\Users\<User>\AppData\Roaming
+    return (
+      process.env.APPDATA ||
+      path.join(os.homedir(), 'AppData', 'Roaming', appName)
+    )
+  }
+
+  if (platform === 'darwin') {
+    // macOS: /Users/<User>/Library/Preferences
+    return path.join(os.homedir(), 'Library', 'Preferences', appName)
+  }
+
+  // Linux and other POSIX: /home/<user>/.config (per XDG spec)
+  return (
+    process.env.XDG_CONFIG_HOME || path.join(os.homedir(), '.config', appName)
+  )
+}
+
+export const getDBFilePath = async (): Promise<string> => {
+  const userConfigDir = getUserConfigDir()
   try {
-    await access(userDataPath)
-    return userDataPath
+    await access(userConfigDir)
   } catch (err) {
     if (err.code === 'ENOENT') {
-      logger.error('📢 Creating user data path:', userDataPath)
-      await mkdir(userDataPath, { recursive: true })
-      return userDataPath
+      logger.error('📢 Creating user config dir:', userConfigDir)
+      await mkdir(userConfigDir, { recursive: true })
+    }
+  }
+  const dbFilePath = path.join(userConfigDir, 'timetrack.db')
+  return dbFilePath
+}
+
+export const getUserDataPath = async (): Promise<string | null> => {
+  const userConfigDir = getUserConfigDir()
+  try {
+    await access(userConfigDir)
+    return userConfigDir
+  } catch (err) {
+    if (err.code === 'ENOENT') {
+      logger.error('📢 Creating user data path:', userConfigDir)
+      await mkdir(userConfigDir, { recursive: true })
+      return userConfigDir
     } else {
-      logger.error('📢 Error accessing user data path:', userDataPath)
+      logger.error('📢 Error accessing user config path:', userConfigDir)
       return null
     }
   }
 }
 
 export const getUserConfig = async (): Promise<UserConfigFile> => {
-  const userDataPath = await getUserDataPath()
-  const configFilePath = path.join(userDataPath, 'config.yml')
+  const userConfigDir = await getUserConfigDir()
+  const configFilePath = path.join(userConfigDir, 'config.yaml')
   try {
     await access(configFilePath)
     const content = await readFile(configFilePath, 'utf8')
