@@ -20,7 +20,7 @@ asarUnpack:
   - 'node_modules/@prisma/client/*'
 win:
   executableName: timetrack
-  icon: build/icon.ico
+  icon: resources/icon.ico
 nsis:
   artifactName: ${name}-setup_${arch}.${ext}
   shortcutName: ${productName}
