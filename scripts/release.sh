@@ -9,7 +9,7 @@ GH_TAG="v$VERSION"
 FILES=()
 
 LINUX_FILES=(
-  "dist/${BIN_NAME}_x86_64.deb"
+  "dist/${BIN_NAME}_amd64.deb"
   "dist/${BIN_NAME}_x86_64.AppImage"
 )
 
