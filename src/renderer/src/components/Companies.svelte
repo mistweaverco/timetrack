@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte'
+  import { Button } from '@ui/button'
   import { companies, selectedCompany, selectedProject } from '../stores'
   import EditCompanyModal from './modals/EditCompanyModal.svelte'
   import DeleteCompanyModal from './modals/DeleteCompanyModal.svelte'
@@ -51,7 +52,7 @@
   function handleCompanySelect(company: DBCompany) {
     selectedCompany.set({ id: company.id, name: company.name })
     // Clear selected project when company changes
-    selectedProject.set({ name: null, company_name: null })
+    selectedProject.set({ id: null, name: null })
   }
 
   function handleEditClick(company: DBCompany) {
@@ -84,7 +85,7 @@
         // Clear selection if deleted company was selected
         if ($selectedCompany.id === companyToDelete.id) {
           selectedCompany.set({ id: null, name: null })
-          selectedProject.set({ name: null, company_name: null })
+          selectedProject.set({ id: null, name: null })
         }
       }
     }
@@ -105,6 +106,18 @@
     company={companyToDelete}
     onClose={s => handleCompanyModalClose(s)}
   />
+{/if}
+
+{#if companiesList.length > 0}
+  {#each companiesList as company (company.name)}
+    <Button
+      variant={$selectedCompany.id === company.id ? 'default' : 'outline'}
+      class="justify-between mr-2"
+      onclick={() => handleCompanySelect(company)}
+    >
+      {company.name}
+    </Button>
+  {/each}
 {/if}
 
 <section class="section">
