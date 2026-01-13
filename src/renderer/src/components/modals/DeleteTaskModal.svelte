@@ -7,26 +7,11 @@
   async function handleConfirm() {
     if (window.electron) {
       const result = await window.electron.deleteTask({
-        name: task.name,
-        project_name: task.project_name,
-        date: task.date,
+        id: task.id,
       })
       if (result.success) {
-        await tasks.update(ts =>
-          ts.filter(
-            t =>
-              !(
-                t.name === task.name &&
-                t.project_name === task.project_name &&
-                t.date === task.date
-              ),
-          ),
-        )
-        if (
-          $selectedTask?.name === task.name &&
-          $selectedTask?.project_name === task.project_name &&
-          $selectedTask?.date === task.date
-        ) {
+        tasks.update(ts => ts.filter(t => t.id !== task.id))
+        if ($selectedTask?.id === task.id) {
           selectedTask.set(null)
         }
         onClose(true)
@@ -48,5 +33,11 @@
       <button class="btn btn-primary" on:click={handleCancel}>No</button>
     </div>
   </div>
-  <div class="modal-backdrop" on:click={handleCancel}></div>
+  <div
+    class="modal-backdrop"
+    on:keypress={(evt: KeyboardEvent) => evt.key === 'Escape' && handleCancel()}
+    on:click={handleCancel}
+    role="button"
+    tabindex="0"
+  ></div>
 </div>

@@ -7,11 +7,11 @@
 
   async function handleConfirm() {
     if (window.electron) {
-      const result = await window.electron.deleteProject(project.name)
+      const result = await window.electron.deleteProject(project.id)
       if (result.success) {
-        await projects.update(ps => ps.filter(p => p.name !== project.name))
-        if ($selectedProject.name === project.name) {
-          selectedProject.set({ name: null, company_name: null })
+        projects.update(ps => ps.filter(p => p.id !== project.id))
+        if ($selectedProject.id === project.id) {
+          selectedProject.set({ id: null, name: null })
         }
         onClose(true)
       }
@@ -42,5 +42,11 @@
       <button class="btn btn-primary" on:click={handleCancel}>No</button>
     </div>
   </div>
-  <div class="modal-backdrop" on:click={handleCancel}></div>
+  <div
+    class="modal-backdrop"
+    on:keypress={(evt: KeyboardEvent) => evt.key === 'Escape' && handleCancel()}
+    on:click={handleCancel}
+    role="button"
+    tabindex="0"
+  ></div>
 </div>

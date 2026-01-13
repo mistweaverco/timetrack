@@ -1,11 +1,17 @@
-import { writable, derived } from 'svelte/store'
+import { derived, writable } from 'svelte/store'
 
 export const selectedPanel = writable<string>('Overview')
-export const selectedCompany = writable<{ name: string | null }>({ name: null })
-export const selectedProject = writable<{
+export const selectedCompany = writable<{
+  id: string | null
   name: string | null
-  company_name: string | null
-}>({ name: null, company_name: null })
+}>({
+  id: null,
+  name: null,
+})
+export const selectedProject = writable<{
+  id: string | null
+  name: string | null
+}>({ id: null, name: null })
 export const selectedTask = writable<DBTask | null>(null)
 export const selectedTaskDefinition = writable<DBTaskDefinition | null>(null)
 
@@ -21,25 +27,29 @@ export const searchResults = writable<SearchQueryResult | null>(null)
 export const projectsForSelectedCompany = derived(
   [projects, selectedCompany],
   ([$projects, $selectedCompany]) => {
-    if (!$selectedCompany.name) return []
-    return $projects.filter(p => p.company_name === $selectedCompany.name)
+    if (!$selectedCompany.id) return []
+    return $projects.filter(p => p.companyId === $selectedCompany.id)
   },
 )
 
 export const tasksForSelectedProject = derived(
-  [tasks, selectedProject],
-  ([$tasks, $selectedProject]) => {
-    if (!$selectedProject.name) return []
-    return $tasks.filter(t => t.project_name === $selectedProject.name)
+  [tasks, taskDefinitions, selectedProject],
+  ([$tasks, $taskDefinitions, $selectedProject]) => {
+    if (!$selectedProject.id) return []
+    // Filter tasks by matching their taskDefinitionId to taskDefinitions with the selected projectId
+    const projectTaskDefinitionIds = new Set(
+      $taskDefinitions
+        .filter(td => td.projectId === $selectedProject.id)
+        .map(td => td.id),
+    )
+    return $tasks.filter(t => projectTaskDefinitionIds.has(t.taskDefinitionId))
   },
 )
 
 export const taskDefinitionsForSelectedProject = derived(
   [taskDefinitions, selectedProject],
   ([$taskDefinitions, $selectedProject]) => {
-    if (!$selectedProject.name) return []
-    return $taskDefinitions.filter(
-      td => td.project_name === $selectedProject.name,
-    )
+    if (!$selectedProject.id) return []
+    return $taskDefinitions.filter(td => td.projectId === $selectedProject.id)
   },
 )

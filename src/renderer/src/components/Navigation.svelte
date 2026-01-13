@@ -23,54 +23,58 @@
   }
 </script>
 
-<nav class="navbar bg-base-200">
-  <div class="navbar-start"></div>
-  <div class="navbar-end">
-    <div class="navbar-item">
-      <div class="flex gap-2">
-        <button
-          class="btn btn-secondary"
-          onclick={() => handleTopButtonClick('reportABug')}
-        >
-          <i class="fa-solid fa-bug"></i>
-          <span>Report a bug</span>
-        </button>
-        <button
-          class="btn btn-primary"
-          onclick={() => handleTopButtonClick('seeTheCode')}
-        >
-          <i class="fa-solid fa-code"></i>
-          <span>See the code</span>
-        </button>
-      </div>
-    </div>
-  </div>
-</nav>
-
-<div class="tabs tabs-boxed m-4">
-  <a
-    class="tab"
-    class:tab-active={currentPanel === 'Overview'}
-    onclick={() => handlePanelClick('Overview')}
-  >
-    <i class="fa-solid fa-chart-bar mr-2"></i>
-    Overview
-  </a>
-  <a
-    class="tab"
-    class:tab-active={currentPanel === 'Search'}
-    onclick={() => handlePanelClick('Search')}
-  >
-    <i class="fa-solid fa-magnifying-glass mr-2"></i>
-    Search
-  </a>
-  <a
-    class="tab"
-    class:tab-active={currentPanel === 'PDFExport' ||
-      currentPanel === 'PDFDocument'}
-    onclick={() => handlePanelClick('PDFExport')}
-  >
-    <i class="fa-regular fa-file-pdf mr-2"></i>
-    PDF Export
-  </a>
+<div class="menu menu-horizontal bg-base-200 rounded-box w-full justify-around">
+  <ul class="menu menu-horizontal bg-base-200 rounded-box justify-end">
+    <li>
+      <button
+        class="tab"
+        class:tab-active={currentPanel === 'Overview'}
+        onclick={() => handlePanelClick('Overview')}
+      >
+        <i class="fa-solid fa-chart-bar mr-2"></i>
+        Overview
+      </button>
+    </li>
+    <li>
+      <button
+        class="tab"
+        class:tab-active={currentPanel === 'Search'}
+        onclick={() => handlePanelClick('Search')}
+      >
+        <i class="fa-solid fa-magnifying-glass mr-2"></i>
+        Search
+      </button>
+    </li>
+    <li>
+      <button
+        class="tab"
+        class:tab-active={currentPanel === 'PDFExport' ||
+          currentPanel === 'PDFDocument'}
+        onclick={() => handlePanelClick('PDFExport')}
+      >
+        <i class="fa-regular fa-file-pdf mr-2"></i>
+        PDF Export
+      </button>
+    </li>
+  </ul>
+  <ul class="menu menu-horizontal bg-base-200 rounded-box justify-end">
+    <li>
+      <button
+        class="btn btn-secondary"
+        onclick={() => handleTopButtonClick('reportABug')}
+      >
+        <i class="fa-solid fa-bug"></i>
+        <span>Report a bug</span>
+      </button>
+    </li>
+    <li>
+      <button
+        class="btn btn-primary"
+        onclick={() => handleTopButtonClick('seeTheCode')}
+      >
+        <i class="fa-solid fa-code"></i>
+        <span>See the code</span>
+      </button>
+    </li>
+  </ul>
 </div>

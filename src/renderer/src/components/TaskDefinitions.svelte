@@ -25,17 +25,17 @@
     })
 
     selectedProject.subscribe(async proj => {
-      if (proj.name) {
-        await fetchTaskDefinitions(proj.name)
+      if (proj.id) {
+        await fetchTaskDefinitions(proj.id)
       }
     })
   })
 
-  async function fetchTaskDefinitions(projectName: string) {
+  async function fetchTaskDefinitions(projectId: string) {
     if (window.electron) {
       try {
         const data = (
-          await window.electron.getTaskDefinitions(projectName)
+          await window.electron.getTaskDefinitions(projectId)
         ).filter((taskDef: DBTaskDefinition) => taskDef.status === 'active')
         taskDefinitions.set(data)
       } catch (error) {
@@ -46,7 +46,7 @@
 
   async function handleAddTaskDefinition(e: Event) {
     e.preventDefault()
-    if (!selectedProj.name) return
+    if (!selectedProj.id) return
 
     const form = e.target as HTMLFormElement
     const formData = new FormData(form)
@@ -55,10 +55,10 @@
     if (name && window.electron) {
       const result = await window.electron.addTaskDefinition({
         name,
-        project_name: selectedProj.name,
+        projectId: selectedProj.id,
       })
       if (result.success) {
-        await fetchTaskDefinitions(selectedProj.name)
+        await fetchTaskDefinitions(selectedProj.id)
         form.reset()
       }
     }
@@ -85,8 +85,8 @@
     showEditModal = false
     if (success && editedTaskDef) {
       selectedTaskDefinition.set(editedTaskDef)
-      if (selectedProj.name) {
-        fetchTaskDefinitions(selectedProj.name)
+      if (selectedProj.id) {
+        fetchTaskDefinitions(selectedProj.id)
       }
     }
     taskDefToEdit = null
@@ -96,16 +96,18 @@
     showDeleteModal = false
     if (success) {
       selectedTaskDefinition.set(null)
-      if (selectedProj.name) {
-        fetchTaskDefinitions(selectedProj.name)
+      if (selectedProj.id) {
+        fetchTaskDefinitions(selectedProj.id)
       }
     }
     taskDefToDelete = null
   }
 
   function hasActiveTask(taskDefName: string): boolean {
+    // Check by name/projectName which are display fields in ActiveTask
     return activeTasksList.some(
-      at => at.name === taskDefName && at.project_name === selectedProj.name,
+      at =>
+        at.name === taskDefName && at.projectName === (selectedProj.name || ''),
     )
   }
 
@@ -132,7 +134,7 @@
   />
 {/if}
 
-{#if selectedProj.name}
+{#if selectedProj.id}
   <section class="section">
     <h1 class="text-2xl font-bold">Task Definitions</h1>
     <h2 class="text-lg text-base-content/70">
@@ -146,10 +148,11 @@
           <h2 class="card-title">New</h2>
           <form on:submit={handleAddTaskDefinition}>
             <div class="form-control">
-              <label class="label">
+              <label class="label" for="name">
                 <span class="label-text">Task Definition Name</span>
               </label>
               <input
+                id="name"
                 type="text"
                 name="name"
                 placeholder="Task Definition Name"
@@ -172,8 +175,8 @@
           <div class="card-body">
             <h2 class="card-title">Available</h2>
             <div class="space-y-2">
-              {#each taskDefs as taskDef}
-                <div
+              {#each taskDefs as taskDef (taskDef.name)}
+                <button
                   class="p-3 rounded cursor-pointer transition-colors flex items-center gap-2"
                   class:bg-primary={isSelected(taskDef)}
                   class:text-primary-content={isSelected(taskDef)}
@@ -181,7 +184,7 @@
                 >
                   <i class="fa-solid fa-book"></i>
                   <p class="font-semibold">{taskDef.name}</p>
-                </div>
+                </button>
               {/each}
             </div>
           </div>

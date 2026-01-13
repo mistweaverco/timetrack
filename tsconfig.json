@@ -1,7 +1,6 @@
 {
   "compilerOptions": {
     "allowJs": true,
-    "baseUrl": "./src",
     "esModuleInterop": true,
     "lib": ["ES2020", "DOM", "DOM.Iterable"],
     "module": "commonjs",
@@ -14,9 +13,10 @@
     "target": "ESNext",
     "types": ["@electron-toolkit/preload", "vite/client", "./src/global.d.ts"],
     "paths": {
+      "*": ["./src/*"],
       "@components/*": ["./src/components/*"],
       "@lib/*": ["./lib/*"]
     }
   },
-  "include": ["./src"]
+  "include": ["src/**/*.ts", "src/**/*.d.ts", "src/**/*.svelte"]
 }

@@ -34,8 +34,7 @@
   async function handleStartTask(task: ActiveTask) {
     if (window.electron) {
       const result = await window.electron.startActiveTask({
-        name: task.name,
-        project_name: task.project_name,
+        taskId: task.taskId,
         description: task.description,
         date: task.date,
         seconds: task.seconds,
@@ -49,18 +48,17 @@
   async function handleStopTask(task: ActiveTask) {
     if (window.electron) {
       const result = await window.electron.stopActiveTask({
-        name: task.name,
-        project_name: task.project_name,
+        taskId: task.taskId,
         date: task.date,
       })
       if (result.success) {
         await fetchActiveTasks()
         // Refresh tasks list to show updated time
         const selectedProj = $selectedProject
-        if (selectedProj.name && selectedProj.name === task.project_name) {
+        if (selectedProj.id) {
           try {
             const updatedTasks = await window.electron.getTasksToday(
-              selectedProj.name,
+              selectedProj.id,
             )
             tasksStore.set(updatedTasks)
           } catch (error) {
@@ -74,9 +72,7 @@
   async function handlePauseTask(task: ActiveTask) {
     if (window.electron) {
       const result = await window.electron.pauseActiveTask({
-        name: task.name,
-        project_name: task.project_name,
-        description: task.description,
+        taskId: task.taskId,
         date: task.date,
         seconds: task.seconds,
       })
@@ -104,10 +100,10 @@
               </tr>
             </thead>
             <tbody>
-              {#each tasks as task}
+              {#each tasks as task (`${task.taskId}-${task.date}`)}
                 <tr>
-                  <td>{task.project_name}</td>
-                  <td>{task.name}</td>
+                  <td>{task.projectName || ''}</td>
+                  <td>{task.name || ''}</td>
                   <td>
                     <TimerComponent {task} />
                   </td>

@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { onMount } from 'svelte'
   import {
     projects,
     selectedProject,
@@ -13,7 +12,6 @@
   import DeleteProjectModal from './modals/DeleteProjectModal.svelte'
   import InfoBox from './InfoBox.svelte'
 
-  let projectsList: DBProject[] = []
   let showEditModal = false
   let showDeleteModal = false
   let projectToEdit: DBProject | null = null
@@ -24,26 +22,18 @@
   $: selectedComp = $selectedCompany
   $: companyProjects = $projectsForSelectedCompany
 
-  onMount(async () => {
-    await fetchProjects()
-  })
-
-  projects.subscribe(value => {
-    projectsList = value
-  })
-
-  selectedCompany.subscribe(async () => {
-    if ($selectedCompany.name) {
-      await fetchProjects($selectedCompany.name)
+  selectedCompany.subscribe(async value => {
+    if (value.id) {
+      await fetchProjects(value.id)
     } else {
       projects.set([])
     }
   })
 
-  async function fetchProjects(companyName?: string) {
+  async function fetchProjects(companyId?: string) {
     if (window.electron) {
       try {
-        const data = await window.electron.getProjects(companyName)
+        const data = await window.electron.getProjects(companyId)
         projects.set(data)
       } catch (error) {
         console.error('Error loading projects:', error)
@@ -57,13 +47,10 @@
     const formData = new FormData(form)
     const name = formData.get('name') as string
 
-    if (name && $selectedCompany.name && window.electron) {
-      const result = await window.electron.addProject(
-        name,
-        $selectedCompany.name,
-      )
+    if (name && $selectedCompany.id && window.electron) {
+      const result = await window.electron.addProject(name, $selectedCompany.id)
       if (result.success) {
-        await fetchProjects($selectedCompany.name)
+        await fetchProjects($selectedCompany.id)
         form.reset()
       }
     }
@@ -73,8 +60,8 @@
     selectedTask.set(null)
     selectedTaskDefinition.set(null)
     selectedProject.set({
+      id: project.id,
       name: project.name,
-      company_name: project.company_name,
     })
   }
 
@@ -92,10 +79,10 @@
     showEditModal = false
     if (success && editedProject) {
       selectedProject.set({
+        id: editedProject.id,
         name: editedProject.name,
-        company_name: editedProject.company_name,
       })
-      fetchProjects($selectedCompany.name)
+      fetchProjects($selectedCompany.id || undefined)
     }
     projectToEdit = null
   }
@@ -103,14 +90,14 @@
   function handleDeleteModalClose(success: boolean) {
     showDeleteModal = false
     if (success) {
-      selectedProject.set({ name: null, company_name: null })
-      fetchProjects($selectedCompany.name)
+      selectedProject.set({ id: null, name: null })
+      fetchProjects($selectedCompany.id || undefined)
     }
     projectToDelete = null
   }
 
   function hasActiveTask(projectName: string): boolean {
-    return activeTasksList.some(at => at.project_name === projectName)
+    return activeTasksList.some(at => at.projectName === projectName)
   }
 </script>
 
@@ -132,7 +119,7 @@
     Select a project to view its tasks.
   </h2>
 
-  {#if !selectedComp.name}
+  {#if !selectedComp.id}
     <InfoBox type="info" title="Select a Company">
       Please select a company first to view and manage its projects.
     </InfoBox>
@@ -144,10 +131,11 @@
           <h2 class="card-title">New</h2>
           <form on:submit={handleAddProject}>
             <div class="form-control">
-              <label class="label">
+              <label class="label" for="name">
                 <span class="label-text">Project Name</span>
               </label>
               <input
+                id="name"
                 type="text"
                 name="name"
                 placeholder="Project Name"
@@ -167,26 +155,28 @@
         <div class="card-body">
           <h2 class="card-title">Available</h2>
           <div class="space-y-2">
-            {#each companyProjects as project}
-              <div
-                class="p-3 rounded cursor-pointer transition-colors"
-                class:bg-primary={selectedProj.name === project.name}
-                class:text-primary-content={selectedProj.name === project.name}
+            {#each companyProjects as project (project.name)}
+              <button
+                class="p-3 rounded cursor-pointer transition-colors w-full text-left border-2"
+                class:bg-base-300={selectedProj.id === project.id}
+                class:text-neutral-content={selectedProj.id === project.id}
+                class:border-success={selectedProj.id === project.id}
+                class:border-base-100={selectedProj.id !== project.id}
                 on:click={() => handleProjectSelect(project)}
               >
                 <p class="font-semibold">{project.name}</p>
-              </div>
+              </button>
             {/each}
           </div>
         </div>
       </div>
 
       <!-- Actions -->
-      {#if selectedProj.name}
+      {#if selectedProj.id}
         <div class="card bg-base-200 shadow-xl">
           <div class="card-body">
             <h2 class="card-title">Actions</h2>
-            {#if hasActiveTask(selectedProj.name)}
+            {#if hasActiveTask(selectedProj.name || '')}
               <InfoBox type="warning" title="Warning">
                 A task belonging to this project is currently active, you need
                 to stop it to perform any action.
@@ -195,21 +185,19 @@
               <div class="flex gap-2">
                 <button
                   class="btn btn-warning"
-                  on:click={() =>
-                    handleEditClick({
-                      name: selectedProj.name!,
-                      company_name: selectedProj.company_name!,
-                    })}
+                  on:click={() => {
+                    const proj = $projects.find(p => p.id === selectedProj.id)
+                    if (proj) handleEditClick(proj)
+                  }}
                 >
                   Edit
                 </button>
                 <button
                   class="btn btn-error"
-                  on:click={() =>
-                    handleDeleteClick({
-                      name: selectedProj.name!,
-                      company_name: selectedProj.company_name!,
-                    })}
+                  on:click={() => {
+                    const proj = $projects.find(p => p.id === selectedProj.id)
+                    if (proj) handleDeleteClick(proj)
+                  }}
                 >
                   Delete
                 </button>

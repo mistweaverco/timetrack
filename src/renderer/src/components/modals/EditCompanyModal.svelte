@@ -11,16 +11,16 @@
     e.preventDefault()
     if (window.electron) {
       const result = await window.electron.editCompany({
+        id: company.id,
         name,
-        oldname: company.name,
         status,
       })
 
       if (result.success) {
-        await companies.update(cs =>
-          cs.map(c => (c.name === company.name ? { name, status } : c)),
+        companies.update(cs =>
+          cs.map(c => (c.id === company.id ? { ...c, name, status } : c)),
         )
-        onClose(true, { name, status })
+        onClose(true, { id: company.id, name, status })
       }
     }
   }
@@ -35,10 +35,11 @@
     <h3 class="font-bold text-lg">Edit Company</h3>
     <form on:submit={handleSubmit}>
       <div class="form-control mt-4">
-        <label class="label">
+        <label class="label" for="name">
           <span class="label-text">Company Name</span>
         </label>
         <input
+          id="name"
           type="text"
           bind:value={name}
           class="input input-bordered"
@@ -46,10 +47,15 @@
         />
       </div>
       <div class="form-control mt-4">
-        <label class="label">
+        <label class="label" for="status">
           <span class="label-text">Status</span>
         </label>
-        <select bind:value={status} class="select select-bordered" required>
+        <select
+          bind:value={status}
+          class="select select-bordered"
+          required
+          id="status"
+        >
           <option value="active">Active</option>
           <option value="inactive">Inactive</option>
         </select>
@@ -61,5 +67,11 @@
       </div>
     </form>
   </div>
-  <div class="modal-backdrop" on:click={handleCancel}></div>
+  <div
+    class="modal-backdrop"
+    on:keypress={(evt: KeyboardEvent) => evt.key === 'Escape' && handleCancel()}
+    on:click={handleCancel}
+    role="button"
+    tabindex="0"
+  ></div>
 </div>

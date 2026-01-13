@@ -7,46 +7,59 @@ datasource db {
   provider = "sqlite"
 }
 
-model Company {
-  name     String   @id
-  status   String   @default("active")
-  projects Project[]
+model Status {
+  id              Int              @id @default(autoincrement())
+  name            String           @unique
+  companies       Company[]
+  projects        Project[]
+  taskDefinitions TaskDefinition[]
+  tasks           Task[]
+}
 
-  @@map("companies")
+model Company {
+  id       Int       @id @default(autoincrement())
+  name     String    @unique
+  statusId Int
+  status   Status    @relation(fields: [statusId], references: [id], onDelete: Restrict)
+  projects Project[]
 }
 
 model Project {
-  name        String   @id
-  companyName String   @map("company_name")
-  status      String   @default("active")
-  company     Company  @relation(fields: [companyName], references: [name], onDelete: Cascade)
-  tasks       Task[]
+  id              Int              @id @default(autoincrement())
+  name            String
+  companyId       Int
+  statusId        Int
+  company         Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  status          Status           @relation(fields: [statusId], references: [id], onDelete: Restrict)
+  tasks           Task[]
   taskDefinitions TaskDefinition[]
 
-  @@map("projects")
-}
-
-model Task {
-  name        String   @default("default")
-  projectName String   @map("project_name")
-  description String?
-  date        DateTime @default(now())
-  seconds     Int      @default(0)
-  status      String   @default("active")
-
-  project Project @relation(fields: [projectName], references: [name], onDelete: Cascade)
-
-  @@unique([name, date, projectName], name: "tasks_name_date_pjn_IDX")
-  @@map("tasks")
+  @@unique([name, companyId])
 }
 
 model TaskDefinition {
-  name        String
-  projectName String @map("project_name")
-  status      String @default("active")
+  id        Int     @id @default(autoincrement())
+  name      String
+  projectId Int
+  statusId  Int
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  status    Status  @relation(fields: [statusId], references: [id], onDelete: Restrict)
+  tasks     Task[]
 
-  project Project @relation(fields: [projectName], references: [name], onDelete: Cascade)
+  @@unique([name, projectId])
+}
 
-  @@id([name, projectName])
-  @@map("task_definitions")
+model Task {
+  id               Int            @id @default(autoincrement())
+  taskDefinitionId Int
+  description      String?
+  date             DateTime       @default(now())
+  seconds          Int            @default(0)
+  statusId         Int
+  taskDefinition   TaskDefinition @relation(fields: [taskDefinitionId], references: [id], onDelete: Cascade)
+  status           Status         @relation(fields: [statusId], references: [id], onDelete: Restrict)
+  project          Project?       @relation(fields: [projectId], references: [id])
+  projectId        Int?
+
+  @@unique([taskDefinitionId, date], name: "tasks_task_def_date_IDX")
 }

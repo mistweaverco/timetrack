@@ -1,31 +1,22 @@
 <script lang="ts">
   import { onMount } from 'svelte'
-  import {
-    companies,
-    selectedCompany,
-    selectedProject,
-    projects,
-    activeTasks,
-  } from '../stores'
+  import { companies, selectedCompany, selectedProject } from '../stores'
   import EditCompanyModal from './modals/EditCompanyModal.svelte'
   import DeleteCompanyModal from './modals/DeleteCompanyModal.svelte'
-  import InfoBox from './InfoBox.svelte'
 
   let companiesList: DBCompany[] = []
   let showEditModal = false
   let showDeleteModal = false
   let companyToEdit: DBCompany | null = null
   let companyToDelete: DBCompany | null = null
-
-  $: activeTasksList = $activeTasks
-  $: selectedComp = $selectedCompany
-
-  onMount(async () => {
-    await fetchCompanies()
-  })
+  let companiesWithActiveTasks: Set<string> = new Set()
 
   companies.subscribe(value => {
     companiesList = value
+  })
+
+  onMount(async () => {
+    await fetchCompanies()
   })
 
   async function fetchCompanies() {
@@ -58,7 +49,7 @@
   }
 
   function handleCompanySelect(company: DBCompany) {
-    selectedCompany.set({ name: company.name })
+    selectedCompany.set({ id: company.id, name: company.name })
     // Clear selected project when company changes
     selectedProject.set({ name: null, company_name: null })
   }
@@ -73,18 +64,6 @@
     showDeleteModal = true
   }
 
-  function isSelected(company: DBCompany): boolean {
-    return selectedComp.name === company.name
-  }
-
-  function hasActiveTask(companyName: string): boolean {
-    // Check if any active task belongs to a project in this company
-    return activeTasksList.some(at => {
-      const project = $projects.find(p => p.name === at.project_name)
-      return project && project.company_name === companyName
-    })
-  }
-
   async function handleCompanyModalClose(
     success: boolean,
     editedCompany?: DBCompany,
@@ -95,13 +74,16 @@
       await fetchCompanies()
       if (editedCompany && companyToEdit) {
         // Update selected company if it was edited
-        if (selectedComp.name === companyToEdit.name) {
-          selectedCompany.set({ name: editedCompany.name })
+        if ($selectedCompany.id === companyToEdit.id) {
+          selectedCompany.set({
+            id: editedCompany.id,
+            name: editedCompany.name,
+          })
         }
       } else if (companyToDelete) {
         // Clear selection if deleted company was selected
-        if (selectedComp.name === companyToDelete.name) {
-          selectedCompany.set({ name: null })
+        if ($selectedCompany.id === companyToDelete.id) {
+          selectedCompany.set({ id: null, name: null })
           selectedProject.set({ name: null, company_name: null })
         }
       }
@@ -138,10 +120,11 @@
         <h2 class="card-title">New Company</h2>
         <form on:submit={handleAddCompany}>
           <div class="form-control">
-            <label class="label">
+            <label class="label" for="name">
               <span class="label-text">Company Name</span>
             </label>
             <input
+              id="name"
               type="text"
               name="name"
               placeholder="Company Name"
@@ -162,39 +145,49 @@
         <div class="card-body">
           <h2 class="card-title">Companies</h2>
           <div class="space-y-2">
-            {#each companiesList as company}
-              <div
-                class="p-3 rounded cursor-pointer transition-colors"
-                class:bg-primary={isSelected(company)}
-                class:text-primary-content={isSelected(company)}
-                on:click={() => handleCompanySelect(company)}
-              >
-                <div class="flex justify-between items-center">
-                  <p class="font-semibold">{company.name}</p>
+            {#each companiesList as company (company.name)}
+              <div class="flex justify-between items-center">
+                <button
+                  class="p-3 rounded cursor-pointer transition-colors w-full text-left border-2"
+                  class:bg-base-300={$selectedCompany.id === company.id}
+                  class:text-neutral-content={$selectedCompany.id ===
+                    company.id}
+                  class:border-success={$selectedCompany.id === company.id}
+                  class:border-base-100={$selectedCompany.id !== company.id}
+                  class:tooltip={false}
+                  data-tip={companiesWithActiveTasks.has(company.name)
+                    ? 'A task belonging to this company is currently active, you need to stop it to perform any action.'
+                    : ''}
+                  on:click={() => handleCompanySelect(company)}
+                >
+                  {#if companiesWithActiveTasks.has(company.name)}
+                    <div class="flex gap-2 justify-between">
+                      <span>{company.name}</span>
+                      <span
+                        class="loading loading-spinner loading-xs text-success"
+                      ></span>
+                    </div>
+                  {:else}
+                    <span>{company.name}</span>
+                  {/if}
+                </button>
+                {#if !companiesWithActiveTasks.has(company.name)}
                   <div class="flex gap-2">
-                    {#if hasActiveTask(company.name)}
-                      <InfoBox type="warning" title="Warning">
-                        A task belonging to this company is currently active,
-                        you need to stop it to perform any action.
-                      </InfoBox>
-                    {:else}
-                      <button
-                        class="btn btn-warning btn-sm"
-                        on:click|stopPropagation={() =>
-                          handleEditClick(company)}
-                      >
-                        Edit
-                      </button>
-                      <button
-                        class="btn btn-error btn-sm"
-                        on:click|stopPropagation={() =>
-                          handleDeleteClick(company)}
-                      >
-                        Delete
-                      </button>
-                    {/if}
+                    <button
+                      class="btn btn-warning btn-sm"
+                      on:click|stopPropagation={() => handleEditClick(company)}
+                    >
+                      Edit
+                    </button>
+                    <button
+                      class="btn btn-error btn-sm"
+                      on:click|stopPropagation={() =>
+                        handleDeleteClick(company)}
+                    >
+                      Delete
+                    </button>
                   </div>
-                </div>
+                {/if}
               </div>
             {/each}
           </div>

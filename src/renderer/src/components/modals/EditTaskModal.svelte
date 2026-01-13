@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { activeTasks, tasks } from '../../stores'
+  import { activeTasks } from '../../stores'
   import InfoBox from '../InfoBox.svelte'
 
   export let task: DBTask
@@ -14,10 +14,7 @@
   const oldDate = task.date
 
   $: activeTask = $activeTasks.find(
-    at =>
-      at.name === task.name &&
-      at.project_name === task.project_name &&
-      at.date === oldDate,
+    at => at.taskId === task.id && at.date === oldDate,
   )
 
   $: isActive = activeTask !== undefined && activeTask.isActive
@@ -27,23 +24,21 @@
     e.preventDefault()
     if (window.electron) {
       const result = await window.electron.editTask({
-        name: task.name,
+        id: task.id,
+        taskDefinitionId: task.taskDefinitionId,
         description,
-        project_name: task.project_name,
         seconds: currentSeconds,
         date: date,
-        old_date: oldDate,
+        oldDate: oldDate,
         status,
       })
 
       if (result.success) {
         // Update active tasks if task is active
         if (activeTask) {
-          await activeTasks.update(ats =>
+          activeTasks.update(ats =>
             ats.map(at =>
-              at.name === task.name &&
-              at.project_name === task.project_name &&
-              at.date === oldDate
+              at.taskId === task.id && at.date === oldDate
                 ? { ...at, description, seconds: currentSeconds, date: date }
                 : at,
             ),
@@ -72,17 +67,18 @@
     <h3 class="font-bold text-lg">Edit Task</h3>
     <form on:submit={handleSubmit}>
       <div class="form-control mt-4">
-        <label class="label">
+        <label class="label" for="description">
           <span class="label-text">Task Description</span>
         </label>
         <textarea
+          id="description"
           bind:value={description}
           class="textarea textarea-bordered"
           placeholder="Task Description"
         ></textarea>
       </div>
       <div class="form-control mt-4">
-        <label class="label">
+        <label class="label" for="date">
           <span class="label-text">Task Date</span>
         </label>
         {#if isActive}
@@ -93,6 +89,7 @@
           </InfoBox>
         {/if}
         <input
+          id="date"
           type="date"
           bind:value={date}
           class="input input-bordered"
@@ -101,7 +98,7 @@
         />
       </div>
       <div class="form-control mt-4">
-        <label class="label">
+        <label class="label" for="duration">
           <span class="label-text">Task Duration</span>
         </label>
         {#if isActive}
@@ -111,12 +108,13 @@
             and then edit the duration.
           </InfoBox>
         {/if}
-        <div class="grid grid-cols-3 gap-4">
+        <div class="grid grid-cols-3 gap-4" id="duration">
           <div class="form-control">
-            <label class="label">
+            <label class="label" for="hours">
               <span class="label-text">Hours</span>
             </label>
             <input
+              id="hours"
               type="number"
               bind:value={hours}
               min="0"
@@ -125,10 +123,11 @@
             />
           </div>
           <div class="form-control">
-            <label class="label">
+            <label class="label" for="minutes">
               <span class="label-text">Minutes</span>
             </label>
             <input
+              id="minutes"
               type="number"
               bind:value={minutes}
               min="0"
@@ -138,10 +137,11 @@
             />
           </div>
           <div class="form-control">
-            <label class="label">
+            <label class="label" for="seconds">
               <span class="label-text">Seconds</span>
             </label>
             <input
+              id="seconds"
               type="number"
               bind:value={seconds}
               min="0"
@@ -153,10 +153,15 @@
         </div>
       </div>
       <div class="form-control mt-4">
-        <label class="label">
+        <label class="label" for="status">
           <span class="label-text">Status</span>
         </label>
-        <select bind:value={status} class="select select-bordered" required>
+        <select
+          bind:value={status}
+          class="select select-bordered"
+          required
+          id="status"
+        >
           <option value="active">Active</option>
           <option value="inactive">Inactive</option>
         </select>
@@ -170,5 +175,11 @@
       </div>
     </form>
   </div>
-  <div class="modal-backdrop" on:click={handleCancel}></div>
+  <div
+    class="modal-backdrop"
+    on:keypress={(evt: KeyboardEvent) => evt.key === 'Escape' && handleCancel()}
+    on:click={handleCancel}
+    role="button"
+    tabindex="0"
+  ></div>
 </div>

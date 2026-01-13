@@ -18,49 +18,27 @@
   async function handleSubmit(e: Event) {
     e.preventDefault()
     if (window.electron) {
-      // Fetch tasks using this task definition
-      const rpcTasks = await window.electron.getTasksByNameAndProject({
-        name: taskDefinition.name,
-        project_name: taskDefinition.project_name,
-      })
-
       const result = await window.electron.editTaskDefinition({
-        oldname: taskDefinition.name,
+        id: taskDefinition.id,
         name: taskDefName,
-        project_name: taskDefinition.project_name,
         status,
       })
 
       if (result.success) {
         // Update stores
-        await taskDefinitions.update(tds =>
+        taskDefinitions.update(tds =>
           tds.map(td =>
-            td.name === taskDefinition.name &&
-            td.project_name === taskDefinition.project_name
-              ? {
-                  name: taskDefName,
-                  project_name: taskDefinition.project_name,
-                  status,
-                }
+            td.id === taskDefinition.id
+              ? { ...td, name: taskDefName, status }
               : td,
-          ),
-        )
-
-        // Update tasks with new name
-        await tasks.update(ts =>
-          ts.map(t =>
-            t.name === taskDefinition.name &&
-            t.project_name === taskDefinition.project_name
-              ? { ...t, name: taskDefName }
-              : t,
           ),
         )
 
         selectedTask.set(null)
         selectedTaskDefinition.set(null)
         onClose(true, {
+          ...taskDefinition,
           name: taskDefName,
-          project_name: taskDefinition.project_name,
           status,
         })
       }
@@ -77,10 +55,11 @@
     <h3 class="font-bold text-lg">Edit Task Definition</h3>
     <form on:submit={handleSubmit}>
       <div class="form-control mt-4">
-        <label class="label">
+        <label class="label" for="taskDefName">
           <span class="label-text">Task Definition Name</span>
         </label>
         <input
+          id="taskDefName"
           type="text"
           bind:value={taskDefName}
           class="input input-bordered"
@@ -88,10 +67,15 @@
         />
       </div>
       <div class="form-control mt-4">
-        <label class="label">
+        <label class="label" for="status">
           <span class="label-text">Status</span>
         </label>
-        <select bind:value={status} class="select select-bordered" required>
+        <select
+          bind:value={status}
+          class="select select-bordered"
+          required
+          id="status"
+        >
           <option value="active">Active</option>
           <option value="inactive">Inactive</option>
         </select>
@@ -103,5 +87,11 @@
       </div>
     </form>
   </div>
-  <div class="modal-backdrop" on:click={handleCancel}></div>
+  <div
+    class="modal-backdrop"
+    on:keypress={(evt: KeyboardEvent) => evt.key === 'Escape' && handleCancel()}
+    on:click={handleCancel}
+    role="button"
+    tabindex="0"
+  ></div>
 </div>
