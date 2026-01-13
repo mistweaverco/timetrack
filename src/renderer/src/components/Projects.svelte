@@ -11,16 +11,40 @@
   import EditProjectModal from './modals/EditProjectModal.svelte'
   import DeleteProjectModal from './modals/DeleteProjectModal.svelte'
   import InfoBox from './InfoBox.svelte'
+  import { CheckIcon, ChevronsUpDownIcon } from '@lucide/svelte'
+  import { tick } from 'svelte'
+  import { Button } from '@ui/button'
+  import * as Command from '@ui/command'
+  import * as Popover from '@ui/popover'
+  import { cn } from '$lib/utils'
 
   let showEditModal = false
   let showDeleteModal = false
   let projectToEdit: DBProject | null = null
   let projectToDelete: DBProject | null = null
 
-  $: activeTasksList = $activeTasks
-  $: selectedProj = $selectedProject
-  $: selectedComp = $selectedCompany
-  $: companyProjects = $projectsForSelectedCompany
+  let open = $state(false)
+  let value = $state('')
+  let triggerRef = $state<HTMLButtonElement>(null!)
+
+  // We want to refocus the trigger button when the user selects
+  // an item from the list so users can continue navigating the
+  // rest of the form with the keyboard.
+  function closeAndFocusTrigger() {
+    open = false
+    tick().then(() => {
+      triggerRef.focus()
+    })
+  }
+
+  const activeTasksList = $derived(activeTasks)
+  const selectedProj = $derived(selectedProject)
+  const selectedComp = $derived(selectedCompany)
+  const companyProjects = $derived(projectsForSelectedCompany)
+
+  const selectedValue = $derived(
+    $companyProjects.find(p => p.id === value)?.name || null,
+  )
 
   selectedCompany.subscribe(async value => {
     if (value.id) {
@@ -97,7 +121,7 @@
   }
 
   function hasActiveTask(projectName: string): boolean {
-    return activeTasksList.some(at => at.projectName === projectName)
+    return $activeTasksList.some(at => at.projectName === projectName)
   }
 </script>
 
@@ -112,6 +136,47 @@
   />
 {/if}
 
+<Popover.Root bind:open>
+  <Popover.Trigger bind:ref={triggerRef}>
+    {#snippet child({ props })}
+      <Button
+        {...props}
+        variant="outline"
+        class="w-50 justify-between"
+        role="combobox"
+        aria-expanded={open}
+      >
+        {selectedValue || 'Select a project...'}
+        <ChevronsUpDownIcon class="opacity-50" />
+      </Button>
+    {/snippet}
+  </Popover.Trigger>
+  <Popover.Content class="w-50 p-0">
+    <Command.Root>
+      <Command.Input placeholder="Search projects..." />
+      <Command.List>
+        <Command.Empty>No project found.</Command.Empty>
+        <Command.Group value="projects">
+          {#each $companyProjects as project (project.name)}
+            <Command.Item
+              value={project.id}
+              onSelect={() => {
+                value = project.id
+                closeAndFocusTrigger()
+              }}
+            >
+              <CheckIcon
+                class={cn(value !== project.id && 'text-transparent')}
+              />
+              {project.name}
+            </Command.Item>
+          {/each}
+        </Command.Group>
+      </Command.List>
+    </Command.Root>
+  </Popover.Content>
+</Popover.Root>
+
 <section class="section">
   <h1 class="text-2xl font-bold">Projects</h1>
   <h2 class="text-lg text-base-content/70">
@@ -119,7 +184,7 @@
     Select a project to view its tasks.
   </h2>
 
-  {#if !selectedComp.id}
+  {#if !$selectedComp.id}
     <InfoBox type="info" title="Select a Company">
       Please select a company first to view and manage its projects.
     </InfoBox>
@@ -129,7 +194,7 @@
       <div class="card bg-base-200 shadow-xl">
         <div class="card-body">
           <h2 class="card-title">New</h2>
-          <form on:submit={handleAddProject}>
+          <form onsubmit={handleAddProject}>
             <div class="form-control">
               <label class="label" for="name">
                 <span class="label-text">Project Name</span>
@@ -155,14 +220,14 @@
         <div class="card-body">
           <h2 class="card-title">Available</h2>
           <div class="space-y-2">
-            {#each companyProjects as project (project.name)}
+            {#each $companyProjects as project (project.name)}
               <button
                 class="p-3 rounded cursor-pointer transition-colors w-full text-left border-2"
-                class:bg-base-300={selectedProj.id === project.id}
-                class:text-neutral-content={selectedProj.id === project.id}
-                class:border-success={selectedProj.id === project.id}
-                class:border-base-100={selectedProj.id !== project.id}
-                on:click={() => handleProjectSelect(project)}
+                class:bg-base-300={$selectedProj.id === project.id}
+                class:text-neutral-content={$selectedProj.id === project.id}
+                class:border-success={$selectedProj.id === project.id}
+                class:border-base-100={$selectedProj.id !== project.id}
+                onclick={() => handleProjectSelect(project)}
               >
                 <p class="font-semibold">{project.name}</p>
               </button>
@@ -172,11 +237,11 @@
       </div>
 
       <!-- Actions -->
-      {#if selectedProj.id}
+      {#if $selectedProj.id}
         <div class="card bg-base-200 shadow-xl">
           <div class="card-body">
             <h2 class="card-title">Actions</h2>
-            {#if hasActiveTask(selectedProj.name || '')}
+            {#if hasActiveTask($selectedProj.name || '')}
               <InfoBox type="warning" title="Warning">
                 A task belonging to this project is currently active, you need
                 to stop it to perform any action.
@@ -185,8 +250,8 @@
               <div class="flex gap-2">
                 <button
                   class="btn btn-warning"
-                  on:click={() => {
-                    const proj = $projects.find(p => p.id === selectedProj.id)
+                  onclick={() => {
+                    const proj = $projects.find(p => p.id === $selectedProj.id)
                     if (proj) handleEditClick(proj)
                   }}
                 >
@@ -194,8 +259,8 @@
                 </button>
                 <button
                   class="btn btn-error"
-                  on:click={() => {
-                    const proj = $projects.find(p => p.id === selectedProj.id)
+                  onclick={() => {
+                    const proj = $projects.find(p => p.id === $selectedProj.id)
                     if (proj) handleDeleteClick(proj)
                   }}
                 >

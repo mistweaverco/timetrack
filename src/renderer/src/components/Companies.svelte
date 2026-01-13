@@ -1,9 +1,11 @@
 <script lang="ts">
   import { onMount } from 'svelte'
-  import { Button } from '@ui/button'
+  import { Button, buttonVariants } from '@ui/button'
+  import * as Tooltip from '@ui/tooltip'
   import { companies, selectedCompany, selectedProject } from '../stores'
   import EditCompanyModal from './modals/EditCompanyModal.svelte'
   import DeleteCompanyModal from './modals/DeleteCompanyModal.svelte'
+  import { Plus, Settings } from '@lucide/svelte'
 
   let companiesList: DBCompany[] = []
   let showEditModal = false
@@ -108,17 +110,51 @@
   />
 {/if}
 
-{#if companiesList.length > 0}
-  {#each companiesList as company (company.name)}
-    <Button
-      variant={$selectedCompany.id === company.id ? 'default' : 'outline'}
-      class="justify-between mr-2"
-      onclick={() => handleCompanySelect(company)}
-    >
-      {company.name}
-    </Button>
-  {/each}
-{/if}
+<div class="flex justify-between">
+  <ul class="flex space-x-2">
+    {#each companiesList as company (company.name)}
+      <li>
+        <Button
+          variant={$selectedCompany.id === company.id ? 'default' : 'outline'}
+          class="justify-between"
+          onclick={() => handleCompanySelect(company)}
+        >
+          {company.name}
+        </Button>
+      </li>
+    {/each}
+    <li>
+      <Tooltip.Provider>
+        <Tooltip.Root>
+          <Tooltip.Trigger
+            class="{buttonVariants({
+              variant: 'outline',
+            })} justify-between"><Plus size="16" /></Tooltip.Trigger
+          >
+          <Tooltip.Content>
+            <p>Add a company</p>
+          </Tooltip.Content>
+        </Tooltip.Root>
+      </Tooltip.Provider>
+    </li>
+    <li>
+      {#if $selectedCompany.id !== null}
+        <Tooltip.Provider>
+          <Tooltip.Root>
+            <Tooltip.Trigger
+              class={buttonVariants({
+                variant: 'outline',
+              })}><Settings size="16" /></Tooltip.Trigger
+            >
+            <Tooltip.Content>
+              <p>Edit selected company</p>
+            </Tooltip.Content>
+          </Tooltip.Root>
+        </Tooltip.Provider>
+      {/if}
+    </li>
+  </ul>
+</div>
 
 <section class="section">
   <h1 class="text-2xl font-bold">Companies</h1>
