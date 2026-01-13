@@ -15,7 +15,8 @@
     "paths": {
       "*": ["./src/*"],
       "@components/*": ["./src/components/*"],
-      "@lib/*": ["./lib/*"]
+      "$lib/*": ["src/renderer/src/lib/shacn/*"],
+      "@ui/*": ["src/renderer/src/lib/shacn/components/ui/*"]
     }
   },
   "include": ["src/**/*.ts", "src/**/*.d.ts", "src/**/*.svelte"]

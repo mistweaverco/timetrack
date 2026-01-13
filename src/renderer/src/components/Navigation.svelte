@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { Button } from '@ui/button'
+  import { ArrowUpIcon } from '@lucide/svelte'
   import { selectedPanel } from '../stores'
 
   export let currentPanel: string = 'Overview'
@@ -26,6 +28,10 @@
 <div class="menu menu-horizontal bg-base-200 rounded-box w-full justify-around">
   <ul class="menu menu-horizontal bg-base-200 rounded-box justify-end">
     <li>
+      <Button variant="outline"
+        >Button
+        <ArrowUpIcon />
+      </Button>
       <button
         class="tab"
         class:tab-active={currentPanel === 'Overview'}
