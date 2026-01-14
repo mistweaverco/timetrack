@@ -740,10 +740,11 @@ const editTask = async (prisma: PrismaClient, opts: DBEditTaskOpts) => {
         where: { id: parseInt(opts.id) },
       })
 
+      const activeStatusId = await getOrCreateStatus(prisma, 'active')
       const statusId =
         opts.status !== undefined
           ? await getOrCreateStatus(tx, opts.status)
-          : existingTask.statusId
+          : activeStatusId
       await tx.task.create({
         data: {
           taskDefinition: {
@@ -752,24 +753,31 @@ const editTask = async (prisma: PrismaClient, opts: DBEditTaskOpts) => {
           description: opts.description,
           date: newDate,
           seconds: opts.seconds,
-          statusId,
+          status: {
+            connect: { id: statusId },
+          },
         },
       })
     })
   } else {
+    const activeStatusId = await getOrCreateStatus(prisma, 'active')
     // Update existing task
     const updateData: {
       taskDefinition?: { connect: { id: number } }
       description: string
       seconds: number
-      statusId?: number
+      status: {
+        connect: { id: activeStatusId }
+      }
     } = {
       description: opts.description,
       seconds: opts.seconds,
     }
     if (opts.status !== undefined) {
       const statusId = await getOrCreateStatus(prisma, opts.status)
-      updateData.statusId = statusId
+      updateData.status = {
+        connect: { id: statusId },
+      }
     }
     // Update task definition if it changed
     if (existingTask.taskDefinitionId.toString() !== opts.taskDefinitionId) {
