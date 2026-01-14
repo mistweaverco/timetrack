@@ -11,7 +11,7 @@
       if (result.success) {
         projects.update(ps => ps.filter(p => p.id !== project.id))
         if ($selectedProject.id === project.id) {
-          selectedProject.set({ id: null, name: null })
+          selectedProject.set(null)
         }
         onClose(true)
       }

@@ -46,7 +46,7 @@
     })
 
     selectedProject.subscribe(async proj => {
-      if (proj.id) {
+      if (proj && proj.id) {
         await fetchTaskDefinitions(proj.id)
         await fetchTasks(proj.id)
       }

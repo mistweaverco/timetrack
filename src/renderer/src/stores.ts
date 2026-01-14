@@ -8,10 +8,7 @@ export const selectedCompany = writable<{
   id: null,
   name: null,
 })
-export const selectedProject = writable<{
-  id: string | null
-  name: string | null
-}>({ id: null, name: null })
+export const selectedProject = writable<DBProject | null>(null)
 export const selectedTask = writable<DBTask | null>(null)
 export const selectedTaskDefinition = writable<DBTaskDefinition | null>(null)
 

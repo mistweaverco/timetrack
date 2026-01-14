@@ -1,5 +1,9 @@
 <script lang="ts">
+  import Label from 'renderer/src/lib/shacn/components/ui/label/label.svelte'
   import { companies } from '../../stores'
+  import * as Dialog from '@ui/dialog'
+  import Input from 'renderer/src/lib/shacn/components/ui/input/input.svelte'
+  import { Button, buttonVariants } from '@ui/button'
 
   export let company: DBCompany
   export let onClose: (success: boolean, editedCompany?: DBCompany) => void
@@ -24,54 +28,44 @@
       }
     }
   }
-
-  function handleCancel() {
-    onClose(false)
-  }
 </script>
 
-<div class="modal modal-open">
-  <div class="modal-box">
-    <h3 class="font-bold text-lg">Edit Company</h3>
-    <form on:submit={handleSubmit}>
-      <div class="form-control mt-4">
-        <label class="label" for="name">
-          <span class="label-text">Company Name</span>
-        </label>
-        <input
-          id="name"
-          type="text"
-          bind:value={name}
-          class="input input-bordered"
-          required
-        />
-      </div>
-      <div class="form-control mt-4">
-        <label class="label" for="status">
-          <span class="label-text">Status</span>
-        </label>
-        <select
-          bind:value={status}
-          class="select select-bordered"
-          required
-          id="status"
-        >
-          <option value="active">Active</option>
-          <option value="inactive">Inactive</option>
-        </select>
-      </div>
-      <div class="modal-action">
-        <button type="submit" class="btn btn-warning">Edit</button>
-        <button type="button" class="btn" on:click={handleCancel}>Cancel</button
-        >
-      </div>
-    </form>
-  </div>
-  <div
-    class="modal-backdrop"
-    on:keypress={(evt: KeyboardEvent) => evt.key === 'Escape' && handleCancel()}
-    on:click={handleCancel}
-    role="button"
-    tabindex="0"
-  ></div>
-</div>
+<Dialog.Root open={true} onOpenChange={() => onClose(false)}>
+  <form onsubmit={handleSubmit}>
+    <Dialog.Content class="sm:max-w-md">
+      <Dialog.Header>
+        <Dialog.Title>Edit Company: {company.name}</Dialog.Title>
+        <Dialog.Description>
+          Make changes to your company here. Click save when you're done.
+        </Dialog.Description>
+      </Dialog.Header>
+      <div class="grid gap-4">
+        <div class="grid gap-3">
+          <Label for="description">Name</Label>
+          <div class="grid grid-cols-3 gap-4">
+            <Label for="name">Name</Label>
+            <Input id="name" type="text" bind:value={name} />
+          </div>
+          <div class="grid grid-cols-3 gap-4">
+            <Label for="status">Status</Label>
+            <select
+              bind:value={status}
+              class="select select-bordered"
+              required
+              id="status"
+            >
+              <option value="active">Active</option>
+              <option value="inactive">Inactive</option>
+            </select>
+          </div>
+          <Dialog.Footer>
+            <Dialog.Close class={buttonVariants({ variant: 'outline' })}
+              >Cancel</Dialog.Close
+            >
+            <Button type="submit">Save changes</Button>
+          </Dialog.Footer>
+        </div>
+      </div></Dialog.Content
+    >
+  </form>
+</Dialog.Root>

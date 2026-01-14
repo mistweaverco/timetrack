@@ -11,7 +11,13 @@
   import EditProjectModal from './modals/EditProjectModal.svelte'
   import DeleteProjectModal from './modals/DeleteProjectModal.svelte'
   import InfoBox from './InfoBox.svelte'
-  import { CheckIcon, ChevronsUpDownIcon, Plus, Settings } from '@lucide/svelte'
+  import {
+    CheckIcon,
+    ChevronsUpDownIcon,
+    Plus,
+    Settings,
+    Delete,
+  } from '@lucide/svelte'
   import { tick } from 'svelte'
   import { Button, buttonVariants } from '@ui/button'
   import * as Command from '@ui/command'
@@ -79,29 +85,21 @@
   function handleProjectSelect(project: DBProject) {
     selectedTask.set(null)
     selectedTaskDefinition.set(null)
-    selectedProject.set({
-      id: project.id,
-      name: project.name,
-    })
+    selectedProject.set(project)
   }
 
-  function handleEditClick(project: DBProject) {
-    projectToEdit = project
+  function handleEditClick() {
     showEditModal = true
   }
 
-  function handleDeleteClick(project: DBProject) {
-    projectToDelete = project
+  function handleDeleteClick() {
     showDeleteModal = true
   }
 
   function handleEditModalClose(success: boolean, editedProject?: DBProject) {
     showEditModal = false
     if (success && editedProject) {
-      selectedProject.set({
-        id: editedProject.id,
-        name: editedProject.name,
-      })
+      selectedProject.set(editedProject)
       fetchProjects($selectedCompany.id || undefined)
     }
     projectToEdit = null
@@ -110,7 +108,7 @@
   function handleDeleteModalClose(success: boolean) {
     showDeleteModal = false
     if (success) {
-      selectedProject.set({ id: null, name: null })
+      selectedProject.set(null)
       fetchProjects($selectedCompany.id || undefined)
     }
     projectToDelete = null
@@ -127,7 +125,7 @@
 
 {#if showDeleteModal && projectToDelete}
   <DeleteProjectModal
-    project={projectToDelete}
+    project={$selectedProject}
     onClose={handleDeleteModalClose}
   />
 {/if}
@@ -196,8 +194,8 @@
           </Tooltip.Root>
         </Tooltip.Provider>
       </li>
-      <li>
-        {#if $selectedProj.id !== null}
+      {#if $selectedProj.id !== null}
+        <li>
           <Tooltip.Provider>
             <Tooltip.Root>
               <Tooltip.Trigger
@@ -210,8 +208,23 @@
               </Tooltip.Content>
             </Tooltip.Root>
           </Tooltip.Provider>
-        {/if}
-      </li>
+        </li>
+        <li>
+          <Tooltip.Provider>
+            <Tooltip.Root>
+              <Tooltip.Trigger
+                onclick={handleDeleteClick}
+                class={buttonVariants({
+                  variant: 'outline',
+                })}><Delete size="16" /></Tooltip.Trigger
+              >
+              <Tooltip.Content>
+                <p>Delete selected company</p>
+              </Tooltip.Content>
+            </Tooltip.Root>
+          </Tooltip.Provider>
+        </li>
+      {/if}
     </ul>
   </div>
 {/if}

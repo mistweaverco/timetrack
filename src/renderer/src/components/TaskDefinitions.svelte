@@ -25,7 +25,7 @@
     })
 
     selectedProject.subscribe(async proj => {
-      if (proj.id) {
+      if (proj && proj.id) {
         await fetchTaskDefinitions(proj.id)
       }
     })
@@ -115,7 +115,7 @@
     const selected = $selectedTaskDefinition
     return (
       selected?.name === taskDef.name &&
-      selected?.project_name === taskDef.project_name
+      selected?.projectName === taskDef.projectName
     )
   }
 </script>
@@ -134,7 +134,7 @@
   />
 {/if}
 
-{#if selectedProj.id}
+{#if selectedProj}
   <section class="section">
     <h1 class="text-2xl font-bold">Task Definitions</h1>
     <h2 class="text-lg text-base-content/70">

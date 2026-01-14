@@ -3,13 +3,15 @@
   import { Button, buttonVariants } from '@ui/button'
   import * as Tooltip from '@ui/tooltip'
   import { companies, selectedCompany, selectedProject } from '../stores'
+  import AddCompanyModal from './modals/AddCompanyModal.svelte'
   import EditCompanyModal from './modals/EditCompanyModal.svelte'
   import DeleteCompanyModal from './modals/DeleteCompanyModal.svelte'
-  import { Plus, Settings } from '@lucide/svelte'
+  import { Delete, Plus, Settings } from '@lucide/svelte'
 
-  let companiesList: DBCompany[] = []
-  let showEditModal = false
-  let showDeleteModal = false
+  let companiesList: DBCompany[] = $state([])
+  let showEditModal = $state(false)
+  let showDeleteModal = $state(false)
+  let showAddModal = $state(false)
   let companyToEdit: DBCompany | null = null
   let companyToDelete: DBCompany | null = null
   let companiesWithActiveTasks: Set<string> = new Set()
@@ -57,14 +59,19 @@
     selectedProject.set({ id: null, name: null })
   }
 
-  function handleEditClick(company: DBCompany) {
-    companyToEdit = company
+  function handleEditClick() {
     showEditModal = true
   }
 
-  function handleDeleteClick(company: DBCompany) {
-    companyToDelete = company
+  function handleDeleteClick() {
     showDeleteModal = true
+  }
+
+  async function handleCompanyAddModalClose(success: boolean) {
+    showAddModal = false
+    if (success) {
+      await fetchCompanies()
+    }
   }
 
   async function handleCompanyModalClose(
@@ -96,20 +103,6 @@
   }
 </script>
 
-{#if showEditModal && companyToEdit}
-  <EditCompanyModal
-    company={companyToEdit}
-    onClose={(s, c) => handleCompanyModalClose(s, c)}
-  />
-{/if}
-
-{#if showDeleteModal && companyToDelete}
-  <DeleteCompanyModal
-    company={companyToDelete}
-    onClose={s => handleCompanyModalClose(s)}
-  />
-{/if}
-
 <div class="flex justify-between">
   <ul class="flex space-x-2">
     {#each companiesList as company (company.name)}
@@ -127,6 +120,9 @@
       <Tooltip.Provider>
         <Tooltip.Root>
           <Tooltip.Trigger
+            onclick={() => {
+              showAddModal = true
+            }}
             class="{buttonVariants({
               variant: 'outline',
             })} justify-between"><Plus size="16" /></Tooltip.Trigger
@@ -137,11 +133,12 @@
         </Tooltip.Root>
       </Tooltip.Provider>
     </li>
-    <li>
-      {#if $selectedCompany.id !== null}
+    {#if $selectedCompany.id !== null}
+      <li>
         <Tooltip.Provider>
           <Tooltip.Root>
             <Tooltip.Trigger
+              onclick={handleEditClick}
               class={buttonVariants({
                 variant: 'outline',
               })}><Settings size="16" /></Tooltip.Trigger
@@ -151,97 +148,40 @@
             </Tooltip.Content>
           </Tooltip.Root>
         </Tooltip.Provider>
-      {/if}
-    </li>
+      </li>
+      <li>
+        <Tooltip.Provider>
+          <Tooltip.Root>
+            <Tooltip.Trigger
+              onclick={handleDeleteClick}
+              class={buttonVariants({
+                variant: 'outline',
+              })}><Delete size="16" /></Tooltip.Trigger
+            >
+            <Tooltip.Content>
+              <p>Delete selected company</p>
+            </Tooltip.Content>
+          </Tooltip.Root>
+        </Tooltip.Provider>
+      </li>
+    {/if}
   </ul>
 </div>
 
-<section class="section">
-  <h1 class="text-2xl font-bold">Companies</h1>
-  <h2 class="text-lg text-base-content/70">
-    Manage your companies. Select a company to view its projects.
-  </h2>
+{#if showAddModal}
+  <AddCompanyModal onClose={s => handleCompanyAddModalClose(s)} />
+{/if}
 
-  <div class="grid grid-cols-2 gap-4 mt-4">
-    <!-- Add Company -->
-    <div class="card bg-base-200 shadow-xl">
-      <div class="card-body">
-        <h2 class="card-title">New Company</h2>
-        <form on:submit={handleAddCompany}>
-          <div class="form-control">
-            <label class="label" for="name">
-              <span class="label-text">Company Name</span>
-            </label>
-            <input
-              id="name"
-              type="text"
-              name="name"
-              placeholder="Company Name"
-              class="input input-bordered"
-              required
-            />
-          </div>
-          <div class="form-control mt-4">
-            <button type="submit" class="btn btn-primary">Add Company</button>
-          </div>
-        </form>
-      </div>
-    </div>
+{#if showEditModal && $selectedCompany}
+  <EditCompanyModal
+    company={$selectedCompany}
+    onClose={(s, c) => handleCompanyModalClose(s, c)}
+  />
+{/if}
 
-    <!-- Companies List -->
-    {#if companiesList.length > 0}
-      <div class="card bg-base-200 shadow-xl">
-        <div class="card-body">
-          <h2 class="card-title">Companies</h2>
-          <div class="space-y-2">
-            {#each companiesList as company (company.name)}
-              <div class="flex justify-between items-center">
-                <button
-                  class="p-3 rounded cursor-pointer transition-colors w-full text-left border-2"
-                  class:bg-base-300={$selectedCompany.id === company.id}
-                  class:text-neutral-content={$selectedCompany.id ===
-                    company.id}
-                  class:border-success={$selectedCompany.id === company.id}
-                  class:border-base-100={$selectedCompany.id !== company.id}
-                  class:tooltip={false}
-                  data-tip={companiesWithActiveTasks.has(company.name)
-                    ? 'A task belonging to this company is currently active, you need to stop it to perform any action.'
-                    : ''}
-                  on:click={() => handleCompanySelect(company)}
-                >
-                  {#if companiesWithActiveTasks.has(company.name)}
-                    <div class="flex gap-2 justify-between">
-                      <span>{company.name}</span>
-                      <span
-                        class="loading loading-spinner loading-xs text-success"
-                      ></span>
-                    </div>
-                  {:else}
-                    <span>{company.name}</span>
-                  {/if}
-                </button>
-                {#if !companiesWithActiveTasks.has(company.name)}
-                  <div class="flex gap-2">
-                    <button
-                      class="btn btn-warning btn-sm"
-                      on:click|stopPropagation={() => handleEditClick(company)}
-                    >
-                      Edit
-                    </button>
-                    <button
-                      class="btn btn-error btn-sm"
-                      on:click|stopPropagation={() =>
-                        handleDeleteClick(company)}
-                    >
-                      Delete
-                    </button>
-                  </div>
-                {/if}
-              </div>
-            {/each}
-          </div>
-        </div>
-      </div>
-    {/if}
-  </div>
-</section>
+{#if showDeleteModal && $selectedCompany}
+  <DeleteCompanyModal
+    company={$selectedCompany}
+    onClose={s => handleCompanyModalClose(s)}
+  />
+{/if}
