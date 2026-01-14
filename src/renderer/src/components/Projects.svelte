@@ -11,29 +11,29 @@
   import EditProjectModal from './modals/EditProjectModal.svelte'
   import DeleteProjectModal from './modals/DeleteProjectModal.svelte'
   import InfoBox from './InfoBox.svelte'
-  import { CheckIcon, ChevronsUpDownIcon } from '@lucide/svelte'
+  import { CheckIcon, ChevronsUpDownIcon, Plus, Settings } from '@lucide/svelte'
   import { tick } from 'svelte'
-  import { Button } from '@ui/button'
+  import { Button, buttonVariants } from '@ui/button'
   import * as Command from '@ui/command'
   import * as Popover from '@ui/popover'
   import { cn } from '$lib/utils'
+  import * as Tooltip from '@ui/tooltip'
 
-  let showEditModal = false
-  let showDeleteModal = false
-  let projectToEdit: DBProject | null = null
-  let projectToDelete: DBProject | null = null
+  let showEditModal = $state(false)
+  let showDeleteModal = $state(false)
+  let projectToEdit: DBProject | null = $state(null)
+  let projectToDelete: DBProject | null = $state(null)
 
-  let open = $state(false)
-  let value = $state('')
-  let triggerRef = $state<HTMLButtonElement>(null!)
+  let projectComboboxOpen = $state(false)
+  let projectComboboxTriggerRef = $state<HTMLButtonElement>(null!)
 
   // We want to refocus the trigger button when the user selects
   // an item from the list so users can continue navigating the
   // rest of the form with the keyboard.
-  function closeAndFocusTrigger() {
-    open = false
+  function closeAndFocusTriggerProjectCombobox() {
+    projectComboboxOpen = false
     tick().then(() => {
-      triggerRef.focus()
+      projectComboboxTriggerRef.focus()
     })
   }
 
@@ -41,10 +41,6 @@
   const selectedProj = $derived(selectedProject)
   const selectedComp = $derived(selectedCompany)
   const companyProjects = $derived(projectsForSelectedCompany)
-
-  const selectedValue = $derived(
-    $companyProjects.find(p => p.id === value)?.name || null,
-  )
 
   selectedCompany.subscribe(async value => {
     if (value.id) {
@@ -136,51 +132,94 @@
   />
 {/if}
 
-<Popover.Root bind:open>
-  <Popover.Trigger bind:ref={triggerRef}>
-    {#snippet child({ props })}
-      <Button
-        {...props}
-        variant="outline"
-        class="w-50 justify-between"
-        role="combobox"
-        aria-expanded={open}
-      >
-        {selectedValue || 'Select a project...'}
-        <ChevronsUpDownIcon class="opacity-50" />
-      </Button>
-    {/snippet}
-  </Popover.Trigger>
-  <Popover.Content class="w-50 p-0">
-    <Command.Root>
-      <Command.Input placeholder="Search projects..." />
-      <Command.List>
-        <Command.Empty>No project found.</Command.Empty>
-        <Command.Group value="projects">
-          {#each $companyProjects as project (project.name)}
-            <Command.Item
-              value={project.id}
-              onSelect={() => {
-                value = project.id
-                closeAndFocusTrigger()
-              }}
+{#if $selectedCompany.id !== null}
+  <div class="flex justify-between">
+    <ul class="flex space-x-2">
+      {#if $companyProjects.length !== 0}
+        <li>
+          <Popover.Root bind:open={projectComboboxOpen}>
+            <Popover.Trigger bind:ref={projectComboboxTriggerRef}>
+              {#snippet child({ props })}
+                <Button
+                  {...props}
+                  variant="outline"
+                  class="w-auto justify-between"
+                  role="combobox"
+                  aria-expanded={projectComboboxOpen}
+                >
+                  {$selectedProj.name || 'Select a project...'}
+                  <ChevronsUpDownIcon class="opacity-50" />
+                </Button>
+              {/snippet}
+            </Popover.Trigger>
+            <Popover.Content class="w-auto p-0">
+              <Command.Root>
+                <Command.Input placeholder="Search projects..." />
+                <Command.List>
+                  <Command.Empty>No project found.</Command.Empty>
+                  <Command.Group value="projects">
+                    {#each $companyProjects as project (project.name)}
+                      <Command.Item
+                        value={project.id}
+                        onSelect={() => {
+                          handleProjectSelect(project)
+                          closeAndFocusTriggerProjectCombobox()
+                        }}
+                      >
+                        <CheckIcon
+                          class={cn(
+                            $selectedProj.id !== project.id &&
+                              'text-transparent',
+                          )}
+                        />
+                        {project.name}
+                      </Command.Item>
+                    {/each}
+                  </Command.Group>
+                </Command.List>
+              </Command.Root>
+            </Popover.Content>
+          </Popover.Root>
+        </li>
+      {/if}
+      <li>
+        <Tooltip.Provider>
+          <Tooltip.Root>
+            <Tooltip.Trigger
+              class="{buttonVariants({
+                variant: 'outline',
+              })} justify-between"><Plus size="16" /></Tooltip.Trigger
             >
-              <CheckIcon
-                class={cn(value !== project.id && 'text-transparent')}
-              />
-              {project.name}
-            </Command.Item>
-          {/each}
-        </Command.Group>
-      </Command.List>
-    </Command.Root>
-  </Popover.Content>
-</Popover.Root>
+            <Tooltip.Content>
+              <p>Add a Project</p>
+            </Tooltip.Content>
+          </Tooltip.Root>
+        </Tooltip.Provider>
+      </li>
+      <li>
+        {#if $selectedProj.id !== null}
+          <Tooltip.Provider>
+            <Tooltip.Root>
+              <Tooltip.Trigger
+                class={buttonVariants({
+                  variant: 'outline',
+                })}><Settings size="16" /></Tooltip.Trigger
+              >
+              <Tooltip.Content>
+                <p>Edit selected project</p>
+              </Tooltip.Content>
+            </Tooltip.Root>
+          </Tooltip.Provider>
+        {/if}
+      </li>
+    </ul>
+  </div>
+{/if}
 
 <section class="section">
   <h1 class="text-2xl font-bold">Projects</h1>
   <h2 class="text-lg text-base-content/70">
-    Manage your projects for {selectedComp.name || 'the selected company'}.
+    Manage your projects for {$selectedComp.name || 'the selected company'}.
     Select a project to view its tasks.
   </h2>
 
