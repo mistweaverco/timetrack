@@ -18,27 +18,27 @@ const API = {
   ): Promise<{ success: boolean }> => {
     return await ipcRenderer.invoke('editCompany', opts)
   },
-  deleteCompany: async (name: string): Promise<{ success: boolean }> => {
-    return await ipcRenderer.invoke('deleteCompany', name)
+  deleteCompany: async (id: string): Promise<{ success: boolean }> => {
+    return await ipcRenderer.invoke('deleteCompany', id)
   },
 
   // Projects
-  getProjects: async (companyName?: string): Promise<DBProject[]> => {
-    return await ipcRenderer.invoke('getProjects', companyName)
+  getProjects: async (companyId?: string): Promise<DBProject[]> => {
+    return await ipcRenderer.invoke('getProjects', companyId)
   },
   addProject: async (
     name: string,
-    companyName: string,
-  ): Promise<{ success: boolean }> => {
-    return await ipcRenderer.invoke('addProject', name, companyName)
+    companyId: string,
+  ): Promise<{ success: boolean; id: string }> => {
+    return await ipcRenderer.invoke('addProject', name, companyId)
   },
   editProject: async (
     opts: DBEditProjectOpts,
   ): Promise<{ success: boolean }> => {
     return await ipcRenderer.invoke('editProject', opts)
   },
-  deleteProject: async (name: string): Promise<{ success: boolean }> => {
-    return await ipcRenderer.invoke('deleteProject', name)
+  deleteProject: async (id: string): Promise<{ success: boolean }> => {
+    return await ipcRenderer.invoke('deleteProject', id)
   },
 
   // Task Definitions
@@ -58,9 +58,9 @@ const API = {
     return await ipcRenderer.invoke('deleteTaskDefinition', opts)
   },
   getTaskDefinitions: async (
-    project_name: string,
+    projectId: string,
   ): Promise<DBTaskDefinition[]> => {
-    return await ipcRenderer.invoke('getTaskDefinitions', project_name)
+    return await ipcRenderer.invoke('getTaskDefinitions', projectId)
   },
   getAllTaskDefinitions: async (): Promise<DBTaskDefinition[]> => {
     return await ipcRenderer.invoke('getAllTaskDefinitions')
@@ -78,17 +78,25 @@ const API = {
   deleteTask: async (opts: DBDeleteTaskOpts): Promise<{ success: boolean }> => {
     return await ipcRenderer.invoke('deleteTask', opts)
   },
-  getTasks: async (project_name: string): Promise<DBTask[]> => {
-    return await ipcRenderer.invoke('getTasks', project_name)
+  getTaskById: async (id: string): Promise<DBTask | null> => {
+    return await ipcRenderer.invoke('getTaskById', id)
+  },
+  getTaskByTaskDefinitionAndDate: async (
+    id: string,
+    date: string,
+  ): Promise<DBTask | null> => {
+    return await ipcRenderer.invoke('getTaskByTaskDefinitionAndDate', id, date)
+  },
+  getTasks: async (projectId: string): Promise<DBTask[]> => {
+    return await ipcRenderer.invoke('getTasks', projectId)
   },
   getTasksByNameAndProject: async (opts: {
-    name: string
-    project_name: string
+    taskDefinitionId: string
   }): Promise<DBTask[]> => {
     return await ipcRenderer.invoke('getTasksByNameAndProject', opts)
   },
-  getTasksToday: async (project_name: string): Promise<DBTask[]> => {
-    return await ipcRenderer.invoke('getTasksToday', project_name)
+  getTasksToday: async (projectId: string): Promise<DBTask[]> => {
+    return await ipcRenderer.invoke('getTasksToday', projectId)
   },
 
   // Active Tasks
@@ -122,7 +130,7 @@ const API = {
   },
 
   // Events
-  on: (channel: string, callback: (data: any) => void) => {
+  on: (channel: string, callback: (data: unknown) => void) => {
     ipcRenderer.on(channel, (_, data) => callback(data))
   },
   off: (channel: string) => {

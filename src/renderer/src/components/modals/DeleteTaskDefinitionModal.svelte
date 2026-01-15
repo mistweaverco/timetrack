@@ -13,40 +13,24 @@
 
   async function handleConfirm() {
     if (window.electron) {
-      // Fetch tasks using this task definition
-      const rpcTasks = await window.electron.getTasksByNameAndProject({
-        name: taskDefinition.name,
-        project_name: taskDefinition.project_name,
+      const result = await window.electron.deleteTaskDefinition({
+        id: taskDefinition.id,
       })
-
-      const result = await window.electron.deleteTaskDefinition(taskDefinition)
       if (result.success) {
         // Update stores
-        await taskDefinitions.update(tds =>
-          tds.filter(
-            td =>
-              !(
-                td.name === taskDefinition.name &&
-                td.project_name === taskDefinition.project_name
-              ),
-          ),
+        taskDefinitions.update(tds =>
+          tds.filter(td => td.id !== taskDefinition.id),
         )
 
-        // Remove tasks
-        await tasks.update(ts =>
-          ts.filter(
-            t =>
-              !(
-                t.name === taskDefinition.name &&
-                t.project_name === taskDefinition.project_name
-              ),
-          ),
+        // Remove tasks that belong to this task definition
+        tasks.update(ts =>
+          ts.filter(t => t.taskDefinitionId !== taskDefinition.id),
         )
 
         selectedTask.set(null)
         selectedTaskDefinition.set(null)
-        if ($selectedProject.name === taskDefinition.project_name) {
-          selectedProject.set({ name: null })
+        if ($selectedProject.id === taskDefinition.projectId) {
+          selectedProject.set({ id: null, name: null })
         }
         onClose(true)
       }
@@ -72,5 +56,11 @@
       <button class="btn btn-primary" on:click={handleCancel}>No</button>
     </div>
   </div>
-  <div class="modal-backdrop" on:click={handleCancel}></div>
+  <div
+    class="modal-backdrop"
+    on:keypress={(evt: KeyboardEvent) => evt.key === 'Escape' && handleCancel()}
+    on:click={handleCancel}
+    role="button"
+    tabindex="0"
+  ></div>
 </div>

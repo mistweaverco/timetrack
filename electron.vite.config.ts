@@ -1,3 +1,4 @@
+import tsconfigPaths from 'vite-tsconfig-paths'
 import tailwindcss from '@tailwindcss/vite'
 import { defineConfig } from 'electron-vite'
 import { svelte } from '@sveltejs/vite-plugin-svelte'
@@ -32,6 +33,6 @@ export default defineConfig({
         },
       },
     },
-    plugins: [tailwindcss(), svelte()],
+    plugins: [tsconfigPaths(), tailwindcss(), svelte()],
   },
 })

@@ -5,8 +5,6 @@
   import Overview from './components/Overview.svelte'
   import Search from './components/Search.svelte'
   import PDFExport from './components/PDFExport.svelte'
-  import PDFDocument from './components/PDFDocument.svelte'
-  import { searchResults } from './stores'
 
   let currentPanel = $selectedPanel
 
@@ -40,7 +38,7 @@
     />
   {/if}
 
-  <div class="container mx-auto p-4">
+  <div class="w-full p-4">
     {#if currentPanel === 'Overview'}
       <Overview />
     {:else if currentPanel === 'Search'}

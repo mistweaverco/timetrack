@@ -1,11 +1,13 @@
 type ActiveTask = {
-  name: string
-  project_name: string
+  taskId: string
   description: string
   date: string
   seconds: number
   tick?: NodeJS.Timeout | null
   isActive?: boolean
+  name: string
+  projectName: string
+  companyName: string
 }
 
 type PDFTotalObject = {
@@ -18,7 +20,7 @@ type PDFQueryResult = {
   date: string
   description: string
   name: string
-  project_name: string
+  projectName: string
   seconds: number
 }
 
@@ -57,25 +59,34 @@ type SearchQueryResult = {
 }
 
 type DBCompany = {
+  id: string
   name: string
   status?: string
 }
 
 type DBProject = {
+  id: string
   name: string
-  company_name: string
+  companyId: string
+  companyName: string
+  company: DBCompany
   status?: string
 }
 
 type DBTaskDefinition = {
+  id: string
   name: string
-  project_name: string
+  projectId: string
+  projectName: string
   status?: string
 }
 
 type DBTask = {
+  id: string
   name: string
-  project_name: string
+  taskDefinitionId: string
+  projectName: string
+  companyName: string
   description: string
   seconds: number
   date: string
@@ -83,8 +94,7 @@ type DBTask = {
 }
 
 type MainProcessActiveTaskMapped = {
-  name: string
-  project_name: string
+  taskId: string
   date: string
   seconds: number
   time: string
@@ -92,70 +102,63 @@ type MainProcessActiveTaskMapped = {
 }
 
 type MainProcessManageActiveTasksOpts = {
-  project_name: string
-  name: string
+  taskId: string
   date: string
   seconds?: number
 }
 
 type MainProccessAddActiveTaskOpts = {
-  name: string
-  project_name: string
+  taskId: string
   date: string
   seconds: number
 }
 
 type DBEditCompanyOpts = {
+  id: string
   name: string
-  oldname: string
   status?: string
 }
 
 type DBEditProjectOpts = {
+  id: string
   name: string
-  oldname: string
-  company_name: string
+  companyId: string
   status?: string
 }
 
 type DBAddTaskDefinitionOpts = {
   name: string
-  project_name: string
+  projectId: string
 }
 
 type DBEditTaskDefinitionOpts = {
+  id: string
   name: string
-  oldname: string
-  project_name: string
   status?: string
 }
 
 type DBDeleteTaskDefinitionOpts = {
-  name: string
-  project_name: string
+  id: string
 }
 
 type DBAddTaskOpts = {
-  name: string
+  taskDefinitionId: string
   description: string
-  project_name: string
   seconds: number
 }
 
 type DBEditTaskOpts = {
-  name: string
+  id: string
+  taskDefinitionId: string
   description: string
   seconds: number
   date: string
-  old_date: string
-  project_name: string
+  oldDate: string
   status?: string
 }
 
 type DBDeleteTaskOpts = {
-  name: string
-  date: string
-  project_name: string
+  id: string
 }
 
 type MainProcessIPCHandle = {
@@ -182,80 +185,48 @@ interface Window {
     on: (channel: string, callback: ElectronOnCallback) => void
     off: (channel: string) => void
     getCompanies: () => Promise<DBCompany[]>
-    addCompany: (name: string) => Promise<{ success: boolean }>
-    editCompany: (opts: {
-      name: string
-      oldname: string
-      status?: string
-    }) => Promise<{ success: boolean }>
-    deleteCompany: (name: string) => Promise<{ success: boolean }>
+    addCompany: (name: string) => Promise<{ success: boolean; id: string }>
+    editCompany: (opts: DBEditCompanyOpts) => Promise<{ success: boolean }>
+    deleteCompany: (id: string) => Promise<{ success: boolean }>
     addProject: (
       name: string,
-      companyName: string,
-    ) => Promise<{ success: boolean }>
-    editProject: (opts: {
-      name: string
-      oldname: string
-      company_name: string
-      status?: string
-    }) => Promise<{ success: boolean }>
-    editCompany: (opts: {
-      name: string
-      oldname: string
-      status?: string
-    }) => Promise<{ success: boolean }>
-    deleteProject: (name: string) => Promise<{ success: boolean }>
-    getProjects: () => Promise<DBProject[]>
-    addTaskDefinition: (opts: {
-      project_name: string
-      name: string
-    }) => Promise<{ success: boolean }>
-    editTaskDefinition: (opts: {
-      project_name: string
-      name: string
-      oldname: string
-      status?: string
-    }) => Promise<{ success: boolean }>
-    deleteTaskDefinition: (opts: {
-      project_name: string
-      name: string
-    }) => Promise<{ success: boolean }>
-    getTaskDefinitions: (project_name: string) => Promise<DBTaskDefinition[]>
-    addTask: (opts: {
-      project_name: string
-      name: string
-      description: string
-      seconds: number
-    }) => Promise<{ success: boolean }>
-    editTask: (opts: {
-      project_name: string
-      name: string
-      description: string
-      seconds: number
-      date: string
-      old_date: string
-      status?: string
-    }) => Promise<DBTask & { success: boolean }>
-    deleteTask: (opts: {
-      project_name: string
-      name: string
-      date: string
-    }) => Promise<{ success: boolean }>
-    getTasks: (project_name: string) => Promise<DBTask[]>
+      companyId: string,
+    ) => Promise<{ success: boolean; id: string }>
+    editProject: (opts: DBEditProjectOpts) => Promise<{ success: boolean }>
+    deleteProject: (id: string) => Promise<{ success: boolean }>
+    getProjects: (companyId?: string) => Promise<DBProject[]>
+    addTaskDefinition: (opts: DBAddTaskDefinitionOpts) => Promise<{
+      success: boolean
+      id: string
+    }>
+    editTaskDefinition: (opts: DBEditTaskDefinitionOpts) => Promise<{
+      success: boolean
+    }>
+    deleteTaskDefinition: (opts: DBDeleteTaskDefinitionOpts) => Promise<{
+      success: boolean
+    }>
+    getTasksToday: (projectId: string) => Promise<DBTask[]>
+    getTaskDefinitions: (projectId: string) => Promise<DBTaskDefinition[]>
+    getTaskById: (id: string) => Promise<DBTask | null>
+    getTaskByTaskDefinitionAndDate: (
+      id: string,
+      date: string,
+    ) => Promise<DBTask | null>
+    addTask: (opts: DBAddTaskOpts) => Promise<{ success: boolean; id: string }>
+    editTask: (opts: DBEditTaskOpts) => Promise<DBTask & { success: boolean }>
+    deleteTask: (opts: DBDeleteTaskOpts) => Promise<{ success: boolean }>
+    getTasks: (projectId: string) => Promise<DBTask[]>
     getTasksByNameAndProject: (opts: {
-      name: string
-      project_name: string
+      taskDefinitionId: string
     }) => Promise<DBTask[]>
     getActiveTasks: () => Promise<ActiveTask[]>
-    startActiveTask: (
-      opts: ActiveTask,
-    ) => Promise<ActiveTask & { success: boolean }>
-    pauseActiveTask: (opts: ActiveTask) => Promise<{ success: boolean }>
-    stopActiveTask: (opts: {
-      project_name: string
-      name: string
-      date: string
-    }) => Promise<(ActiveTask & { success: true }) | { success: false }>
+    startActiveTask: (id: string) => Promise<ActiveTask & { success: boolean }>
+    pauseActiveTask: (
+      id: string,
+    ) => Promise<(ActiveTask & { success: true }) | { success: false }>
+    stopActiveTask: (
+      id: string,
+    ) => Promise<(ActiveTask & { success: true }) | { success: false }>
     getDataForPDFExport: (opts: PDFQuery) => Promise<PDFQueryResult[]>
     showFileSaveDialog: () => Promise<void>
     getPDFExport: (filepath: string) => Promise<void>

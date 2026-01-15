@@ -174,8 +174,8 @@
     }
   }
 
-  function getTasksForProject(projectName: string): DBTaskDefinition[] {
-    return allTaskDefinitions.filter(td => td.project_name === projectName)
+  function getTasksForProject(projectId: string): DBTaskDefinition[] {
+    return allTaskDefinitions.filter(td => td.projectId === projectId)
   }
 </script>
 
@@ -204,10 +204,11 @@
             <h2 class="card-title">Date Range</h2>
 
             <div class="form-control">
-              <label class="label">
+              <label class="label" for="fromDate">
                 <span class="label-text">From</span>
               </label>
               <input
+                id="fromDate"
                 type="date"
                 bind:value={fromDate}
                 class="input input-bordered"
@@ -216,10 +217,11 @@
             </div>
 
             <div class="form-control mt-2">
-              <label class="label">
+              <label class="label" for="toDate">
                 <span class="label-text">To</span>
               </label>
               <input
+                id="toDate"
                 type="date"
                 bind:value={toDate}
                 class="input input-bordered"
@@ -246,14 +248,14 @@
           <div class="card-body">
             <h2 class="card-title">Tasks</h2>
             <div class="space-y-4">
-              {#each allProjects as project}
-                {@const projectTasks = getTasksForProject(project.name)}
+              {#each allProjects as project (project.id)}
+                {@const projectTasks = getTasksForProject(project.id)}
                 {#if projectTasks.length > 0}
                   <div class="card bg-base-100">
                     <div class="card-body">
                       <h3 class="card-title text-lg">{project.name}</h3>
                       <div class="space-y-2">
-                        {#each projectTasks as taskDef}
+                        {#each projectTasks as taskDef (taskDef.id)}
                           <label
                             class="label cursor-pointer justify-start gap-2"
                           >

@@ -1,7 +1,13 @@
 <script lang="ts">
   import { onMount } from 'svelte'
-  import { activeTasks, tasks as tasksStore, selectedProject } from '../stores'
+  import {
+    activeTasks,
+    tasks as tasksStore,
+    selectedProject,
+    selectedTask,
+  } from '../stores'
   import TimerComponent from './TimerComponent.svelte'
+  import { CheckCheck, Pause, Play } from '@lucide/svelte'
 
   let tasks: ActiveTask[] = []
 
@@ -21,119 +27,102 @@
   })
 
   async function fetchActiveTasks() {
-    if (window.electron) {
-      try {
-        tasks = await window.electron.getActiveTasks()
-        activeTasks.set(tasks)
-      } catch (error) {
-        console.error('Error loading active tasks:', error)
-      }
+    try {
+      tasks = await window.electron.getActiveTasks()
+      activeTasks.set(tasks)
+    } catch (error) {
+      console.error('Error loading active tasks:', error)
     }
   }
 
-  async function handleStartTask(task: ActiveTask) {
-    if (window.electron) {
-      const result = await window.electron.startActiveTask({
-        name: task.name,
-        project_name: task.project_name,
-        description: task.description,
-        date: task.date,
-        seconds: task.seconds,
-      })
-      if (result.success) {
-        await fetchActiveTasks()
-      }
+  async function handleStartTask(taskId: string) {
+    const result = await window.electron.startActiveTask(taskId)
+    if (result.success) {
+      await fetchActiveTasks()
     }
   }
 
-  async function handleStopTask(task: ActiveTask) {
-    if (window.electron) {
-      const result = await window.electron.stopActiveTask({
-        name: task.name,
-        project_name: task.project_name,
-        date: task.date,
-      })
-      if (result.success) {
-        await fetchActiveTasks()
-        // Refresh tasks list to show updated time
-        const selectedProj = $selectedProject
-        if (selectedProj.name && selectedProj.name === task.project_name) {
-          try {
-            const updatedTasks = await window.electron.getTasksToday(
-              selectedProj.name,
-            )
-            tasksStore.set(updatedTasks)
-          } catch (error) {
-            console.error('Error refreshing tasks after stop:', error)
-          }
+  async function handleStopTask(taskId: string) {
+    const result = await window.electron.stopActiveTask(taskId)
+    if (result.success) {
+      await fetchActiveTasks()
+      // Refresh tasks list to show updated time
+      if ($selectedProject && $selectedProject.id) {
+        try {
+          const updatedTasks = await window.electron.getTasksToday(
+            $selectedProject.id,
+          )
+          tasksStore.set(updatedTasks)
+        } catch (error) {
+          console.error('Error refreshing tasks after stop:', error)
         }
       }
+      if ($selectedTask && $selectedTask.id === taskId) {
+        const updatedTask = await window.electron.getTaskById(taskId)
+        selectedTask.set(updatedTask)
+      }
     }
   }
 
-  async function handlePauseTask(task: ActiveTask) {
-    if (window.electron) {
-      const result = await window.electron.pauseActiveTask({
-        name: task.name,
-        project_name: task.project_name,
-        description: task.description,
-        date: task.date,
-        seconds: task.seconds,
-      })
-      if (result.success) {
-        await fetchActiveTasks()
-      }
+  async function handlePauseTask(taskId: string) {
+    const result = await window.electron.pauseActiveTask(taskId)
+    if (result.success) {
+      await fetchActiveTasks()
     }
   }
 </script>
 
 {#if tasks.length > 0}
   <section class="section">
-    <div class="card bg-base-200 shadow-xl">
+    <div class="card bg-base-200 outline outline-accent">
       <div class="card-body">
         <h2 class="card-title">Active Tasks</h2>
         <div class="overflow-x-auto">
           <table class="table">
             <thead>
               <tr>
-                <th>Project</th>
-                <th>Task Name</th>
-                <th>Task Elapsed</th>
-                <th>Task Date</th>
-                <th>Actions</th>
+                <th>ID</th>
+                <th>Elapsed</th>
+                <th>Date</th>
+                <th></th>
               </tr>
             </thead>
             <tbody>
-              {#each tasks as task}
-                <tr>
-                  <td>{task.project_name}</td>
-                  <td>{task.name}</td>
+              {#each tasks as task (task.taskId)}
+                <tr class="hover:bg-base-100">
+                  <td>{task.companyName} > {task.projectName} > {task.name}</td>
                   <td>
                     <TimerComponent {task} />
                   </td>
                   <td>{task.date}</td>
                   <td>
                     {#if task.isActive}
-                      <button
-                        class="btn btn-warning btn-sm mr-2"
-                        on:click={() => handlePauseTask(task)}
-                      >
-                        Pause
-                      </button>
+                      <span class="tooltip" data-tip="Pause">
+                        <button
+                          class="btn btn-warning btn-soft btn-circle"
+                          on:click={() => handlePauseTask(task.taskId)}
+                        >
+                          <Pause size="16" />
+                        </button>
+                      </span>
                     {:else}
-                      <button
-                        class="btn btn-success btn-sm mr-2"
-                        on:click={() => handleStartTask(task)}
-                      >
-                        Resume
-                      </button>
+                      <span class="tooltip" data-tip="Resume">
+                        <button
+                          class="btn btn-success btn-soft btn-circle"
+                          on:click={() => handleStartTask(task.taskId)}
+                        >
+                          <Play size="16" />
+                        </button>
+                      </span>
                     {/if}
-                    <button
-                      class="btn btn-error btn-sm"
-                      on:click={() => handleStopTask(task)}
-                    >
-                      Stop
-                    </button>
+                    <span class="tooltip" data-tip="Done">
+                      <button
+                        class="btn btn-success btn-soft btn-circle"
+                        on:click={() => handleStopTask(task.taskId)}
+                      >
+                        <CheckCheck size="16" />
+                      </button>
+                    </span>
                   </td>
                 </tr>
               {/each}

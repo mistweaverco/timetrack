@@ -1,14 +1,12 @@
 type CountUpOpts = {
-  name: string
-  project_name: string
+  taskId: string
   description: string
   date: string
   seconds: number
 }
 
 class CountUp {
-  name: string
-  project_name: string
+  taskId: string
   description: string
   date: string
   seconds: number
@@ -18,8 +16,7 @@ class CountUp {
 
   constructor(opts: CountUpOpts) {
     this.count = 0
-    this.name = opts.name
-    this.project_name = opts.project_name
+    this.taskId = opts.taskId
     this.description = opts.description
     this.date = opts.date
     this.seconds = opts.seconds

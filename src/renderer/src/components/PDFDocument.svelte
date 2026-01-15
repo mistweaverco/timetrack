@@ -37,7 +37,7 @@
   </section>
 
   <!-- Tasks List -->
-  {#each pdfDocument as item}
+  {#each pdfDocument as item (`${item.project_name}-${item.name}-${item.date}`)}
     <div
       class="card bg-base-200 shadow-xl print:bg-white print:shadow-none print:border print:border-gray-300"
     >
@@ -77,14 +77,14 @@
     </div>
   </section>
 
-  {#each Object.keys(total) as projectName}
+  {#each Object.keys(total) as projectName (projectName)}
     <div
       class="card bg-base-200 shadow-xl print:bg-white print:shadow-none print:border print:border-gray-300"
     >
       <div class="card-body print:p-4">
         <h2 class="card-title print:text-xl">{projectName}</h2>
         <div class="space-y-2 print:text-sm">
-          {#each Object.keys(total[projectName]) as taskName}
+          {#each Object.keys(total[projectName]) as taskName (taskName)}
             <div class="flex justify-between items-center">
               <span class="font-semibold">{taskName}</span>
               <span

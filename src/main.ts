@@ -6,6 +6,7 @@ import {
   IpcMainInvokeEvent,
   shell,
 } from 'electron'
+import electronSquirrelStartup from 'electron-squirrel-startup'
 import moment from 'moment'
 import fs from 'fs'
 import path from 'path'
@@ -83,7 +84,7 @@ const createWindow = async () => {
 }
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
-if (require('electron-squirrel-startup')) {
+if (electronSquirrelStartup) {
   app.quit()
 }
 
@@ -288,8 +289,8 @@ const setupIPCHandles = async () => {
     },
     {
       id: 'addProject',
-      cb: async (_: string, name: string) => {
-        const json = await addProject(DB, name)
+      cb: async (_: string, name: string, companyName: string) => {
+        const json = await addProject(DB, name, companyName)
         return json
       },
     },
