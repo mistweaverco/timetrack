@@ -1,26 +1,24 @@
 <script lang="ts">
-  let { onClose, onSuccess, t } = $props<{
-    t?: DBTask
+  let { onClose, onSuccess, task } = $props<{
+    task: DBTask
     onClose: () => void
     onSuccess: () => void
   }>()
 
-  import { activeTasks, selectedTask } from '../../stores'
+  import { activeTasks } from '../../stores'
   import InfoBox from '../InfoBox.svelte'
 
-  const task: DBTask = t ?? $selectedTask
-
-  let description = $state(task.description)
-  let hours = $state(Math.floor(task.seconds / 3600))
-  let minutes = $state(Math.floor((task.seconds % 3600) / 60))
-  let seconds = $state(task.seconds % 60)
-  let date = $state(task.date)
-  let status = $state(task.status)
-  const oldDate = task.date
+  let description = $derived(task.description)
+  let hours = $derived(Math.floor(task.seconds / 3600))
+  let minutes = $derived(Math.floor((task.seconds % 3600) / 60))
+  let seconds = $derived(task.seconds % 60)
+  let date = $derived(task.date)
+  let status = $derived(task.status)
+  const oldDate = $derived(task.date)
 
   let activeTask: ActiveTask | undefined
   let isActive = $state(false)
-  let currentSeconds = task.seconds
+  let currentSeconds = $derived(task.seconds)
 
   $effect(() => {
     activeTask = $activeTasks.find(at => at.taskId === task.id)
@@ -68,7 +66,7 @@
 
 <div class="modal modal-open">
   <div class="modal-box">
-    <h3 class="font-bold text-lg">Edit Task: {$selectedTask.name}</h3>
+    <h3 class="font-bold text-lg">Edit Task: {task.name}</h3>
     <form onsubmit={handleSubmit}>
       <label class="label mt-4" for="description">
         <span class="label-text">Task Description</span>

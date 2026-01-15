@@ -269,7 +269,8 @@
 
 {#if showEditTaskModal && taskToEdit}
   <EditTaskModal
-    t={taskToEdit}
+    task={taskToEdit}
+    onSuccess={(s, t) => handleTaskModalClose(s, t)}
     onClose={(s, t) => handleTaskModalClose(s, t)}
   />
 {/if}
@@ -298,7 +299,7 @@
     You can search across tasks and projects.
   </h2>
 
-  <form on:submit={handleSearch} class="mt-4">
+  <form onsubmit={handleSearch} class="mt-4">
     <div class="grid grid-cols-3 gap-4">
       <!-- Query Form -->
       <div class="card bg-base-200 shadow-xl">
@@ -492,13 +493,13 @@
                           <div class="card-actions">
                             <button
                               class="btn btn-warning btn-sm"
-                              on:click={() => handleEditCompany(company)}
+                              onclick={() => handleEditCompany(company)}
                             >
                               Edit
                             </button>
                             <button
                               class="btn btn-error btn-sm"
-                              on:click={() => handleDeleteCompany(company)}
+                              onclick={() => handleDeleteCompany(company)}
                             >
                               Delete
                             </button>
@@ -531,13 +532,13 @@
                           {:else}
                             <button
                               class="btn btn-warning btn-sm"
-                              on:click={() => handleEditProject(project)}
+                              onclick={() => handleEditProject(project)}
                             >
                               Edit
                             </button>
                             <button
                               class="btn btn-error btn-sm"
-                              on:click={() => handleDeleteProject(project)}
+                              onclick={() => handleDeleteProject(project)}
                             >
                               Delete
                             </button>
@@ -574,13 +575,13 @@
                           {:else}
                             <button
                               class="btn btn-warning btn-sm"
-                              on:click={() => handleEditTaskDef(taskDef)}
+                              onclick={() => handleEditTaskDef(taskDef)}
                             >
                               Edit
                             </button>
                             <button
                               class="btn btn-error btn-sm"
-                              on:click={() => handleDeleteTaskDef(taskDef)}
+                              onclick={() => handleDeleteTaskDef(taskDef)}
                             >
                               Delete
                             </button>
@@ -629,13 +630,13 @@
                           {:else}
                             <button
                               class="btn btn-warning btn-sm"
-                              on:click={() => handleEditTask(task)}
+                              onclick={() => handleEditTask(task)}
                             >
                               Edit
                             </button>
                             <button
                               class="btn btn-error btn-sm"
-                              on:click={() => handleDeleteTask(task)}
+                              onclick={() => handleDeleteTask(task)}
                             >
                               Delete
                             </button>

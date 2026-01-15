@@ -56,11 +56,13 @@
     showDeleteModal = true
   }
 
-  async function handleCompanyAddModalClose(success: boolean) {
+  async function handleCompanyAddModalSuccess() {
     showAddModal = false
-    if (success) {
-      await fetchCompanies()
-    }
+    await fetchCompanies()
+  }
+
+  async function handleCompanyAddModalClose() {
+    showAddModal = false
   }
 
   async function handleCompanyModalClose(
@@ -155,7 +157,10 @@
 </div>
 
 {#if showAddModal}
-  <AddCompanyModal onClose={s => handleCompanyAddModalClose(s)} />
+  <AddCompanyModal
+    onSuccess={handleCompanyAddModalSuccess}
+    onClose={handleCompanyAddModalClose}
+  />
 {/if}
 
 {#if showEditModal && $selectedCompany}

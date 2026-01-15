@@ -165,7 +165,10 @@
 </script>
 
 {#if showEditModal}
-  <EditTaskModal onClose={(s, t) => handleEditModalClose(s, t)} />
+  <EditTaskModal
+    task={$selectedTask}
+    onClose={(s, t) => handleEditModalClose(s, t)}
+  />
 {/if}
 
 {#if showDeleteModal}
