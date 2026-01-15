@@ -1,13 +1,7 @@
 import { derived, writable } from 'svelte/store'
 
 export const selectedPanel = writable<string>('Overview')
-export const selectedCompany = writable<{
-  id: string | null
-  name: string | null
-}>({
-  id: null,
-  name: null,
-})
+export const selectedCompany = writable<DBCompany | null>(null)
 export const selectedProject = writable<DBProject | null>(null)
 export const selectedTask = writable<DBTask | null>(null)
 export const selectedTaskDefinition = writable<DBTaskDefinition | null>(null)
@@ -24,7 +18,7 @@ export const searchResults = writable<SearchQueryResult | null>(null)
 export const projectsForSelectedCompany = derived(
   [projects, selectedCompany],
   ([$projects, $selectedCompany]) => {
-    if (!$selectedCompany.id) return []
+    if (!$selectedCompany || !$selectedCompany.id) return []
     return $projects.filter(p => p.companyId === $selectedCompany.id)
   },
 )
@@ -32,7 +26,7 @@ export const projectsForSelectedCompany = derived(
 export const tasksForSelectedProject = derived(
   [tasks, taskDefinitions, selectedProject],
   ([$tasks, $taskDefinitions, $selectedProject]) => {
-    if (!$selectedProject.id) return []
+    if (!$selectedProject || !$selectedProject.id) return []
     // Filter tasks by matching their taskDefinitionId to taskDefinitions with the selected projectId
     const projectTaskDefinitionIds = new Set(
       $taskDefinitions
@@ -46,7 +40,7 @@ export const tasksForSelectedProject = derived(
 export const taskDefinitionsForSelectedProject = derived(
   [taskDefinitions, selectedProject],
   ([$taskDefinitions, $selectedProject]) => {
-    if (!$selectedProject.id) return []
+    if (!$selectedProject || !$selectedProject.id) return []
     return $taskDefinitions.filter(td => td.projectId === $selectedProject.id)
   },
 )

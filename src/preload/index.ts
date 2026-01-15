@@ -78,6 +78,15 @@ const API = {
   deleteTask: async (opts: DBDeleteTaskOpts): Promise<{ success: boolean }> => {
     return await ipcRenderer.invoke('deleteTask', opts)
   },
+  getTaskById: async (id: string): Promise<DBTask | null> => {
+    return await ipcRenderer.invoke('getTaskById', id)
+  },
+  getTaskByTaskDefinitionAndDate: async (
+    id: string,
+    date: string,
+  ): Promise<DBTask | null> => {
+    return await ipcRenderer.invoke('getTaskByTaskDefinitionAndDate', id, date)
+  },
   getTasks: async (projectId: string): Promise<DBTask[]> => {
     return await ipcRenderer.invoke('getTasks', projectId)
   },

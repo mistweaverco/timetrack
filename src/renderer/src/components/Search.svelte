@@ -12,50 +12,52 @@
   import InfoBox from './InfoBox.svelte'
   import { getHMSStringFromSeconds } from '../lib/utils'
 
-  let searchResult: SearchQueryResult | null = null
-  let loading = false
-  let showEditCompanyModal = false
-  let showDeleteCompanyModal = false
-  let showEditProjectModal = false
-  let showDeleteProjectModal = false
-  let showEditTaskModal = false
-  let showDeleteTaskModal = false
-  let showEditTaskDefModal = false
-  let showDeleteTaskDefModal = false
+  let searchResult: SearchQueryResult | null = $state(null)
+  let loading = $state(false)
+  let showEditCompanyModal = $state(false)
+  let showDeleteCompanyModal = $state(false)
+  let showEditProjectModal = $state(false)
+  let showDeleteProjectModal = $state(false)
+  let showEditTaskModal = $state(false)
+  let showDeleteTaskModal = $state(false)
+  let showEditTaskDefModal = $state(false)
+  let showDeleteTaskDefModal = $state(false)
 
-  let companyToEdit: DBCompany | null = null
-  let companyToDelete: DBCompany | null = null
-  let projectToEdit: DBProject | null = null
-  let projectToDelete: DBProject | null = null
-  let taskToEdit: DBTask | null = null
-  let taskToDelete: DBTask | null = null
-  let taskDefToEdit: DBTaskDefinition | null = null
-  let taskDefToDelete: DBTaskDefinition | null = null
+  let companyToEdit: DBCompany | null = $state(null)
+  let companyToDelete: DBCompany | null = $state(null)
+  let projectToEdit: DBProject | null = $state(null)
+  let projectToDelete: DBProject | null = $state(null)
+  let taskToEdit: DBTask | null = $state(null)
+  let taskToDelete: DBTask | null = $state(null)
+  let taskDefToEdit: DBTaskDefinition | null = $state(null)
+  let taskDefToDelete: DBTaskDefinition | null = $state(null)
 
   // Form values
-  let searchIn: string[] = []
-  let fromDate = moment().format('YYYY-MM-DD')
-  let toDate = moment().format('YYYY-MM-DD')
-  let activeState = 'all'
-  let companyName = '*'
-  let projectName = '*'
-  let taskName = '*'
-  let taskDescription = '*'
-  let taskDefinitionName = '*'
+  let searchIn: string[] = $state([])
+  let fromDate = $state(moment().format('YYYY-MM-DD'))
+  let toDate = $state(moment().format('YYYY-MM-DD'))
+  let activeState = $state('all')
+  let companyName = $state('*')
+  let projectName = $state('*')
+  let taskName = $state('*')
+  let taskDescription = $state('*')
+  let taskDefinitionName = $state('*')
 
-  $: activeTasksList = $activeTasks
+  let activeTasksList = $state($activeTasks)
+  let formValid = $derived(false)
 
-  // Reactive form validation
-  $: formValid =
-    searchIn.length > 0 &&
-    !!fromDate &&
-    !!toDate &&
-    !!activeState &&
-    !!companyName &&
-    !!projectName &&
-    !!taskName &&
-    !!taskDescription &&
-    !!taskDefinitionName
+  $effect(() => {
+    formValid =
+      searchIn.length > 0 &&
+      !!fromDate &&
+      !!toDate &&
+      !!activeState &&
+      !!companyName &&
+      !!projectName &&
+      !!taskName &&
+      !!taskDescription &&
+      !!taskDefinitionName
+  })
 
   async function handleSearch(e: Event) {
     e.preventDefault()
@@ -267,7 +269,7 @@
 
 {#if showEditTaskModal && taskToEdit}
   <EditTaskModal
-    task={taskToEdit}
+    t={taskToEdit}
     onClose={(s, t) => handleTaskModalClose(s, t)}
   />
 {/if}
@@ -471,7 +473,7 @@
               <div class="card-body">
                 <h2 class="card-title">Companies</h2>
                 <div class="space-y-2">
-                  {#each searchResult.companies as company (company.name)}
+                  {#each searchResult.companies as company (company.id)}
                     <div class="card bg-base-100">
                       <div class="card-body">
                         <div class="flex items-center justify-between">
@@ -516,7 +518,7 @@
               <div class="card-body">
                 <h2 class="card-title">Projects</h2>
                 <div class="space-y-2">
-                  {#each searchResult.projects as project (project.name)}
+                  {#each searchResult.projects as project (project.id)}
                     <div class="card bg-base-100">
                       <div class="card-body">
                         <h3 class="card-title text-lg">{project.name}</h3>
@@ -555,12 +557,12 @@
               <div class="card-body">
                 <h2 class="card-title">Task Definitions</h2>
                 <div class="space-y-2">
-                  {#each searchResult.task_definitions as taskDef (taskDef.name)}
+                  {#each searchResult.task_definitions as taskDef (taskDef.id)}
                     <div class="card bg-base-100">
                       <div class="card-body">
                         <h3 class="card-title text-lg">{taskDef.name}</h3>
                         <p class="text-sm text-base-content/70">
-                          {taskDef.project_name}
+                          {taskDef.projectName}
                         </p>
                         <div class="card-actions justify-end">
                           {#if hasActiveTaskForTaskDef(taskDef)}
@@ -598,7 +600,7 @@
               <div class="card-body">
                 <h2 class="card-title">Tasks</h2>
                 <div class="space-y-2">
-                  {#each searchResult.tasks as task (task.name + task.date)}
+                  {#each searchResult.tasks as task (task.id)}
                     <div class="card bg-base-100">
                       <div class="card-body">
                         <h3 class="card-title text-lg">{task.name}</h3>

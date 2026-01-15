@@ -29,80 +29,51 @@
 <div class="flex justify-between p-4">
   <ul class="flex space-x-2">
     <li>
-      <Tooltip.Provider>
-        <Tooltip.Root>
-          <Tooltip.Trigger
-            onclick={() => handlePanelClick('Overview')}
-            class={buttonVariants({
-              variant: currentPanel === 'Overview' ? 'default' : 'outline',
-            })}><House size="16" /></Tooltip.Trigger
-          >
-          <Tooltip.Content>
-            <p>Home</p>
-          </Tooltip.Content>
-        </Tooltip.Root>
-      </Tooltip.Provider>
+      <div class="tooltip tooltip-bottom" data-tip="Home">
+        <button
+          class="btn {currentPanel === 'Overview'
+            ? 'btn-outline btn-accent'
+            : ''}"
+          onclick={() => handlePanelClick('Overview')}
+          ><House size="16" /></button
+        >
+      </div>
     </li>
     <li>
-      <Tooltip.Provider>
-        <Tooltip.Root>
-          <Tooltip.Trigger
-            onclick={() => handlePanelClick('Search')}
-            class={buttonVariants({
-              variant: currentPanel === 'Search' ? 'default' : 'outline',
-            })}><Search size="16" /></Tooltip.Trigger
-          >
-          <Tooltip.Content>
-            <p>Search</p>
-          </Tooltip.Content>
-        </Tooltip.Root>
-      </Tooltip.Provider>
+      <div class="tooltip tooltip-bottom" data-tip="Search">
+        <button
+          class="btn {currentPanel === 'Search'
+            ? 'btn-outline btn-accent'
+            : ''}"
+          onclick={() => handlePanelClick('Search')}
+          ><Search size="16" /></button
+        >
+      </div>
     </li>
     <li>
-      <Tooltip.Provider>
-        <Tooltip.Root>
-          <Tooltip.Trigger
-            onclick={() => handlePanelClick('PDFExport')}
-            class={buttonVariants({
-              variant: currentPanel === 'PDFExport' ? 'default' : 'outline',
-            })}><Download size="16" /></Tooltip.Trigger
-          >
-          <Tooltip.Content>
-            <p>Export</p>
-          </Tooltip.Content>
-        </Tooltip.Root>
-      </Tooltip.Provider>
+      <div class="tooltip tooltip-bottom" data-tip="Export">
+        <button
+          class="btn {currentPanel === 'PDFExport'
+            ? 'btn-outline btn-accent'
+            : ''}"
+          onclick={() => handlePanelClick('PDFExport')}
+          ><Download size="16" /></button
+        >
+      </div>
     </li>
   </ul>
   <ul class="flex space-x-2">
     <li>
-      <Tooltip.Provider>
-        <Tooltip.Root>
-          <Tooltip.Trigger
-            onclick={() => handleTopButtonClick('reportABug')}
-            class={buttonVariants({ variant: 'outline' })}
-            ><Bug size="16" /></Tooltip.Trigger
-          >
-          <Tooltip.Content>
-            <p>Report a bug</p>
-          </Tooltip.Content>
-        </Tooltip.Root>
-      </Tooltip.Provider>
+      <div class="tooltip tooltip-bottom" data-tip="Report a Bug">
+        <button class="btn"><Bug size="16" /></button>
+      </div>
     </li>
     <li>
-      <Tooltip.Provider>
-        <Tooltip.Root>
-          <Tooltip.Trigger
-            onclick={() => handleTopButtonClick('seeTheCode')}
-            class={buttonVariants({
-              variant: 'outline',
-            })}><Code size="16" /></Tooltip.Trigger
-          >
-          <Tooltip.Content>
-            <p>See the code</p>
-          </Tooltip.Content>
-        </Tooltip.Root>
-      </Tooltip.Provider>
+      <div class="tooltip tooltip-left" data-tip="See the Code">
+        <button class="btn" onclick={() => handleTopButtonClick('seeTheCode')}
+          ><Code size="16" /></button
+        >
+      </div>
     </li>
   </ul>
 </div>

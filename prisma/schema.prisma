@@ -31,7 +31,6 @@ model Project {
   statusId        Int
   company         Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
   status          Status           @relation(fields: [statusId], references: [id], onDelete: Restrict)
-  tasks           Task[]
   taskDefinitions TaskDefinition[]
 
   @@unique([name, companyId])
@@ -58,8 +57,6 @@ model Task {
   statusId         Int
   taskDefinition   TaskDefinition @relation(fields: [taskDefinitionId], references: [id], onDelete: Cascade)
   status           Status         @relation(fields: [statusId], references: [id], onDelete: Restrict)
-  project          Project?       @relation(fields: [projectId], references: [id])
-  projectId        Int?
 
   @@unique([taskDefinitionId, date], name: "tasks_task_def_date_IDX")
 }

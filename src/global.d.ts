@@ -5,9 +5,9 @@ type ActiveTask = {
   seconds: number
   tick?: NodeJS.Timeout | null
   isActive?: boolean
-  // Display fields (populated from database)
-  name?: string
-  projectName?: string
+  name: string
+  projectName: string
+  companyName: string
 }
 
 type PDFTotalObject = {
@@ -69,6 +69,7 @@ type DBProject = {
   name: string
   companyId: string
   companyName: string
+  company: DBCompany
   status?: string
 }
 
@@ -85,6 +86,7 @@ type DBTask = {
   name: string
   taskDefinitionId: string
   projectName: string
+  companyName: string
   description: string
   seconds: number
   date: string
@@ -205,6 +207,11 @@ interface Window {
     }>
     getTasksToday: (projectId: string) => Promise<DBTask[]>
     getTaskDefinitions: (projectId: string) => Promise<DBTaskDefinition[]>
+    getTaskById: (id: string) => Promise<DBTask | null>
+    getTaskByTaskDefinitionAndDate: (
+      id: string,
+      date: string,
+    ) => Promise<DBTask | null>
     addTask: (opts: DBAddTaskOpts) => Promise<{ success: boolean; id: string }>
     editTask: (opts: DBEditTaskOpts) => Promise<DBTask & { success: boolean }>
     deleteTask: (opts: DBDeleteTaskOpts) => Promise<{ success: boolean }>
@@ -213,14 +220,12 @@ interface Window {
       taskDefinitionId: string
     }) => Promise<DBTask[]>
     getActiveTasks: () => Promise<ActiveTask[]>
-    startActiveTask: (
-      opts: ActiveTask,
-    ) => Promise<ActiveTask & { success: boolean }>
+    startActiveTask: (id: string) => Promise<ActiveTask & { success: boolean }>
     pauseActiveTask: (
-      opts: ActiveTask,
+      id: string,
     ) => Promise<(ActiveTask & { success: true }) | { success: false }>
     stopActiveTask: (
-      opts: ActiveTask,
+      id: string,
     ) => Promise<(ActiveTask & { success: true }) | { success: false }>
     getDataForPDFExport: (opts: PDFQuery) => Promise<PDFQueryResult[]>
     showFileSaveDialog: () => Promise<void>

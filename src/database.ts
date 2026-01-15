@@ -24,7 +24,7 @@ export const getPrismaClient = async (): Promise<PrismaClient> => {
 // Helper function to get or create status
 // Works with both PrismaClient and transaction clients
 const getOrCreateStatus = async (
-  prisma: PrismaClient | any,
+  prisma: PrismaClient,
   statusName: string,
 ): Promise<number> => {
   let status = await prisma.status.findUnique({
@@ -107,6 +107,89 @@ const initDB = async (): Promise<PrismaClient> => {
   return prisma
 }
 
+const getTaskByTaskDefinitionAndDate = async (
+  prisma: PrismaClient,
+  taskDefinitionId: string,
+  date: string,
+): Promise<DBTask | null> => {
+  const dateParts = date.split('-')
+  const targetDate = new Date(
+    parseInt(dateParts[0]),
+    parseInt(dateParts[1]) - 1,
+    parseInt(dateParts[2]),
+    0,
+    0,
+    0,
+    0,
+  )
+
+  const task = await prisma.task.findFirst({
+    where: {
+      taskDefinitionId: parseInt(taskDefinitionId),
+      date: targetDate,
+    },
+    include: {
+      taskDefinition: {
+        include: {
+          project: true,
+        },
+      },
+      status: true,
+    },
+  })
+
+  if (!task) {
+    return null
+  }
+  return {
+    id: task.id.toString(),
+    name: task.taskDefinition.name,
+    taskDefinitionId: task.taskDefinitionId.toString(),
+    projectName: task.taskDefinition.project.name,
+    description: task.description || '',
+    seconds: task.seconds,
+    date: task.date.toISOString().split('T')[0],
+    status: task.status.name,
+  }
+}
+
+const getTaskById = async (
+  prisma: PrismaClient,
+  taskId: string,
+): Promise<DBTask | null> => {
+  const task = await prisma.task.findUnique({
+    where: { id: parseInt(taskId, 10) },
+    include: {
+      taskDefinition: {
+        include: {
+          project: {
+            include: {
+              company: true,
+            },
+          },
+        },
+      },
+      status: true,
+    },
+  })
+
+  if (!task) {
+    return null
+  }
+
+  return {
+    id: task.id.toString(),
+    name: task.taskDefinition.name,
+    taskDefinitionId: task.taskDefinitionId.toString(),
+    projectName: task.taskDefinition.project.name,
+    companyName: task.taskDefinition.project.company.name,
+    description: task.description || '',
+    seconds: task.seconds,
+    date: task.date.toISOString().split('T')[0],
+    status: task.status.name,
+  }
+}
+
 const getSearchResult = async (
   prisma: PrismaClient,
   q: SearchQuery,
@@ -183,6 +266,7 @@ const getSearchResult = async (
       name: p.name,
       companyId: p.companyId.toString(),
       companyName: p.company.name,
+      company: { id: p.company.id.toString(), name: p.company.name },
       status: p.status.name,
     }))
   }
@@ -435,7 +519,7 @@ const saveActiveTask = async (prisma: PrismaClient, task: Task) => {
   // Use taskId directly to update
   await prisma.task.update({
     where: {
-      id: parseInt(task.taskId),
+      id: parseInt(task.taskId, 10),
     },
     data: {
       seconds: task.seconds,
@@ -510,25 +594,19 @@ const getProjects = async (
   prisma: PrismaClient,
   companyId?: string,
 ): Promise<DBProject[]> => {
-  const queryOptions: any = {
+  const projects = await prisma.project.findMany({
     include: {
       company: true,
       status: true,
     },
-  }
-
-  if (companyId) {
-    queryOptions.where = {
-      companyId: parseInt(companyId),
-    }
-  }
-
-  const projects = await prisma.project.findMany(queryOptions)
+    where: companyId ? { companyId: parseInt(companyId) } : undefined,
+  })
   return projects.map(p => ({
     id: p.id.toString(),
     name: p.name,
     companyId: p.companyId.toString(),
     companyName: p.company.name,
+    company: { id: p.company.id.toString(), name: p.company.name },
     status: p.status.name,
   }))
 }
@@ -883,7 +961,11 @@ const getTasksToday = async (
     include: {
       taskDefinition: {
         include: {
-          project: true,
+          project: {
+            include: {
+              company: true,
+            },
+          },
         },
       },
       status: true,
@@ -894,6 +976,7 @@ const getTasksToday = async (
     name: t.taskDefinition.name,
     taskDefinitionId: t.taskDefinitionId.toString(),
     projectName: t.taskDefinition.project.name,
+    companyName: t.taskDefinition.project.company.name,
     description: t.description || '',
     seconds: t.seconds,
     date: t.date.toISOString().split('T')[0],
@@ -964,6 +1047,8 @@ export {
   getDataForPDFExport,
   getProjects,
   getSearchResult,
+  getTaskById,
+  getTaskByTaskDefinitionAndDate,
   getTaskDefinitions,
   getTasks,
   getTasksByCompany,

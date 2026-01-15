@@ -26,6 +26,8 @@ import {
   getDataForPDFExport,
   getProjects,
   getSearchResult,
+  getTaskById,
+  getTaskByTaskDefinitionAndDate,
   getTaskDefinitions,
   getTasks,
   getTasksByNameAndProject,
@@ -51,11 +53,15 @@ export const initIpcHandlers = (
       activeTasks.map(async t => {
         // Fetch task details from database to include name and projectName
         const task = await DB.task.findUnique({
-          where: { id: parseInt(t.taskId) },
+          where: { id: parseInt(t.taskId, 10) },
           include: {
             taskDefinition: {
               include: {
-                project: true,
+                project: {
+                  include: {
+                    company: true,
+                  },
+                },
               },
             },
           },
@@ -67,7 +73,8 @@ export const initIpcHandlers = (
           seconds: t.seconds,
           isActive: t.isActive,
           name: task?.taskDefinition.name || '',
-          projectName: task?.taskDefinition.project.name || '',
+          projectName: task.taskDefinition.project.name,
+          companyName: task.taskDefinition.project.company.name,
         }
       }),
     )
@@ -84,103 +91,116 @@ export const initIpcHandlers = (
     return countup
   }
 
-  const getActiveTask = (
-    opts: MainProcessManageActiveTasksOpts,
-  ): InstanceType<typeof CountUp> | null => {
-    const task = activeTasks.find(
-      t => t.taskId === opts.taskId && t.date === opts.date,
-    )
-    return task || null
+  const getActiveTask = (id: string): InstanceType<typeof CountUp> | null => {
+    return activeTasks.find(t => t.taskId === id) || null
   }
 
   const startActiveTask = async (
-    opts: ActiveTask,
+    id: string,
   ): Promise<ActiveTask & { success: boolean }> => {
-    const task = getActiveTask(opts)
+    const task = getActiveTask(id)
     if (!task) {
-      const addedTask = addActiveTask({
-        taskId: opts.taskId,
-        description: opts.description,
-        date: opts.date,
-        seconds: opts.seconds,
-        isActive: true,
-      })
-      addedTask.start()
       // Fetch task details for response
       const dbTask = await DB.task.findUnique({
-        where: { id: parseInt(opts.taskId) },
+        where: { id: parseInt(id, 10) },
         include: {
           taskDefinition: {
             include: {
-              project: true,
+              project: {
+                include: {
+                  company: true,
+                },
+              },
             },
           },
         },
       })
+      const addedTask = addActiveTask({
+        name: dbTask.taskDefinition.name,
+        companyName: dbTask.taskDefinition.project.company.name,
+        projectName: dbTask.taskDefinition.project.name,
+        taskId: id,
+        description: dbTask.description,
+        date: dbTask.date.toISOString(),
+        seconds: dbTask.seconds,
+        isActive: true,
+      })
+      addedTask.start()
       return {
         success: true,
-        taskId: opts.taskId,
-        description: opts.description,
-        date: opts.date,
-        seconds: opts.seconds,
+        taskId: id,
+        description: dbTask.taskDefinition.name,
+        date: dbTask.date.toISOString(),
+        seconds: dbTask.seconds,
         isActive: true,
-        name: dbTask?.taskDefinition.name || '',
-        projectName: dbTask?.taskDefinition.project.name || '',
+        name: dbTask.taskDefinition.name,
+        projectName: dbTask.taskDefinition.project.name,
+        companyName: dbTask.taskDefinition.project.company.name,
       }
     }
     if (task.isActive) {
-      console.warn('task already active', opts)
+      console.warn('task already active', id)
       const dbTask = await DB.task.findUnique({
-        where: { id: parseInt(opts.taskId) },
+        where: { id: parseInt(id, 10) },
         include: {
           taskDefinition: {
             include: {
-              project: true,
+              project: {
+                include: {
+                  company: true,
+                },
+              },
             },
           },
         },
       })
       return {
         success: false,
-        taskId: opts.taskId,
+        taskId: id,
         description: task.description,
-        date: task.date,
+        date: dbTask.date.toISOString(),
         seconds: task.seconds,
         isActive: true,
-        name: dbTask?.taskDefinition.name || '',
-        projectName: dbTask?.taskDefinition.project.name || '',
+        name: dbTask?.taskDefinition.name,
+        projectName: dbTask.taskDefinition.project.name,
+        companyName: dbTask.taskDefinition.project.company.name,
       }
     } else {
       task.start()
       const dbTask = await DB.task.findUnique({
-        where: { id: parseInt(opts.taskId) },
+        where: { id: parseInt(id, 10) },
         include: {
           taskDefinition: {
             include: {
-              project: true,
+              project: {
+                include: {
+                  company: true,
+                },
+              },
             },
           },
         },
       })
       return {
         success: true,
-        taskId: opts.taskId,
+        taskId: id,
         description: task.description,
-        date: task.date,
-        seconds: task.seconds,
+        date: dbTask.date.toISOString(),
+        seconds: dbTask.seconds,
         isActive: true,
-        name: dbTask?.taskDefinition.name || '',
-        projectName: dbTask?.taskDefinition.project.name || '',
+        name: dbTask.taskDefinition.name,
+        projectName: dbTask.taskDefinition.project.name,
+        companyName: dbTask.taskDefinition.project.company.name,
       }
     }
   }
 
   const stopActiveTask = async (
-    opts: ActiveTask,
+    id: string,
   ): Promise<(ActiveTask & { success: true }) | { success: false }> => {
-    const task = getActiveTask(opts)
+    const task = getActiveTask(id)
     if (!task) {
-      console.error('task not found', opts)
+      console.error('task not found', id)
       return { success: false }
     }
     task.stop()
@@ -190,35 +210,36 @@ export const initIpcHandlers = (
       date: task.date,
       seconds: task.seconds,
     })
-    const idx = activeTasks.findIndex(
-      t => t.taskId === opts.taskId && t.date === opts.date,
-    )
-    const f = activeTasks.find(
-      t => t.taskId === opts.taskId && t.date === opts.date,
-    )
+    const idx = activeTasks.findIndex(t => t.taskId === id)
+    const f = activeTasks.find(t => t.taskId === id)
     if (f) {
       const clone = Object.assign({}, f)
       activeTasks.splice(idx, 1)
       // Fetch task details for response
       const dbTask = await DB.task.findUnique({
-        where: { id: parseInt(clone.taskId) },
+        where: { id: parseInt(task.taskId, 10) },
         include: {
           taskDefinition: {
             include: {
-              project: true,
+              project: {
+                include: {
+                  company: true,
+                },
+              },
             },
           },
         },
       })
       return {
         success: true,
-        taskId: clone.taskId,
+        taskId: id,
         description: clone.description,
-        date: clone.date,
+        date: dbTask.date.toISOString(),
         seconds: clone.seconds,
         isActive: false,
-        name: dbTask?.taskDefinition.name || '',
-        projectName: dbTask?.taskDefinition.project.name || '',
+        name: dbTask.taskDefinition.name,
+        projectName: dbTask.taskDefinition.project.name,
+        companyName: dbTask.taskDefinition.project.company.name,
       }
     } else {
       return { success: false }
@@ -226,11 +247,11 @@ export const initIpcHandlers = (
   }
 
   const pauseActiveTask = async (
-    opts: ActiveTask,
+    id: string,
   ): Promise<(ActiveTask & { success: true }) | { success: false }> => {
-    const task = getActiveTask(opts)
+    const task = getActiveTask(id)
     if (!task) {
-      console.error('task not found', opts)
+      console.error('task not found', id)
       return { success: false }
     }
     task.pause()
@@ -246,7 +267,11 @@ export const initIpcHandlers = (
       include: {
         taskDefinition: {
           include: {
-            project: true,
+            project: {
+              include: {
+                company: true,
+              },
+            },
           },
         },
       },
@@ -255,11 +280,12 @@ export const initIpcHandlers = (
       success: true,
       taskId: task.taskId,
       description: task.description,
-      date: task.date,
+      date: dbTask.date.toISOString(),
       seconds: task.seconds,
       isActive: false,
-      name: dbTask?.taskDefinition.name || '',
-      projectName: dbTask?.taskDefinition.project.name || '',
+      name: dbTask.taskDefinition.name,
+      projectName: dbTask.taskDefinition.project.name,
+      companyName: dbTask.taskDefinition.project.company.name,
     }
   }
 
@@ -351,19 +377,23 @@ export const initIpcHandlers = (
     async (_, opts: { taskDefinitionId: string }) =>
       getTasksByNameAndProject(DB, opts),
   )
+  ipcMain.handle('getTaskById', async (_, id: string) => getTaskById(DB, id))
+  ipcMain.handle(
+    'getTaskByTaskDefinitionAndDate',
+    async (_, id: string, date: string) =>
+      getTaskByTaskDefinitionAndDate(DB, id, date),
+  )
   ipcMain.handle('getTasksToday', async (_, projectId: string) =>
     getTasksToday(DB, projectId),
   )
   ipcMain.handle('getActiveTasks', async () => getActiveTasks())
-  ipcMain.handle('startActiveTask', async (_, opts: ActiveTask) =>
-    startActiveTask(opts),
+  ipcMain.handle('startActiveTask', async (_, id: string) =>
+    startActiveTask(id),
   )
-  ipcMain.handle('pauseActiveTask', async (_, opts: ActiveTask) =>
-    pauseActiveTask(opts),
+  ipcMain.handle('pauseActiveTask', async (_, id: string) =>
+    pauseActiveTask(id),
   )
-  ipcMain.handle('stopActiveTask', async (_, opts: ActiveTask) =>
-    stopActiveTask(opts),
-  )
+  ipcMain.handle('stopActiveTask', async (_, id: string) => stopActiveTask(id))
   ipcMain.handle('getDataForPDFExport', async (_, opts: PDFQuery) =>
     getDataForPDFExport(DB, opts),
   )
