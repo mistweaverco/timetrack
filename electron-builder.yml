@@ -5,6 +5,10 @@ directories:
   buildResources: build
 files:
   - 'out/**/*'
+  - 'node_modules/better-sqlite3/**/*'
+  - 'node_modules/bindings/**/*'
+  - 'node_modules/file-uri-to-path/**/*'
+  - 'node_modules/prebuild-install/**/*'
   - '!**/.vscode/*'
   - '!src/*'
   - '!electron.vite.config.{js,ts,mjs,cjs}'
@@ -13,6 +17,13 @@ files:
   - '!{tsconfig.json,tsconfig.node.json}'
   - '!prisma/**'
   - '!drizzle/**'
+asar: true
+asarUnpack:
+  - 'node_modules/better-sqlite3/**/*'
+  - 'node_modules/bindings/**/*'
+  - 'node_modules/file-uri-to-path/**/*'
+  - 'node_modules/prebuild-install/**/*'
+  - '**/*.node'
 win:
   executableName: timetrack
   icon: resources/icon.ico
@@ -46,4 +57,4 @@ appImage:
   artifactName: ${name}_${arch}.${ext}
 deb:
   artifactName: ${name}_${arch}.${ext}
-npmRebuild: false
+npmRebuild: true
