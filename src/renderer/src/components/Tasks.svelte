@@ -8,7 +8,10 @@
     selectedTask,
     selectedTaskDefinition,
   } from '../stores'
+  import AddTaskDefinitionModal from './modals/AddTaskDefinitionModal.svelte'
   import EditTaskModal from './modals/EditTaskModal.svelte'
+  import EditTaskDefinitionModal from './modals/EditTaskDefinitionModal.svelte'
+  import DeleteTaskDefintion from './modals/DeleteTaskDefinitionModal.svelte'
   import DeleteTaskModal from './modals/DeleteTaskModal.svelte'
   import {
     Plus,
@@ -22,8 +25,14 @@
 
   let tasksList: DBTask[] = []
   let taskDefs: DBTaskDefinition[] = $state([])
-  let showEditModal = $state(false)
-  let showDeleteModal = $state(false)
+  let modalType:
+    | 'addTask'
+    | 'editTask'
+    | 'deleteTask'
+    | 'addTaskDefinition'
+    | 'editTaskDefinition'
+    | 'deleteTaskDefinition'
+    | null = $state(null)
   let showMoreMenu = $state(false)
   let selectedTaskData: DBTask | null = $selectedTask
 
@@ -140,41 +149,80 @@
     selectedTask.set(existingTask)
   }
 
-  async function handleEditModalClose(success: boolean, editedTask?: DBTask) {
-    showEditModal = false
-    if (success && $selectedProject.id) {
-      // Refresh tasks list to reflect changes (especially if date changed)
-      await fetchTasks($selectedProject.id)
+  async function handleEditModalClose(editedTask: DBTask) {
+    // Refresh tasks list to reflect changes (especially if date changed)
+    await fetchTasks($selectedProject.id)
 
-      // If date changed, clear selection since task is no longer in today's list
-      if (editedTask && editedTask.date !== $selectedTask.date) {
-        selectedTask.set(null)
-      } else if (editedTask) {
-        // Update selected task if it was the one edited
-        selectedTask.set(editedTask)
-      }
+    // If date changed, clear selection since task is no longer in today's list
+    if (editedTask && editedTask.date !== $selectedTask.date) {
+      selectedTask.set(null)
+    } else if (editedTask) {
+      // Update selected task if it was the one edited
+      selectedTask.set(editedTask)
     }
-  }
-
-  function handleDeleteModalClose() {
-    showDeleteModal = false
-  }
-  function handleDeleteModalSuccess() {
-    showDeleteModal = false
   }
 </script>
 
-{#if showEditModal}
-  <EditTaskModal
-    task={$selectedTask}
-    onClose={(s, t) => handleEditModalClose(s, t)}
+{#if modalType === 'addTaskDefinition'}
+  <AddTaskDefinitionModal
+    project={$selectedProject}
+    onClose={() => (modalType = null)}
+    onSuccess={async () => {
+      modalType = null
+      if ($selectedProject && $selectedProject.id) {
+        await fetchTaskDefinitions($selectedProject.id)
+      }
+    }}
   />
 {/if}
 
-{#if showDeleteModal}
+{#if modalType === 'editTask'}
+  <EditTaskModal
+    task={$selectedTask}
+    onClose={() => (modalType = null)}
+    onSuccess={t => {
+      modalType = null
+      handleEditModalClose(t)
+    }}
+  />
+{/if}
+
+{#if modalType === 'deleteTask'}
   <DeleteTaskModal
-    onClose={handleDeleteModalClose}
-    onSuccess={handleDeleteModalSuccess}
+    onClose={() => (modalType = null)}
+    onSuccess={async () => {
+      modalType = null
+      selectedTask.set(null)
+      if ($selectedProject && $selectedProject.id) {
+        await fetchTasks($selectedProject.id)
+      }
+    }}
+  />
+{/if}
+
+{#if modalType === 'editTaskDefinition'}
+  <EditTaskDefinitionModal
+    taskDefinition={$selectedTaskDefinition}
+    onClose={() => (modalType = null)}
+    onSuccess={async () => {
+      modalType = null
+      if ($selectedProject && $selectedProject.id) {
+        await fetchTaskDefinitions($selectedProject.id)
+      }
+    }}
+  />
+{/if}
+
+{#if modalType === 'deleteTaskDefinition'}
+  <DeleteTaskDefintion
+    taskDefinition={$selectedTaskDefinition}
+    onClose={() => (modalType = null)}
+    onSuccess={async () => {
+      modalType = null
+      selectedTaskDefinition.set(null)
+      selectedTask.set(null)
+      await fetchTaskDefinitions($selectedProject.id)
+    }}
   />
 {/if}
 
@@ -232,7 +280,9 @@
       {#if $selectedTask && $selectedTask.id}
         <li>
           <div class="tooltip tooltip-bottom" data-tip="Edit Task">
-            <button class="btn" onclick={() => (showEditModal = true)}
+            <button
+              class="btn hover:btn-accent"
+              onclick={() => (modalType = 'editTask')}
               ><SquarePen size="16" />
             </button>
           </div>
@@ -242,7 +292,7 @@
             class="tooltip tooltip-bottom hover:btn-error"
             data-tip="Remove Task"
           >
-            <button class="btn" onclick={() => (showDeleteModal = true)}
+            <button class="btn" onclick={() => (modalType = 'deleteTask')}
               ><Trash size="16" /></button
             >
           </div>
@@ -250,22 +300,31 @@
       {/if}
       {#if $selectedTaskDefinition && $selectedTaskDefinition.id}
         <li>
-          <button
-            tabindex="0"
-            class="btn btn-soft {showMoreMenu ? 'btn-warning' : ''}"
-            onclick={() => (showMoreMenu = !showMoreMenu)}
+          <div
+            class="tooltip tooltip-bottom"
+            data-tip={showMoreMenu ? 'Hide Options' : 'More Options'}
           >
-            {#if !showMoreMenu}
-              <Ellipsis size="16" />
-            {:else}
-              <EyeOff size="16" />
-            {/if}
-          </button>
+            <button
+              tabindex="0"
+              class="btn btn-soft {showMoreMenu ? 'btn-warning' : ''}"
+              onclick={() => (showMoreMenu = !showMoreMenu)}
+            >
+              {#if !showMoreMenu}
+                <Ellipsis size="16" />
+              {:else}
+                <EyeOff size="16" />
+              {/if}
+            </button>
+          </div>
         </li>
         {#if showMoreMenu}
           <li>
             <div class="tooltip tooltip-bottom" data-tip="Edit Task Definition">
-              <button class="btn btn-soft"><SquarePen size="16" /> </button>
+              <button
+                class="btn btn-soft hover:btn-accent"
+                onclick={() => (modalType = 'editTaskDefinition')}
+                ><SquarePen size="16" />
+              </button>
             </div>
           </li>
           <li>
@@ -273,7 +332,11 @@
               class="tooltip tooltip-bottom"
               data-tip="Delete Task Definition"
             >
-              <button class="btn btn-soft"><Trash size="16" /> </button>
+              <button
+                class="btn btn-soft hover:btn-error"
+                onclick={() => (modalType = 'deleteTaskDefinition')}
+                ><Trash size="16" />
+              </button>
             </div>
           </li>
           {#if taskDefs.length > 0}
@@ -282,19 +345,27 @@
                 class="tooltip tooltip-bottom"
                 data-tip="Add a new task definition"
               >
-                <button class="btn btn-soft"><Plus size="16" /></button>
+                <button
+                  class="btn btn-soft hover:btn-secondary"
+                  onclick={() => (modalType = 'addTaskDefinition')}
+                  ><Plus size="16" /></button
+                >
               </div>
             </li>
           {/if}
         {/if}
       {/if}
-      {#if taskDefs.length === 0}
+      {#if taskDefs.length === 0 || $selectedTaskDefinition === null}
         <li>
           <div
             class="tooltip tooltip-bottom"
             data-tip="Add a new task definition"
           >
-            <button class="btn btn-soft"><Plus size="16" /></button>
+            <button
+              class="btn btn-soft hover:btn-secondary"
+              onclick={() => (modalType = 'addTaskDefinition')}
+              ><Plus size="16" /></button
+            >
           </div>
         </li>
       {/if}

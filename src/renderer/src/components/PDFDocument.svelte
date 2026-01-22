@@ -12,13 +12,13 @@
   $: total = (() => {
     const result: PDFTotalObject = {}
     pdfDocument.forEach((item: PDFQueryResult) => {
-      if (!result[item.project_name]) {
-        result[item.project_name] = {}
+      if (!result[item.projectName]) {
+        result[item.projectName] = {}
       }
-      if (!result[item.project_name][item.name]) {
-        result[item.project_name][item.name] = 0
+      if (!result[item.projectName][item.name]) {
+        result[item.projectName][item.name] = 0
       }
-      result[item.project_name][item.name] += item.seconds
+      result[item.projectName][item.name] += item.seconds
     })
     return result
   })()
@@ -37,12 +37,12 @@
   </section>
 
   <!-- Tasks List -->
-  {#each pdfDocument as item (`${item.project_name}-${item.name}-${item.date}`)}
+  {#each pdfDocument as item (`${item.projectName}-${item.name}-${item.date}`)}
     <div
       class="card bg-base-200 shadow-xl print:bg-white print:shadow-none print:border print:border-gray-300"
     >
       <div class="card-body print:p-4">
-        <h2 class="card-title print:text-xl">{item.project_name}</h2>
+        <h2 class="card-title print:text-xl">{item.projectName}</h2>
         <p class="text-lg font-semibold print:text-base">{item.name}</p>
         {#if item.description}
           <div class="prose max-w-none print:text-sm">

@@ -1,44 +1,36 @@
 <script lang="ts">
+  let { onClose, onSuccess, taskDefinition } = $props<{
+    taskDefinition: DBTaskDefinition
+    onSuccess: () => void
+    onClose: () => void
+  }>()
   import {
     taskDefinitions,
     tasks,
     selectedTask,
     selectedTaskDefinition,
-    selectedProject,
   } from '../../stores'
   import InfoBox from '../InfoBox.svelte'
 
-  export let taskDefinition: DBTaskDefinition
-  export let onClose: (success: boolean) => void
-
   async function handleConfirm() {
-    if (window.electron) {
-      const result = await window.electron.deleteTaskDefinition({
-        id: taskDefinition.id,
-      })
-      if (result.success) {
-        // Update stores
-        taskDefinitions.update(tds =>
-          tds.filter(td => td.id !== taskDefinition.id),
-        )
+    const result = await window.electron.deleteTaskDefinition({
+      id: taskDefinition.id,
+    })
+    if (result.success) {
+      // Update stores
+      taskDefinitions.update(tds =>
+        tds.filter(td => td.id !== taskDefinition.id),
+      )
 
-        // Remove tasks that belong to this task definition
-        tasks.update(ts =>
-          ts.filter(t => t.taskDefinitionId !== taskDefinition.id),
-        )
+      // Remove tasks that belong to this task definition
+      tasks.update(ts =>
+        ts.filter(t => t.taskDefinitionId !== taskDefinition.id),
+      )
 
-        selectedTask.set(null)
-        selectedTaskDefinition.set(null)
-        if ($selectedProject.id === taskDefinition.projectId) {
-          selectedProject.set({ id: null, name: null })
-        }
-        onClose(true)
-      }
+      selectedTask.set(null)
+      selectedTaskDefinition.set(null)
+      onSuccess()
     }
-  }
-
-  function handleCancel() {
-    onClose(false)
   }
 </script>
 
@@ -52,14 +44,13 @@
     </InfoBox>
     <p class="mt-4">Are you sure you want to delete this task definition?</p>
     <div class="modal-action">
-      <button class="btn btn-error" on:click={handleConfirm}>Yes</button>
-      <button class="btn btn-primary" on:click={handleCancel}>No</button>
+      <button class="btn btn-error" onclick={handleConfirm}>Yes</button>
+      <button class="btn btn-primary" onclick={onClose}>No</button>
     </div>
   </div>
   <div
     class="modal-backdrop"
-    on:keypress={(evt: KeyboardEvent) => evt.key === 'Escape' && handleCancel()}
-    on:click={handleCancel}
+    onkeypress={(evt: KeyboardEvent) => evt.key === 'Escape' && onClose()}
     role="button"
     tabindex="0"
   ></div>

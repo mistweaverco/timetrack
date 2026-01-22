@@ -65,26 +65,25 @@
     showAddModal = false
   }
 
-  async function handleCompanyModalClose(
-    success: boolean,
-    editedCompany?: DBCompany,
-  ) {
-    showEditModal = false
+  async function handleCompanyDeleteModalSuccess() {
     showDeleteModal = false
-    if (success) {
-      await fetchCompanies()
-      if (editedCompany) {
-        // Update selected company if it was edited
-        selectedCompany.set(editedCompany)
-      } else if (companyToDelete) {
-        // Clear selection if deleted company was selected
-        if ($selectedCompany.id === companyToDelete.id) {
-          selectedCompany.set(null)
-          selectedProject.set(null)
-        }
+    await fetchCompanies()
+    if (companyToDelete) {
+      // Clear selection if deleted company was selected
+      if ($selectedCompany.id === companyToDelete.id) {
+        selectedCompany.set(null)
+        selectedProject.set(null)
       }
     }
     companyToDelete = null
+  }
+  async function handleCompanyEditModalSuccess(editedCompany: DBCompany) {
+    showEditModal = false
+    await fetchCompanies()
+    if (editedCompany) {
+      // Update selected company if it was edited
+      selectedCompany.set(editedCompany)
+    }
   }
 </script>
 
@@ -129,15 +128,16 @@
     {/if}
     <li>
       <div class="tooltip tooltip-bottom" data-tip="Add a company">
-        <button class="btn" onclick={() => (showAddModal = true)}
-          ><Plus size="16" /></button
+        <button
+          class="btn hover:btn-secondary"
+          onclick={() => (showAddModal = true)}><Plus size="16" /></button
         >
       </div>
     </li>
     {#if $selectedCompany && $selectedCompany.id}
       <li>
         <div class="tooltip tooltip-bottom" data-tip="Edit company">
-          <button class="btn" onclick={handleEditClick}
+          <button class="btn hover:btn-accent" onclick={handleEditClick}
             ><SquarePen size="16" /></button
           >
         </div>
@@ -147,7 +147,7 @@
           class="tooltip tooltip-bottom hover:btn-error"
           data-tip="Delete company"
         >
-          <button class="btn" onclick={handleDeleteClick}
+          <button class="btn hover:btn-error" onclick={handleDeleteClick}
             ><Trash size="16" /></button
           >
         </div>
@@ -166,13 +166,19 @@
 {#if showEditModal && $selectedCompany}
   <EditCompanyModal
     company={$selectedCompany}
-    onClose={(s, c) => handleCompanyModalClose(s, c)}
+    onSuccess={c => handleCompanyEditModalSuccess(c)}
+    onClose={() => {
+      showEditModal = false
+    }}
   />
 {/if}
 
 {#if showDeleteModal && $selectedCompany}
   <DeleteCompanyModal
     company={$selectedCompany}
-    onClose={s => handleCompanyModalClose(s)}
+    onSuccess={() => handleCompanyDeleteModalSuccess()}
+    onClose={() => {
+      showDeleteModal = false
+    }}
   />
 {/if}

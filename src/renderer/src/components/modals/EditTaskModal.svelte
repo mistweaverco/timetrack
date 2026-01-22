@@ -2,7 +2,7 @@
   let { onClose, onSuccess, task } = $props<{
     task: DBTask
     onClose: () => void
-    onSuccess: () => void
+    onSuccess: (editedTask: DBTask) => void
   }>()
 
   import { activeTasks } from '../../stores'
@@ -28,38 +28,36 @@
 
   async function handleSubmit(e: Event) {
     e.preventDefault()
-    if (window.electron) {
-      const result = await window.electron.editTask({
-        id: task.id,
-        taskDefinitionId: task.taskDefinitionId,
+    const result = await window.electron.editTask({
+      id: task.id,
+      taskDefinitionId: task.taskDefinitionId,
+      description,
+      seconds: currentSeconds,
+      date: date,
+      oldDate: oldDate,
+      status,
+    })
+
+    if (result.success) {
+      // Update active tasks if task is active
+      if (activeTask) {
+        activeTasks.update(ats =>
+          ats.map(at =>
+            at.taskId === task.id && at.date === oldDate
+              ? { ...at, description, seconds: currentSeconds, date: date }
+              : at,
+          ),
+        )
+      }
+
+      // Pass edited task back to parent - parent will refresh from database
+      onSuccess({
+        ...task,
         description,
         seconds: currentSeconds,
         date: date,
-        oldDate: oldDate,
         status,
       })
-
-      if (result.success) {
-        // Update active tasks if task is active
-        if (activeTask) {
-          activeTasks.update(ats =>
-            ats.map(at =>
-              at.taskId === task.id && at.date === oldDate
-                ? { ...at, description, seconds: currentSeconds, date: date }
-                : at,
-            ),
-          )
-        }
-
-        // Pass edited task back to parent - parent will refresh from database
-        onClose(true, {
-          ...task,
-          description,
-          seconds: currentSeconds,
-          date: date,
-          status,
-        })
-      }
     }
   }
 </script>
@@ -182,7 +180,6 @@
   <div
     class="modal-backdrop"
     onkeypress={(evt: KeyboardEvent) => evt.key === 'Escape' && onClose()}
-    onclick={onClose}
     role="button"
     tabindex="0"
   ></div>

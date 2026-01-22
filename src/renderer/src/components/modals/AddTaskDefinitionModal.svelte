@@ -1,47 +1,51 @@
 <script lang="ts">
   import { onMount } from 'svelte'
 
-  let { onClose, onSuccess } = $props<{
-    onSuccess: () => void
+  let { onClose, onSuccess, project } = $props<{
+    project: DBProject
     onClose: () => void
+    onSuccess: () => void
   }>()
 
-  let companyName = $state('')
-  let companyNameInput: HTMLInputElement
+  let taskDefinitionName = $state('')
+  let taskDefinitionNameInput: HTMLInputElement
 
   async function handleSubmit(e: Event) {
     e.preventDefault()
-    if (companyName.trim() === '') {
+    if (taskDefinitionName.trim() === '') {
       return
     }
 
-    const result = await window.electron.addCompany(companyName)
+    const result = await window.electron.addTaskDefinition({
+      projectId: project.id,
+      name: taskDefinitionName.trim(),
+    })
     if (result.success) {
       onSuccess()
-      companyName = ''
+      taskDefinitionName = ''
     }
   }
   function handleCancel() {
     onClose()
   }
   onMount(() => {
-    companyNameInput.focus()
+    taskDefinitionNameInput.focus()
   })
 </script>
 
 <div class="modal modal-open">
   <div class="modal-box">
-    <h3 class="font-bold text-lg">Add company</h3>
+    <h3 class="font-bold text-lg">Add new task</h3>
     <form onsubmit={handleSubmit}>
       <div class="form-control mt-4">
-        <label class="label" for="companyName">
-          <span class="label-text">Company name</span>
+        <label class="label" for="taskName">
+          <span class="label-text">Task name</span>
         </label>
         <input
-          id="companyName"
-          bind:this={companyNameInput}
+          id="taskName"
+          bind:this={taskDefinitionNameInput}
           type="text"
-          bind:value={companyName}
+          bind:value={taskDefinitionName}
           class="input input-bordered"
           required
         />

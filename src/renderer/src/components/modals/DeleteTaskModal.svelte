@@ -28,7 +28,6 @@
   <div
     class="modal-backdrop"
     on:keypress={(evt: KeyboardEvent) => evt.key === 'Escape' && onClose()}
-    on:click={onClose}
     role="button"
     tabindex="0"
   ></div>

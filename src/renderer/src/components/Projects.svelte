@@ -7,14 +7,12 @@
     selectedTaskDefinition,
     projectsForSelectedCompany,
   } from '../stores'
+  import AddProjectModal from './modals/AddProjectModal.svelte'
   import EditProjectModal from './modals/EditProjectModal.svelte'
   import DeleteProjectModal from './modals/DeleteProjectModal.svelte'
   import { Plus, Folder, Trash, SquarePen } from '@lucide/svelte'
 
-  let showEditModal = $state(false)
-  let showDeleteModal = $state(false)
-  let projectToEdit: DBProject | null = $state(null)
-  let projectToDelete: DBProject | null = $state(null)
+  let modalType = $state<'add' | 'edit' | 'delete' | null>(null)
 
   const companyProjects = $derived(projectsForSelectedCompany)
 
@@ -37,21 +35,6 @@
     }
   }
 
-  async function handleAddProject(e: Event) {
-    e.preventDefault()
-    const form = e.target as HTMLFormElement
-    const formData = new FormData(form)
-    const name = formData.get('name') as string
-
-    if (name && $selectedCompany.id && window.electron) {
-      const result = await window.electron.addProject(name, $selectedCompany.id)
-      if (result.success) {
-        await fetchProjects($selectedCompany.id)
-        form.reset()
-      }
-    }
-  }
-
   function handleProjectSelect(e: Event) {
     const select = e.target as HTMLSelectElement
     const projectId = select.value
@@ -66,42 +49,39 @@
     selectedTaskDefinition.set(null)
     selectedProject.set(project)
   }
-
-  function handleEditClick() {
-    showEditModal = true
-  }
-
-  function handleDeleteClick() {
-    showDeleteModal = true
-  }
-
-  function handleEditModalClose(success: boolean, editedProject?: DBProject) {
-    showEditModal = false
-    if (success && editedProject) {
-      selectedProject.set(editedProject)
-      fetchProjects($selectedCompany.id || undefined)
-    }
-    projectToEdit = null
-  }
-
-  function handleDeleteModalClose(success: boolean) {
-    showDeleteModal = false
-    if (success) {
-      selectedProject.set(null)
-      fetchProjects($selectedCompany.id || undefined)
-    }
-    projectToDelete = null
-  }
 </script>
 
-{#if showEditModal && projectToEdit}
-  <EditProjectModal project={projectToEdit} onClose={handleEditModalClose} />
+{#if modalType === 'add'}
+  <AddProjectModal
+    company={$selectedCompany}
+    onSuccess={async () => {
+      modalType = null
+      await fetchProjects($selectedCompany.id || undefined)
+    }}
+    onClose={() => (modalType = null)}
+  />
 {/if}
 
-{#if showDeleteModal && projectToDelete}
+{#if modalType === 'edit'}
+  <EditProjectModal
+    onSuccess={async () => {
+      modalType = null
+      await fetchProjects($selectedCompany.id || undefined)
+    }}
+    project={$selectedProject}
+    onClose={() => (modalType = null)}
+  />
+{/if}
+
+{#if modalType === 'delete'}
   <DeleteProjectModal
     project={$selectedProject}
-    onClose={handleDeleteModalClose}
+    onSuccess={async () => {
+      modalType = null
+      $selectedProject = null
+      await fetchProjects($selectedCompany.id || undefined)
+    }}
+    onClose={() => (modalType = null)}
   />
 {/if}
 
@@ -147,23 +127,27 @@
       {/if}
       <li>
         <div class="tooltip tooltip-bottom" data-tip="Add Project">
-          <button class="btn" onclick={handleAddProject}
-            ><Plus size="16" /></button
+          <button
+            class="btn hover:btn-secondary"
+            onclick={() => (modalType = 'add')}><Plus size="16" /></button
           >
         </div>
       </li>
       {#if $selectedProject !== null && $selectedProject.id !== null}
         <li>
           <div class="tooltip tooltip-bottom" data-tip="Edit project">
-            <button class="btn" onclick={handleEditClick}
+            <button
+              class="btn hover:btn-accent"
+              onclick={() => (modalType = 'edit')}
               ><SquarePen size="16" /></button
             >
           </div>
         </li>
         <li>
           <div class="tooltip tooltip-bottom hover:btn-error" data-tip="Delete">
-            <button class="btn" onclick={handleDeleteClick}
-              ><Trash size="16" /></button
+            <button
+              class="btn hover:btn-error"
+              onclick={() => (modalType = 'delete')}><Trash size="16" /></button
             >
           </div>
         </li>
