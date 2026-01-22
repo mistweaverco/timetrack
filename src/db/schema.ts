@@ -1,4 +1,9 @@
-import { sqliteTable, text, integer, uniqueIndex } from 'drizzle-orm/sqlite-core'
+import {
+  sqliteTable,
+  text,
+  integer,
+  uniqueIndex,
+} from 'drizzle-orm/sqlite-core'
 import { relations } from 'drizzle-orm'
 import type { InferSelectModel, InferInsertModel } from 'drizzle-orm'
 
@@ -63,7 +68,9 @@ export const task = sqliteTable(
       .notNull()
       .references(() => taskDefinition.id, { onDelete: 'cascade' }),
     description: text('description'),
-    date: integer('date', { mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
+    date: integer('date', { mode: 'timestamp' })
+      .notNull()
+      .$defaultFn(() => new Date()),
     seconds: integer('seconds').notNull().default(0),
     statusId: integer('statusId')
       .notNull()
@@ -105,17 +112,20 @@ export const projectRelations = relations(project, ({ one, many }) => ({
   taskDefinitions: many(taskDefinition),
 }))
 
-export const taskDefinitionRelations = relations(taskDefinition, ({ one, many }) => ({
-  project: one(project, {
-    fields: [taskDefinition.projectId],
-    references: [project.id],
+export const taskDefinitionRelations = relations(
+  taskDefinition,
+  ({ one, many }) => ({
+    project: one(project, {
+      fields: [taskDefinition.projectId],
+      references: [project.id],
+    }),
+    status: one(status, {
+      fields: [taskDefinition.statusId],
+      references: [status.id],
+    }),
+    tasks: many(task),
   }),
-  status: one(status, {
-    fields: [taskDefinition.statusId],
-    references: [status.id],
-  }),
-  tasks: many(task),
-}))
+)
 
 export const taskRelations = relations(task, ({ one }) => ({
   taskDefinition: one(taskDefinition, {

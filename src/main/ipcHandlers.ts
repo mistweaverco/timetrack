@@ -60,7 +60,10 @@ export const initIpcHandlers = async (
           companyName: company.name,
         })
           .from(task)
-          .innerJoin(taskDefinition, eq(task.taskDefinitionId, taskDefinition.id))
+          .innerJoin(
+            taskDefinition,
+            eq(task.taskDefinitionId, taskDefinition.id),
+          )
           .innerJoin(project, eq(taskDefinition.projectId, project.id))
           .innerJoin(company, eq(project.companyId, company.id))
           .where(eq(task.id, parseInt(t.taskId, 10)))

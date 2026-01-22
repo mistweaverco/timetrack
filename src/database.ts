@@ -4,13 +4,7 @@ import logger from 'node-color-log'
 import fs from 'fs'
 import path from 'path'
 import { getDBFilePath } from './lib/ConfigFile'
-import {
-  status,
-  company,
-  project,
-  taskDefinition,
-  task,
-} from './db/schema'
+import { status, company, project, taskDefinition, task } from './db/schema'
 import { eq, and, gte, lt, like, sql, inArray } from 'drizzle-orm'
 import { migrate } from 'drizzle-orm/better-sqlite3/migrator'
 
@@ -59,7 +53,7 @@ const initDB = async () => {
 
   // Create SQLite database connection
   const sqlite = new Database(sqlFilePath)
-  
+
   // Enable foreign keys
   sqlite.pragma('foreign_keys = ON')
 
@@ -69,7 +63,7 @@ const initDB = async () => {
   // Try to run migrations programmatically, but fall back to creating tables if migrations don't exist
   try {
     const migrationsPath = path.join(process.cwd(), 'drizzle')
-    
+
     // Check if migrations folder exists
     if (fs.existsSync(migrationsPath)) {
       logger.info('🗃️ Running database migrations...')
@@ -291,7 +285,9 @@ const getSearchResult = async (
       .innerJoin(status, eq(company.statusId, status.id))
 
     if (company_name !== '%' && company_name !== '*') {
-      query = query.where(like(company.name, `%${company_name.replace(/%/g, '')}%`)) as any
+      query = query.where(
+        like(company.name, `%${company_name.replace(/%/g, '')}%`),
+      ) as any
     }
 
     if (statusId) {
@@ -348,7 +344,12 @@ const getSearchResult = async (
   if (q.search_in.includes('task_definitions')) {
     const conditions = []
     if (task_definition_name !== '%' && task_definition_name !== '*') {
-      conditions.push(like(taskDefinition.name, `%${task_definition_name.replace(/%/g, '')}%`))
+      conditions.push(
+        like(
+          taskDefinition.name,
+          `%${task_definition_name.replace(/%/g, '')}%`,
+        ),
+      )
     }
     if (project_name !== '%' && project_name !== '*') {
       conditions.push(like(project.name, `%${project_name.replace(/%/g, '')}%`))
@@ -409,19 +410,20 @@ const getSearchResult = async (
     const toDateEnd = new Date(toDate)
     toDateEnd.setDate(toDateEnd.getDate() + 1)
 
-    const conditions = [
-      gte(task.date, fromDate),
-      lt(task.date, toDateEnd),
-    ]
+    const conditions = [gte(task.date, fromDate), lt(task.date, toDateEnd)]
 
     if (task_name !== '%' && task_name !== '*') {
-      conditions.push(like(taskDefinition.name, `%${task_name.replace(/%/g, '')}%`))
+      conditions.push(
+        like(taskDefinition.name, `%${task_name.replace(/%/g, '')}%`),
+      )
     }
     if (project_name !== '%' && project_name !== '*') {
       conditions.push(like(project.name, `%${project_name.replace(/%/g, '')}%`))
     }
     if (task_description !== '%' && task_description !== '*') {
-      conditions.push(like(task.description, `%${task_description.replace(/%/g, '')}%`))
+      conditions.push(
+        like(task.description, `%${task_description.replace(/%/g, '')}%`),
+      )
     }
     if (statusId) {
       conditions.push(eq(task.statusId, statusId))
@@ -524,7 +526,10 @@ const getDataForPDFExport = async (
     }
   }
 
-  logger.info(`Task definition IDs:`, taskDefIds.map(id => id.toString()))
+  logger.info(
+    `Task definition IDs:`,
+    taskDefIds.map(id => id.toString()),
+  )
 
   if (taskDefIds.length === 0) {
     return []
@@ -560,14 +565,20 @@ const getDataForPDFExport = async (
   }))
 }
 
-const saveActiveTask = async (db: ReturnType<typeof drizzle>, taskData: Task) => {
+const saveActiveTask = async (
+  db: ReturnType<typeof drizzle>,
+  taskData: Task,
+) => {
   await db
     .update(task)
     .set({ seconds: taskData.seconds })
     .where(eq(task.id, parseInt(taskData.taskId, 10)))
 }
 
-const saveActiveTasks = async (db: ReturnType<typeof drizzle>, tasks: Task[]) => {
+const saveActiveTasks = async (
+  db: ReturnType<typeof drizzle>,
+  tasks: Task[],
+) => {
   await Promise.all(
     tasks.map(async taskData => {
       await db
@@ -579,7 +590,9 @@ const saveActiveTasks = async (db: ReturnType<typeof drizzle>, tasks: Task[]) =>
 }
 
 // Company functions
-const getCompanies = async (db: ReturnType<typeof drizzle>): Promise<DBCompany[]> => {
+const getCompanies = async (
+  db: ReturnType<typeof drizzle>,
+): Promise<DBCompany[]> => {
   const companies = await db
     .select({
       id: company.id,
@@ -609,7 +622,10 @@ const addCompany = async (db: ReturnType<typeof drizzle>, name: string) => {
   return { success: true, id: result[0].id.toString() }
 }
 
-const editCompany = async (db: ReturnType<typeof drizzle>, opts: DBEditCompanyOpts) => {
+const editCompany = async (
+  db: ReturnType<typeof drizzle>,
+  opts: DBEditCompanyOpts,
+) => {
   const updateData: { name: string; statusId?: number } = { name: opts.name }
   if (opts.status !== undefined) {
     const statusId = await getOrCreateStatus(db, opts.status)
@@ -679,7 +695,10 @@ const addProject = async (
   return { success: true, id: result[0].id.toString() }
 }
 
-const editProject = async (db: ReturnType<typeof drizzle>, opts: DBEditProjectOpts) => {
+const editProject = async (
+  db: ReturnType<typeof drizzle>,
+  opts: DBEditProjectOpts,
+) => {
   const updateData: {
     name: string
     companyId: number
@@ -819,7 +838,10 @@ const addTask = async (db: ReturnType<typeof drizzle>, opts: DBAddTaskOpts) => {
   return { success: true, id: result[0].id.toString() }
 }
 
-const editTask = async (db: ReturnType<typeof drizzle>, opts: DBEditTaskOpts) => {
+const editTask = async (
+  db: ReturnType<typeof drizzle>,
+  opts: DBEditTaskOpts,
+) => {
   const oldDateStr = opts.oldDate.split('T')[0]
   const newDateStr = opts.date.split('T')[0]
 
@@ -910,7 +932,10 @@ const editTask = async (db: ReturnType<typeof drizzle>, opts: DBEditTaskOpts) =>
   return { success: true }
 }
 
-const deleteTask = async (db: ReturnType<typeof drizzle>, opts: DBDeleteTaskOpts) => {
+const deleteTask = async (
+  db: ReturnType<typeof drizzle>,
+  opts: DBDeleteTaskOpts,
+) => {
   await db.delete(task).where(eq(task.id, parseInt(opts.id)))
   return { success: true }
 }
