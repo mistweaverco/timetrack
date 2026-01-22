@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { House, Search, Download, Bug, Code } from '@lucide/svelte'
   import { selectedPanel } from '../stores'
 
   export let currentPanel: string = 'Overview'
@@ -23,54 +24,54 @@
   }
 </script>
 
-<nav class="navbar bg-base-200">
-  <div class="navbar-start"></div>
-  <div class="navbar-end">
-    <div class="navbar-item">
-      <div class="flex gap-2">
+<div class="flex justify-between p-4">
+  <ul class="flex space-x-2">
+    <li>
+      <div class="tooltip tooltip-bottom" data-tip="Home">
         <button
-          class="btn btn-secondary"
-          onclick={() => handleTopButtonClick('reportABug')}
+          class="btn {currentPanel === 'Overview'
+            ? 'btn-outline btn-accent'
+            : ''}"
+          onclick={() => handlePanelClick('Overview')}
+          ><House size="16" /></button
         >
-          <i class="fa-solid fa-bug"></i>
-          <span>Report a bug</span>
-        </button>
-        <button
-          class="btn btn-primary"
-          onclick={() => handleTopButtonClick('seeTheCode')}
-        >
-          <i class="fa-solid fa-code"></i>
-          <span>See the code</span>
-        </button>
       </div>
-    </div>
-  </div>
-</nav>
-
-<div class="tabs tabs-boxed m-4">
-  <a
-    class="tab"
-    class:tab-active={currentPanel === 'Overview'}
-    onclick={() => handlePanelClick('Overview')}
-  >
-    <i class="fa-solid fa-chart-bar mr-2"></i>
-    Overview
-  </a>
-  <a
-    class="tab"
-    class:tab-active={currentPanel === 'Search'}
-    onclick={() => handlePanelClick('Search')}
-  >
-    <i class="fa-solid fa-magnifying-glass mr-2"></i>
-    Search
-  </a>
-  <a
-    class="tab"
-    class:tab-active={currentPanel === 'PDFExport' ||
-      currentPanel === 'PDFDocument'}
-    onclick={() => handlePanelClick('PDFExport')}
-  >
-    <i class="fa-regular fa-file-pdf mr-2"></i>
-    PDF Export
-  </a>
+    </li>
+    <li>
+      <div class="tooltip tooltip-bottom" data-tip="Search">
+        <button
+          class="btn {currentPanel === 'Search'
+            ? 'btn-outline btn-accent'
+            : ''}"
+          onclick={() => handlePanelClick('Search')}
+          ><Search size="16" /></button
+        >
+      </div>
+    </li>
+    <li>
+      <div class="tooltip tooltip-bottom" data-tip="Export">
+        <button
+          class="btn {currentPanel === 'PDFExport'
+            ? 'btn-outline btn-accent'
+            : ''}"
+          onclick={() => handlePanelClick('PDFExport')}
+          ><Download size="16" /></button
+        >
+      </div>
+    </li>
+  </ul>
+  <ul class="flex space-x-2">
+    <li>
+      <div class="tooltip tooltip-bottom" data-tip="Report a Bug">
+        <button class="btn"><Bug size="16" /></button>
+      </div>
+    </li>
+    <li>
+      <div class="tooltip tooltip-left" data-tip="See the Code">
+        <button class="btn" onclick={() => handleTopButtonClick('seeTheCode')}
+          ><Code size="16" /></button
+        >
+      </div>
+    </li>
+  </ul>
 </div>

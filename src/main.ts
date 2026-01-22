@@ -6,6 +6,7 @@ import {
   IpcMainInvokeEvent,
   shell,
 } from 'electron'
+import electronSquirrelStartup from 'electron-squirrel-startup'
 import moment from 'moment'
 import fs from 'fs'
 import path from 'path'
@@ -23,17 +24,17 @@ import {
   editTaskDefinition,
   getAllTaskDefinitions,
   getDataForPDFExport,
-  getPrismaClient,
+  getDatabase,
   getProjects,
   getSearchResult,
   getTaskDefinitions,
   getTasks,
   getTasksByNameAndProject,
   getTasksToday,
-  PrismaClient,
   saveActiveTask,
   saveActiveTasks,
 } from './database'
+import { drizzle } from 'drizzle-orm/better-sqlite3'
 
 // if first time install on windows, do not run application, rather
 // let squirrel installer do its work
@@ -42,7 +43,7 @@ if (windowsInstallerSetupEvents()) {
 }
 
 let WINDOW: BrowserWindow = null
-let DB: PrismaClient
+let DB: ReturnType<typeof drizzle>
 const activeTasks: InstanceType<typeof CountUp>[] = []
 
 const getPDFExport = async (evt: IpcMainInvokeEvent, filepath: string) => {
@@ -83,7 +84,7 @@ const createWindow = async () => {
 }
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
-if (require('electron-squirrel-startup')) {
+if (electronSquirrelStartup) {
   app.quit()
 }
 
@@ -288,8 +289,8 @@ const setupIPCHandles = async () => {
     },
     {
       id: 'addProject',
-      cb: async (_: string, name: string) => {
-        const json = await addProject(DB, name)
+      cb: async (_: string, name: string, companyName: string) => {
+        const json = await addProject(DB, name, companyName)
         return json
       },
     },
@@ -436,7 +437,7 @@ const setupIPCHandles = async () => {
 }
 
 const onWhenReady = async () => {
-  DB = await getPrismaClient()
+  DB = await getDatabase()
 
   await setupIPCHandles()
 
@@ -451,7 +452,6 @@ app.whenReady().then(onWhenReady)
 
 const onWindowAllClosed = async () => {
   await periodicSaveActiveTasks()
-  await DB.$disconnect()
   if (process.platform !== 'darwin') {
     app.quit()
   }

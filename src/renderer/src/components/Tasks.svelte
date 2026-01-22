@@ -1,34 +1,40 @@
 <script lang="ts">
   import { onMount } from 'svelte'
-  import moment from 'moment'
   import {
     tasks,
     taskDefinitions,
     selectedProject,
     activeTasks,
     selectedTask,
+    selectedTaskDefinition,
   } from '../stores'
+  import AddTaskDefinitionModal from './modals/AddTaskDefinitionModal.svelte'
   import EditTaskModal from './modals/EditTaskModal.svelte'
+  import EditTaskDefinitionModal from './modals/EditTaskDefinitionModal.svelte'
+  import DeleteTaskDefintion from './modals/DeleteTaskDefinitionModal.svelte'
   import DeleteTaskModal from './modals/DeleteTaskModal.svelte'
-  import TimerComponent from './TimerComponent.svelte'
-  import TimeInputComponent from './TimeInputComponent.svelte'
-  import InfoBox from './InfoBox.svelte'
+  import {
+    Plus,
+    Play,
+    SquarePen,
+    Trash,
+    SquareCheckBig,
+    Ellipsis,
+    EyeOff,
+  } from '@lucide/svelte'
 
   let tasksList: DBTask[] = []
-  let taskDefs: DBTaskDefinition[] = []
-  let showEditModal = false
-  let showDeleteModal = false
-  let taskToEdit: DBTask | null = null
-  let taskToDelete: DBTask | null = null
-  let taskName = ''
-  let taskDescription = ''
-  let taskHours = 0
-  let taskMinutes = 0
-  let taskSeconds = 0
-
-  $: selectedProj = $selectedProject
-  $: activeTasksList = $activeTasks
-  $: selectedTaskData = $selectedTask
+  let taskDefs: DBTaskDefinition[] = $state([])
+  let modalType:
+    | 'addTask'
+    | 'editTask'
+    | 'deleteTask'
+    | 'addTaskDefinition'
+    | 'editTaskDefinition'
+    | 'deleteTaskDefinition'
+    | null = $state(null)
+  let showMoreMenu = $state(false)
+  let selectedTaskData: DBTask | null = $selectedTask
 
   onMount(async () => {
     tasks.subscribe(value => {
@@ -39,19 +45,23 @@
       taskDefs = value
     })
 
+    selectedTask.subscribe(value => {
+      selectedTaskData = value
+    })
+
     selectedProject.subscribe(async proj => {
-      if (proj.name) {
-        await fetchTaskDefinitions(proj.name)
-        await fetchTasks(proj.name)
+      if (proj && proj.id) {
+        await fetchTaskDefinitions(proj.id)
+        await fetchTasks(proj.id)
       }
     })
   })
 
-  async function fetchTaskDefinitions(projectName: string) {
+  async function fetchTaskDefinitions(projectId: string) {
     if (window.electron) {
       try {
         const data = (
-          await window.electron.getTaskDefinitions(projectName)
+          await window.electron.getTaskDefinitions(projectId)
         ).filter((taskDef: DBTaskDefinition) => taskDef.status === 'active')
         taskDefinitions.set(data)
       } catch (error) {
@@ -60,10 +70,10 @@
     }
   }
 
-  async function fetchTasks(projectName: string) {
+  async function fetchTasks(projectId: string) {
     if (window.electron) {
       try {
-        const data = (await window.electron.getTasksToday(projectName)).filter(
+        const data = (await window.electron.getTasksToday(projectId)).filter(
           (task: DBTask) => task.status === 'active',
         )
         tasks.set(data)
@@ -73,53 +83,44 @@
     }
   }
 
-  async function handleAddTask(e: Event) {
-    e.preventDefault()
-    if (!selectedProj.name || !taskName) return
-
-    const totalSeconds = taskHours * 3600 + taskMinutes * 60 + taskSeconds
+  async function handleAddTask() {
+    if (!$selectedProject || !$selectedTaskDefinition) return
 
     if (window.electron) {
       const result = await window.electron.addTask({
-        name: taskName,
-        description: taskDescription,
-        project_name: selectedProj.name,
-        seconds: totalSeconds,
+        taskDefinitionId: $selectedTaskDefinition.id,
+        description: '',
+        seconds: 0,
       })
       if (result.success) {
-        await fetchTasks(selectedProj.name)
-        // Reset form
-        taskName = ''
-        taskDescription = ''
-        taskHours = 0
-        taskMinutes = 0
-        taskSeconds = 0
+        await fetchTasks($selectedProject.id)
+        const newTask = await window.electron.getTaskById(result.id)
+        selectedTask.set(newTask)
       }
     }
   }
 
-  function handleTaskSelect(task: DBTask) {
-    selectedTask.set(task)
-  }
-
   async function handleStartTask() {
-    if (!selectedTaskData) return
+    const existingTask = await window.electron.getTaskByTaskDefinitionAndDate(
+      $selectedTaskDefinition.id,
+      new Date().toISOString().slice(0, 10),
+    )
+
+    if (existingTask) {
+      selectedTask.set(existingTask)
+    }
+
+    if (!$selectedTask) {
+      await handleAddTask()
+    }
 
     if (window.electron) {
-      const result = await window.electron.startActiveTask({
-        name: selectedTaskData.name,
-        project_name: selectedTaskData.project_name,
-        description: selectedTaskData.description,
-        date: selectedTaskData.date,
-        seconds: selectedTaskData.seconds,
-      })
+      const result = await window.electron.startActiveTask(selectedTaskData.id)
       if (result.success) {
-        await activeTasks.update(ats => {
+        selectedTask.set(selectedTaskData)
+        activeTasks.update(ats => {
           const exists = ats.find(
-            at =>
-              at.name === result.name &&
-              at.project_name === result.project_name &&
-              at.date === result.date,
+            at => at.taskId === result.taskId && at.date === result.date,
           )
           if (!exists) {
             return [...ats, { ...result, isActive: true }]
@@ -130,242 +131,244 @@
     }
   }
 
-  function handleEditClick(task: DBTask) {
-    taskToEdit = task
-    showEditModal = true
-  }
-
-  function handleDeleteClick(task: DBTask) {
-    taskToDelete = task
-    showDeleteModal = true
-  }
-
-  async function handleEditModalClose(success: boolean, editedTask?: DBTask) {
-    showEditModal = false
-    if (success && selectedProj.name) {
-      // Refresh tasks list to reflect changes (especially if date changed)
-      await fetchTasks(selectedProj.name)
-
-      // If date changed, clear selection since task is no longer in today's list
-      if (editedTask && editedTask.date !== taskToEdit?.date) {
-        selectedTask.set(null)
-      } else if (editedTask) {
-        // Update selected task if it was the one edited
-        selectedTask.set(editedTask)
-      }
-    }
-    taskToEdit = null
-  }
-
-  function handleDeleteModalClose(success: boolean) {
-    showDeleteModal = false
-    if (success) {
+  function onTaskDefinitionSelect(e: Event) {
+    const select = e.target as HTMLSelectElement
+    const taskDefId = select.value
+    if (taskDefId === '') {
+      selectedTaskDefinition.set(null)
       selectedTask.set(null)
-      if (selectedProj.name) {
-        fetchTasks(selectedProj.name)
-      }
+      return
     }
-    taskToDelete = null
-  }
-
-  function isTaskActive(task: DBTask): boolean {
-    return activeTasksList.some(
-      at =>
-        at.name === task.name &&
-        at.project_name === task.project_name &&
-        at.date === task.date,
+    const taskDef = $taskDefinitions.find(td => td.id === taskDefId) || null
+    selectedTaskDefinition.set(taskDef)
+    const existingTask = tasksList.find(
+      t =>
+        t.taskDefinitionId === taskDefId &&
+        t.date === new Date().toISOString().slice(0, 10),
     )
+    selectedTask.set(existingTask)
   }
 
-  function isSelected(task: DBTask): boolean {
-    return (
-      selectedTaskData?.name === task.name &&
-      selectedTaskData?.project_name === task.project_name &&
-      selectedTaskData?.date === task.date
-    )
-  }
+  async function handleEditModalClose(editedTask: DBTask) {
+    // Refresh tasks list to reflect changes (especially if date changed)
+    await fetchTasks($selectedProject.id)
 
-  function getDummyTask(): DBTask {
-    return {
-      name: '',
-      description: '',
-      project_name: selectedProj.name || '',
-      seconds: 0,
-      date: '',
+    // If date changed, clear selection since task is no longer in today's list
+    if (editedTask && editedTask.date !== $selectedTask.date) {
+      selectedTask.set(null)
+    } else if (editedTask) {
+      // Update selected task if it was the one edited
+      selectedTask.set(editedTask)
     }
   }
 </script>
 
-{#if showEditModal && taskToEdit}
-  <EditTaskModal
-    task={taskToEdit}
-    onClose={(s, t) => handleEditModalClose(s, t)}
+{#if modalType === 'addTaskDefinition'}
+  <AddTaskDefinitionModal
+    project={$selectedProject}
+    onClose={() => (modalType = null)}
+    onSuccess={async () => {
+      modalType = null
+      if ($selectedProject && $selectedProject.id) {
+        await fetchTaskDefinitions($selectedProject.id)
+      }
+    }}
   />
 {/if}
 
-{#if showDeleteModal && taskToDelete}
-  <DeleteTaskModal task={taskToDelete} onClose={handleDeleteModalClose} />
+{#if modalType === 'editTask'}
+  <EditTaskModal
+    task={$selectedTask}
+    onClose={() => (modalType = null)}
+    onSuccess={t => {
+      modalType = null
+      handleEditModalClose(t)
+    }}
+  />
 {/if}
 
-{#if taskDefs.length > 0 && selectedProj.name}
-  <section class="section">
-    <h1 class="text-2xl font-bold">Tasks</h1>
-    <h2 class="text-lg text-base-content/70">
-      All available tasks for a given project
-    </h2>
+{#if modalType === 'deleteTask'}
+  <DeleteTaskModal
+    onClose={() => (modalType = null)}
+    onSuccess={async () => {
+      modalType = null
+      selectedTask.set(null)
+      if ($selectedProject && $selectedProject.id) {
+        await fetchTasks($selectedProject.id)
+      }
+    }}
+  />
+{/if}
 
-    <div class="grid grid-cols-3 gap-4 mt-4">
-      <!-- New Task -->
-      <div class="card bg-base-200 shadow-xl">
-        <div class="card-body">
-          <h2 class="card-title">New</h2>
-          <form on:submit={handleAddTask}>
-            <div class="form-control">
-              <label class="label">
-                <span class="label-text">Task Definition</span>
+{#if modalType === 'editTaskDefinition'}
+  <EditTaskDefinitionModal
+    taskDefinition={$selectedTaskDefinition}
+    onClose={() => (modalType = null)}
+    onSuccess={async () => {
+      modalType = null
+      if ($selectedProject && $selectedProject.id) {
+        await fetchTaskDefinitions($selectedProject.id)
+      }
+    }}
+  />
+{/if}
+
+{#if modalType === 'deleteTaskDefinition'}
+  <DeleteTaskDefintion
+    taskDefinition={$selectedTaskDefinition}
+    onClose={() => (modalType = null)}
+    onSuccess={async () => {
+      modalType = null
+      selectedTaskDefinition.set(null)
+      selectedTask.set(null)
+      await fetchTaskDefinitions($selectedProject.id)
+    }}
+  />
+{/if}
+
+{#if $selectedProject && $selectedProject.id}
+  <div class="flex justify-between">
+    <ul class="flex space-x-2">
+      {#if taskDefs.length > 0}
+        <li>
+          <span class="tooltip tooltip-bottom" data-tip="Tasks">
+            <span class="flex space-x-2">
+              <label
+                class="label icon {$selectedTaskDefinition &&
+                $selectedTaskDefinition.name !== ''
+                  ? 'text-accent'
+                  : ''}"
+                for="task-select"
+              >
+                <SquareCheckBig size="16" />
               </label>
               <select
-                bind:value={taskName}
-                class="select select-bordered"
-                required
+                id="task-select"
+                onchange={onTaskDefinitionSelect}
+                class="select {$selectedTaskDefinition &&
+                $selectedTaskDefinition.name !== ''
+                  ? 'select-accent'
+                  : ''}"
               >
-                <option value="">Select task definition</option>
-                {#each taskDefs as td}
-                  <option value={td.name}>{td.name}</option>
+                <option value="" selected={!$selectedTaskDefinition}
+                  >Select a Task</option
+                >
+                {#each taskDefs as td (td.id)}
+                  <option
+                    selected={$selectedTaskDefinition &&
+                      $selectedTaskDefinition.name === td.name}
+                    value={td.id}>{td.name}</option
+                  >
                 {/each}
               </select>
-            </div>
-            <div class="form-control mt-2">
-              <label class="label">
-                <span class="label-text">Task Description</span>
-              </label>
-              <textarea
-                bind:value={taskDescription}
-                class="textarea textarea-bordered"
-                placeholder="Task Description"
-              ></textarea>
-            </div>
-            <div class="form-control mt-2">
-              <label class="label">
-                <span class="label-text">Task Duration</span>
-              </label>
-              <div class="grid grid-cols-3 gap-4">
-                <div class="form-control">
-                  <label class="label">
-                    <span class="label-text">Hours</span>
-                  </label>
-                  <input
-                    type="number"
-                    bind:value={taskHours}
-                    min="0"
-                    class="input input-bordered"
-                  />
-                </div>
-                <div class="form-control">
-                  <label class="label">
-                    <span class="label-text">Minutes</span>
-                  </label>
-                  <input
-                    type="number"
-                    bind:value={taskMinutes}
-                    min="0"
-                    max="59"
-                    class="input input-bordered"
-                  />
-                </div>
-                <div class="form-control">
-                  <label class="label">
-                    <span class="label-text">Seconds</span>
-                  </label>
-                  <input
-                    type="number"
-                    bind:value={taskSeconds}
-                    min="0"
-                    max="59"
-                    class="input input-bordered"
-                  />
-                </div>
-              </div>
-              <input
-                type="hidden"
-                name="seconds"
-                value={taskHours * 3600 + taskMinutes * 60 + taskSeconds}
-              />
-            </div>
-            <div class="form-control mt-4">
-              <button type="submit" class="btn btn-primary">Add Task</button>
-            </div>
-          </form>
-        </div>
-      </div>
-
-      <!-- Today's Tasks -->
-      {#if tasksList.length > 0}
-        <div class="card bg-base-200 shadow-xl">
-          <div class="card-body">
-            <h2 class="card-title">Today</h2>
-            <div class="space-y-2">
-              {#each tasksList as task}
-                <div
-                  class="p-3 rounded cursor-pointer transition-colors"
-                  class:bg-primary={isSelected(task)}
-                  class:text-primary-content={isSelected(task)}
-                  on:click={() => handleTaskSelect(task)}
-                >
-                  <p class="font-semibold">{task.name}</p>
-                  <div class="flex items-center gap-4 mt-2">
-                    {#if isTaskActive(task)}
-                      <span class="badge badge-success">Running</span>
-                    {:else}
-                      <TimerComponent {task} />
-                    {/if}
-                    <span class="text-sm">{task.date}</span>
-                  </div>
-                </div>
-              {/each}
-            </div>
-          </div>
-        </div>
+            </span>
+          </span>
+        </li>
       {/if}
-
-      <!-- Actions -->
-      {#if selectedTaskData}
-        <div class="card bg-base-200 shadow-xl">
-          <div class="card-body">
-            <h2 class="card-title">Actions</h2>
-            {#if isTaskActive(selectedTaskData)}
-              <InfoBox type="warning" title="Warning">
-                Task is currently active, you need to stop it to perform a
-                delete action.
-              </InfoBox>
+      {#if $selectedTaskDefinition && $selectedTaskDefinition.id}
+        <li>
+          <div
+            class="tooltip tooltip-bottom hover:btn-success"
+            data-tip="Start Task"
+          >
+            <button class="btn" onclick={handleStartTask}
+              ><Play size="16" /></button
+            >
+          </div>
+        </li>
+      {/if}
+      {#if $selectedTask && $selectedTask.id}
+        <li>
+          <div class="tooltip tooltip-bottom" data-tip="Edit Task">
+            <button
+              class="btn hover:btn-accent"
+              onclick={() => (modalType = 'editTask')}
+              ><SquarePen size="16" />
+            </button>
+          </div>
+        </li>
+        <li>
+          <div
+            class="tooltip tooltip-bottom hover:btn-error"
+            data-tip="Remove Task"
+          >
+            <button class="btn" onclick={() => (modalType = 'deleteTask')}
+              ><Trash size="16" /></button
+            >
+          </div>
+        </li>
+      {/if}
+      {#if $selectedTaskDefinition && $selectedTaskDefinition.id}
+        <li>
+          <div
+            class="tooltip tooltip-bottom"
+            data-tip={showMoreMenu ? 'Hide Options' : 'More Options'}
+          >
+            <button
+              tabindex="0"
+              class="btn btn-soft {showMoreMenu ? 'btn-warning' : ''}"
+              onclick={() => (showMoreMenu = !showMoreMenu)}
+            >
+              {#if !showMoreMenu}
+                <Ellipsis size="16" />
+              {:else}
+                <EyeOff size="16" />
+              {/if}
+            </button>
+          </div>
+        </li>
+        {#if showMoreMenu}
+          <li>
+            <div class="tooltip tooltip-bottom" data-tip="Edit Task Definition">
               <button
-                class="btn btn-warning mt-2"
-                on:click={() => handleEditClick(selectedTaskData)}
-              >
-                Edit
+                class="btn btn-soft hover:btn-accent"
+                onclick={() => (modalType = 'editTaskDefinition')}
+                ><SquarePen size="16" />
               </button>
-            {:else}
-              <div class="flex flex-col gap-2">
-                <button class="btn btn-primary" on:click={handleStartTask}>
-                  Start
-                </button>
+            </div>
+          </li>
+          <li>
+            <div
+              class="tooltip tooltip-bottom"
+              data-tip="Delete Task Definition"
+            >
+              <button
+                class="btn btn-soft hover:btn-error"
+                onclick={() => (modalType = 'deleteTaskDefinition')}
+                ><Trash size="16" />
+              </button>
+            </div>
+          </li>
+          {#if taskDefs.length > 0}
+            <li>
+              <div
+                class="tooltip tooltip-bottom"
+                data-tip="Add a new task definition"
+              >
                 <button
-                  class="btn btn-warning"
-                  on:click={() => handleEditClick(selectedTaskData)}
+                  class="btn btn-soft hover:btn-secondary"
+                  onclick={() => (modalType = 'addTaskDefinition')}
+                  ><Plus size="16" /></button
                 >
-                  Edit
-                </button>
-                <button
-                  class="btn btn-error"
-                  on:click={() => handleDeleteClick(selectedTaskData)}
-                >
-                  Delete
-                </button>
               </div>
-            {/if}
-          </div>
-        </div>
+            </li>
+          {/if}
+        {/if}
       {/if}
-    </div>
-  </section>
+      {#if taskDefs.length === 0 || $selectedTaskDefinition === null}
+        <li>
+          <div
+            class="tooltip tooltip-bottom"
+            data-tip="Add a new task definition"
+          >
+            <button
+              class="btn btn-soft hover:btn-secondary"
+              onclick={() => (modalType = 'addTaskDefinition')}
+              ><Plus size="16" /></button
+            >
+          </div>
+        </li>
+      {/if}
+    </ul>
+  </div>
 {/if}

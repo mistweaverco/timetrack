@@ -1,60 +1,36 @@
 <script lang="ts">
+  let { onClose, onSuccess, taskDefinition } = $props<{
+    taskDefinition: DBTaskDefinition
+    onSuccess: () => void
+    onClose: () => void
+  }>()
   import {
     taskDefinitions,
     tasks,
     selectedTask,
     selectedTaskDefinition,
-    selectedProject,
   } from '../../stores'
   import InfoBox from '../InfoBox.svelte'
 
-  export let taskDefinition: DBTaskDefinition
-  export let onClose: (success: boolean) => void
-
   async function handleConfirm() {
-    if (window.electron) {
-      // Fetch tasks using this task definition
-      const rpcTasks = await window.electron.getTasksByNameAndProject({
-        name: taskDefinition.name,
-        project_name: taskDefinition.project_name,
-      })
+    const result = await window.electron.deleteTaskDefinition({
+      id: taskDefinition.id,
+    })
+    if (result.success) {
+      // Update stores
+      taskDefinitions.update(tds =>
+        tds.filter(td => td.id !== taskDefinition.id),
+      )
 
-      const result = await window.electron.deleteTaskDefinition(taskDefinition)
-      if (result.success) {
-        // Update stores
-        await taskDefinitions.update(tds =>
-          tds.filter(
-            td =>
-              !(
-                td.name === taskDefinition.name &&
-                td.project_name === taskDefinition.project_name
-              ),
-          ),
-        )
+      // Remove tasks that belong to this task definition
+      tasks.update(ts =>
+        ts.filter(t => t.taskDefinitionId !== taskDefinition.id),
+      )
 
-        // Remove tasks
-        await tasks.update(ts =>
-          ts.filter(
-            t =>
-              !(
-                t.name === taskDefinition.name &&
-                t.project_name === taskDefinition.project_name
-              ),
-          ),
-        )
-
-        selectedTask.set(null)
-        selectedTaskDefinition.set(null)
-        if ($selectedProject.name === taskDefinition.project_name) {
-          selectedProject.set({ name: null })
-        }
-        onClose(true)
-      }
+      selectedTask.set(null)
+      selectedTaskDefinition.set(null)
+      onSuccess()
     }
-  }
-
-  function handleCancel() {
-    onClose(false)
   }
 </script>
 
@@ -68,9 +44,14 @@
     </InfoBox>
     <p class="mt-4">Are you sure you want to delete this task definition?</p>
     <div class="modal-action">
-      <button class="btn btn-error" on:click={handleConfirm}>Yes</button>
-      <button class="btn btn-primary" on:click={handleCancel}>No</button>
+      <button class="btn btn-error" onclick={handleConfirm}>Yes</button>
+      <button class="btn btn-primary" onclick={onClose}>No</button>
     </div>
   </div>
-  <div class="modal-backdrop" on:click={handleCancel}></div>
+  <div
+    class="modal-backdrop"
+    onkeypress={(evt: KeyboardEvent) => evt.key === 'Escape' && onClose()}
+    role="button"
+    tabindex="0"
+  ></div>
 </div>

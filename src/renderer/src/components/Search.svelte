@@ -1,7 +1,6 @@
 <script lang="ts">
-  import { onMount } from 'svelte'
   import moment from 'moment'
-  import { activeTasks, searchResults, projects, companies } from '../stores'
+  import { activeTasks, searchResults } from '../stores'
   import EditCompanyModal from './modals/EditCompanyModal.svelte'
   import DeleteCompanyModal from './modals/DeleteCompanyModal.svelte'
   import EditProjectModal from './modals/EditProjectModal.svelte'
@@ -13,50 +12,52 @@
   import InfoBox from './InfoBox.svelte'
   import { getHMSStringFromSeconds } from '../lib/utils'
 
-  let searchResult: SearchQueryResult | null = null
-  let loading = false
-  let showEditCompanyModal = false
-  let showDeleteCompanyModal = false
-  let showEditProjectModal = false
-  let showDeleteProjectModal = false
-  let showEditTaskModal = false
-  let showDeleteTaskModal = false
-  let showEditTaskDefModal = false
-  let showDeleteTaskDefModal = false
+  let searchResult: SearchQueryResult | null = $state(null)
+  let loading = $state(false)
+  let showEditCompanyModal = $state(false)
+  let showDeleteCompanyModal = $state(false)
+  let showEditProjectModal = $state(false)
+  let showDeleteProjectModal = $state(false)
+  let showEditTaskModal = $state(false)
+  let showDeleteTaskModal = $state(false)
+  let showEditTaskDefModal = $state(false)
+  let showDeleteTaskDefModal = $state(false)
 
-  let companyToEdit: DBCompany | null = null
-  let companyToDelete: DBCompany | null = null
-  let projectToEdit: DBProject | null = null
-  let projectToDelete: DBProject | null = null
-  let taskToEdit: DBTask | null = null
-  let taskToDelete: DBTask | null = null
-  let taskDefToEdit: DBTaskDefinition | null = null
-  let taskDefToDelete: DBTaskDefinition | null = null
+  let companyToEdit: DBCompany | null = $state(null)
+  let companyToDelete: DBCompany | null = $state(null)
+  let projectToEdit: DBProject | null = $state(null)
+  let projectToDelete: DBProject | null = $state(null)
+  let taskToEdit: DBTask | null = $state(null)
+  let taskToDelete: DBTask | null = $state(null)
+  let taskDefToEdit: DBTaskDefinition | null = $state(null)
+  let taskDefToDelete: DBTaskDefinition | null = $state(null)
 
   // Form values
-  let searchIn: string[] = []
-  let fromDate = moment().format('YYYY-MM-DD')
-  let toDate = moment().format('YYYY-MM-DD')
-  let activeState = 'all'
-  let companyName = '*'
-  let projectName = '*'
-  let taskName = '*'
-  let taskDescription = '*'
-  let taskDefinitionName = '*'
+  let searchIn: string[] = $state([])
+  let fromDate = $state(moment().format('YYYY-MM-DD'))
+  let toDate = $state(moment().format('YYYY-MM-DD'))
+  let activeState = $state('all')
+  let companyName = $state('*')
+  let projectName = $state('*')
+  let taskName = $state('*')
+  let taskDescription = $state('*')
+  let taskDefinitionName = $state('*')
 
-  $: activeTasksList = $activeTasks
+  let activeTasksList = $state($activeTasks)
+  let formValid = $derived(false)
 
-  // Reactive form validation
-  $: formValid =
-    searchIn.length > 0 &&
-    !!fromDate &&
-    !!toDate &&
-    !!activeState &&
-    !!companyName &&
-    !!projectName &&
-    !!taskName &&
-    !!taskDescription &&
-    !!taskDefinitionName
+  $effect(() => {
+    formValid =
+      searchIn.length > 0 &&
+      !!fromDate &&
+      !!toDate &&
+      !!activeState &&
+      !!companyName &&
+      !!projectName &&
+      !!taskName &&
+      !!taskDescription &&
+      !!taskDefinitionName
+  })
 
   async function handleSearch(e: Event) {
     e.preventDefault()
@@ -93,22 +94,22 @@
   }
 
   function hasActiveTask(projectName: string): boolean {
-    return activeTasksList.some(at => at.project_name === projectName)
+    // Note: This checks by project name for display purposes
+    // ActiveTask now uses taskId, so we need to check by projectName from the task
+    return activeTasksList.some(at => at.projectName === projectName)
   }
 
   function hasActiveTaskForTaskDef(taskDef: DBTaskDefinition): boolean {
+    // Note: This is a simplified check - we'd need to fetch tasks to match properly
+    // For now, check by name/projectName which are display fields
     return activeTasksList.some(
-      at =>
-        at.name === taskDef.name && at.project_name === taskDef.project_name,
+      at => at.name === taskDef.name && at.projectName === taskDef.projectName,
     )
   }
 
   function hasActiveTaskForTask(task: DBTask): boolean {
     return activeTasksList.some(
-      at =>
-        at.name === task.name &&
-        at.project_name === task.project_name &&
-        at.date === task.date,
+      at => at.taskId === task.id && at.date === task.date,
     )
   }
 
@@ -161,11 +162,11 @@
     if (success && searchResult) {
       if (editedProject && projectToEdit) {
         searchResult.projects = searchResult.projects.map(p =>
-          p.name === projectToEdit.name ? editedProject : p,
+          p.id === projectToEdit.id ? editedProject : p,
         )
       } else if (projectToDelete) {
         searchResult.projects = searchResult.projects.filter(
-          p => p.name !== projectToDelete.name,
+          p => p.id !== projectToDelete.id,
         )
       }
       searchResults.set(searchResult)
@@ -180,20 +181,11 @@
     if (success && searchResult) {
       if (editedTask && taskToEdit) {
         searchResult.tasks = searchResult.tasks.map(t =>
-          t.name === taskToEdit.name &&
-          t.project_name === taskToEdit.project_name &&
-          t.date === taskToEdit.date
-            ? editedTask
-            : t,
+          t.id === taskToEdit.id ? editedTask : t,
         )
       } else if (taskToDelete) {
         searchResult.tasks = searchResult.tasks.filter(
-          t =>
-            !(
-              t.name === taskToDelete.name &&
-              t.project_name === taskToDelete.project_name &&
-              t.date === taskToDelete.date
-            ),
+          t => t.id !== taskToDelete.id,
         )
       }
       searchResults.set(searchResult)
@@ -211,18 +203,11 @@
     if (success && searchResult) {
       if (editedTaskDef && taskDefToEdit) {
         searchResult.task_definitions = searchResult.task_definitions.map(td =>
-          td.name === taskDefToEdit.name &&
-          td.project_name === taskDefToEdit.project_name
-            ? editedTaskDef
-            : td,
+          td.id === taskDefToEdit.id ? editedTaskDef : td,
         )
       } else if (taskDefToDelete) {
         searchResult.task_definitions = searchResult.task_definitions.filter(
-          td =>
-            !(
-              td.name === taskDefToDelete.name &&
-              td.project_name === taskDefToDelete.project_name
-            ),
+          td => td.id !== taskDefToDelete.id,
         )
       }
       searchResults.set(searchResult)
@@ -240,11 +225,11 @@
     if (success && searchResult) {
       if (editedCompany && companyToEdit) {
         searchResult.companies = searchResult.companies.map(c =>
-          c.name === companyToEdit.name ? editedCompany : c,
+          c.id === companyToEdit.id ? editedCompany : c,
         )
       } else if (companyToDelete) {
         searchResult.companies = searchResult.companies.filter(
-          c => c.name !== companyToDelete.name,
+          c => c.id !== companyToDelete.id,
         )
       }
       searchResults.set(searchResult)
@@ -285,6 +270,7 @@
 {#if showEditTaskModal && taskToEdit}
   <EditTaskModal
     task={taskToEdit}
+    onSuccess={(s, t) => handleTaskModalClose(s, t)}
     onClose={(s, t) => handleTaskModalClose(s, t)}
   />
 {/if}
@@ -313,7 +299,7 @@
     You can search across tasks and projects.
   </h2>
 
-  <form on:submit={handleSearch} class="mt-4">
+  <form onsubmit={handleSearch} class="mt-4">
     <div class="grid grid-cols-3 gap-4">
       <!-- Query Form -->
       <div class="card bg-base-200 shadow-xl">
@@ -321,10 +307,11 @@
           <h2 class="card-title">Query</h2>
 
           <div class="form-control">
-            <label class="label">
+            <label class="label" for="searchIn">
               <span class="label-text">Search in</span>
             </label>
             <select
+              id="searchIn"
               multiple
               class="select select-bordered select-multiple"
               bind:value={searchIn}
@@ -335,7 +322,7 @@
               <option value="task_definitions">Task Definitions</option>
               <option value="tasks">Tasks</option>
             </select>
-            <label class="label">
+            <label class="label" for="searchIn">
               <span class="label-text-alt"
                 >Hold Ctrl/Cmd to select multiple</span
               >
@@ -343,10 +330,11 @@
           </div>
 
           <div class="form-control mt-2">
-            <label class="label">
+            <label class="label" for="fromDate">
               <span class="label-text">From</span>
             </label>
             <input
+              id="fromDate"
               type="date"
               bind:value={fromDate}
               class="input input-bordered"
@@ -355,10 +343,11 @@
           </div>
 
           <div class="form-control mt-2">
-            <label class="label">
+            <label class="label" for="toDate">
               <span class="label-text">To</span>
             </label>
             <input
+              id="toDate"
               type="date"
               bind:value={toDate}
               class="input input-bordered"
@@ -367,10 +356,11 @@
           </div>
 
           <div class="form-control mt-2">
-            <label class="label">
+            <label class="label" for="activeState">
               <span class="label-text">Active State</span>
             </label>
             <select
+              id="activeState"
               bind:value={activeState}
               class="select select-bordered"
               required
@@ -382,10 +372,11 @@
           </div>
 
           <div class="form-control mt-2">
-            <label class="label">
+            <label class="label" for="companyName">
               <span class="label-text">Company Name</span>
             </label>
             <input
+              id="companyName"
               type="text"
               bind:value={companyName}
               placeholder="Company Name (* for all)"
@@ -395,10 +386,11 @@
           </div>
 
           <div class="form-control mt-2">
-            <label class="label">
+            <label class="label" for="projectName">
               <span class="label-text">Project Name</span>
             </label>
             <input
+              id="projectName"
               type="text"
               bind:value={projectName}
               placeholder="Project Name (* for all)"
@@ -408,10 +400,11 @@
           </div>
 
           <div class="form-control mt-2">
-            <label class="label">
+            <label class="label" for="taskName">
               <span class="label-text">Task Name</span>
             </label>
             <input
+              id="taskName"
               type="text"
               bind:value={taskName}
               placeholder="Task Name (* for all)"
@@ -421,10 +414,11 @@
           </div>
 
           <div class="form-control mt-2">
-            <label class="label">
+            <label class="label" for="taskDescription">
               <span class="label-text">Task Description</span>
             </label>
             <input
+              id="taskDescription"
               type="text"
               bind:value={taskDescription}
               placeholder="Task Description (* for all)"
@@ -434,10 +428,11 @@
           </div>
 
           <div class="form-control mt-2">
-            <label class="label">
+            <label class="label" for="taskDefinitionName">
               <span class="label-text">Task Definition Name</span>
             </label>
             <input
+              id="taskDefinitionName"
               type="text"
               bind:value={taskDefinitionName}
               placeholder="Task Definition Name (* for all)"
@@ -479,7 +474,7 @@
               <div class="card-body">
                 <h2 class="card-title">Companies</h2>
                 <div class="space-y-2">
-                  {#each searchResult.companies as company}
+                  {#each searchResult.companies as company (company.id)}
                     <div class="card bg-base-100">
                       <div class="card-body">
                         <div class="flex items-center justify-between">
@@ -498,13 +493,13 @@
                           <div class="card-actions">
                             <button
                               class="btn btn-warning btn-sm"
-                              on:click={() => handleEditCompany(company)}
+                              onclick={() => handleEditCompany(company)}
                             >
                               Edit
                             </button>
                             <button
                               class="btn btn-error btn-sm"
-                              on:click={() => handleDeleteCompany(company)}
+                              onclick={() => handleDeleteCompany(company)}
                             >
                               Delete
                             </button>
@@ -524,7 +519,7 @@
               <div class="card-body">
                 <h2 class="card-title">Projects</h2>
                 <div class="space-y-2">
-                  {#each searchResult.projects as project}
+                  {#each searchResult.projects as project (project.id)}
                     <div class="card bg-base-100">
                       <div class="card-body">
                         <h3 class="card-title text-lg">{project.name}</h3>
@@ -537,13 +532,13 @@
                           {:else}
                             <button
                               class="btn btn-warning btn-sm"
-                              on:click={() => handleEditProject(project)}
+                              onclick={() => handleEditProject(project)}
                             >
                               Edit
                             </button>
                             <button
                               class="btn btn-error btn-sm"
-                              on:click={() => handleDeleteProject(project)}
+                              onclick={() => handleDeleteProject(project)}
                             >
                               Delete
                             </button>
@@ -563,12 +558,12 @@
               <div class="card-body">
                 <h2 class="card-title">Task Definitions</h2>
                 <div class="space-y-2">
-                  {#each searchResult.task_definitions as taskDef}
+                  {#each searchResult.task_definitions as taskDef (taskDef.id)}
                     <div class="card bg-base-100">
                       <div class="card-body">
                         <h3 class="card-title text-lg">{taskDef.name}</h3>
                         <p class="text-sm text-base-content/70">
-                          {taskDef.project_name}
+                          {taskDef.projectName}
                         </p>
                         <div class="card-actions justify-end">
                           {#if hasActiveTaskForTaskDef(taskDef)}
@@ -580,13 +575,13 @@
                           {:else}
                             <button
                               class="btn btn-warning btn-sm"
-                              on:click={() => handleEditTaskDef(taskDef)}
+                              onclick={() => handleEditTaskDef(taskDef)}
                             >
                               Edit
                             </button>
                             <button
                               class="btn btn-error btn-sm"
-                              on:click={() => handleDeleteTaskDef(taskDef)}
+                              onclick={() => handleDeleteTaskDef(taskDef)}
                             >
                               Delete
                             </button>
@@ -606,12 +601,12 @@
               <div class="card-body">
                 <h2 class="card-title">Tasks</h2>
                 <div class="space-y-2">
-                  {#each searchResult.tasks as task}
+                  {#each searchResult.tasks as task (task.id)}
                     <div class="card bg-base-100">
                       <div class="card-body">
                         <h3 class="card-title text-lg">{task.name}</h3>
                         <p class="text-sm text-base-content/70">
-                          {task.project_name}
+                          {task.projectName}
                         </p>
                         {#if task.description}
                           <p class="text-sm">{task.description}</p>
@@ -635,13 +630,13 @@
                           {:else}
                             <button
                               class="btn btn-warning btn-sm"
-                              on:click={() => handleEditTask(task)}
+                              onclick={() => handleEditTask(task)}
                             >
                               Edit
                             </button>
                             <button
                               class="btn btn-error btn-sm"
-                              on:click={() => handleDeleteTask(task)}
+                              onclick={() => handleDeleteTask(task)}
                             >
                               Delete
                             </button>

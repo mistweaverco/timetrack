@@ -1,25 +1,21 @@
 <script lang="ts">
+  let { onClose, onSuccess, project } = $props<{
+    project: DBProject
+    onSuccess: () => void
+    onClose: () => void
+  }>()
   import { projects, selectedProject } from '../../stores'
   import InfoBox from '../InfoBox.svelte'
 
-  export let project: DBProject
-  export let onClose: (success: boolean) => void
-
   async function handleConfirm() {
-    if (window.electron) {
-      const result = await window.electron.deleteProject(project.name)
-      if (result.success) {
-        await projects.update(ps => ps.filter(p => p.name !== project.name))
-        if ($selectedProject.name === project.name) {
-          selectedProject.set({ name: null, company_name: null })
-        }
-        onClose(true)
+    const result = await window.electron.deleteProject(project.id)
+    if (result.success) {
+      projects.update(ps => ps.filter(p => p.id !== project.id))
+      if ($selectedProject.id === project.id) {
+        selectedProject.set(null)
       }
+      onSuccess()
     }
-  }
-
-  function handleCancel() {
-    onClose(false)
   }
 </script>
 
@@ -38,9 +34,14 @@
       Are you sure you want to delete this project ({project.name})?
     </p>
     <div class="modal-action">
-      <button class="btn btn-error" on:click={handleConfirm}>Yes</button>
-      <button class="btn btn-primary" on:click={handleCancel}>No</button>
+      <button class="btn btn-error" onclick={handleConfirm}>Yes</button>
+      <button class="btn btn-primary" onclick={onClose}>No</button>
     </div>
   </div>
-  <div class="modal-backdrop" on:click={handleCancel}></div>
+  <div
+    class="modal-backdrop"
+    onkeypress={(evt: KeyboardEvent) => evt.key === 'Escape' && onClose()}
+    role="button"
+    tabindex="0"
+  ></div>
 </div>

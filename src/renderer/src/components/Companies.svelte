@@ -1,31 +1,23 @@
 <script lang="ts">
   import { onMount } from 'svelte'
-  import {
-    companies,
-    selectedCompany,
-    selectedProject,
-    projects,
-    activeTasks,
-  } from '../stores'
+  import { companies, selectedCompany, selectedProject } from '../stores'
+  import AddCompanyModal from './modals/AddCompanyModal.svelte'
   import EditCompanyModal from './modals/EditCompanyModal.svelte'
   import DeleteCompanyModal from './modals/DeleteCompanyModal.svelte'
-  import InfoBox from './InfoBox.svelte'
+  import { Plus, SquarePen, Store, Trash } from '@lucide/svelte'
 
-  let companiesList: DBCompany[] = []
-  let showEditModal = false
-  let showDeleteModal = false
-  let companyToEdit: DBCompany | null = null
+  let companiesList: DBCompany[] = $state([])
+  let showEditModal = $state(false)
+  let showDeleteModal = $state(false)
+  let showAddModal = $state(false)
   let companyToDelete: DBCompany | null = null
-
-  $: activeTasksList = $activeTasks
-  $: selectedComp = $selectedCompany
-
-  onMount(async () => {
-    await fetchCompanies()
-  })
 
   companies.subscribe(value => {
     companiesList = value
+  })
+
+  onMount(async () => {
+    await fetchCompanies()
   })
 
   async function fetchCompanies() {
@@ -42,164 +34,151 @@
     }
   }
 
-  async function handleAddCompany(e: Event) {
-    e.preventDefault()
-    const form = e.target as HTMLFormElement
-    const formData = new FormData(form)
-    const name = formData.get('name') as string
-
-    if (name && window.electron) {
-      const result = await window.electron.addCompany(name)
-      if (result.success) {
-        await fetchCompanies()
-        form.reset()
-      }
+  function handleCompanySelect(e: Event) {
+    const select = e.target as HTMLSelectElement
+    const companyId = select.value
+    if (companyId === '') {
+      selectedCompany.set(null)
+      selectedProject.set(null)
+      return
     }
-  }
-
-  function handleCompanySelect(company: DBCompany) {
-    selectedCompany.set({ name: company.name })
+    const company = companiesList.find(c => c.id === companyId) || null
+    selectedCompany.set(company)
     // Clear selected project when company changes
-    selectedProject.set({ name: null, company_name: null })
+    selectedProject.set(null)
   }
 
-  function handleEditClick(company: DBCompany) {
-    companyToEdit = company
+  function handleEditClick() {
     showEditModal = true
   }
 
-  function handleDeleteClick(company: DBCompany) {
-    companyToDelete = company
+  function handleDeleteClick() {
     showDeleteModal = true
   }
 
-  function isSelected(company: DBCompany): boolean {
-    return selectedComp.name === company.name
+  async function handleCompanyAddModalSuccess() {
+    showAddModal = false
+    await fetchCompanies()
   }
 
-  function hasActiveTask(companyName: string): boolean {
-    // Check if any active task belongs to a project in this company
-    return activeTasksList.some(at => {
-      const project = $projects.find(p => p.name === at.project_name)
-      return project && project.company_name === companyName
-    })
+  async function handleCompanyAddModalClose() {
+    showAddModal = false
   }
 
-  async function handleCompanyModalClose(
-    success: boolean,
-    editedCompany?: DBCompany,
-  ) {
-    showEditModal = false
+  async function handleCompanyDeleteModalSuccess() {
     showDeleteModal = false
-    if (success) {
-      await fetchCompanies()
-      if (editedCompany && companyToEdit) {
-        // Update selected company if it was edited
-        if (selectedComp.name === companyToEdit.name) {
-          selectedCompany.set({ name: editedCompany.name })
-        }
-      } else if (companyToDelete) {
-        // Clear selection if deleted company was selected
-        if (selectedComp.name === companyToDelete.name) {
-          selectedCompany.set({ name: null })
-          selectedProject.set({ name: null, company_name: null })
-        }
+    await fetchCompanies()
+    if (companyToDelete) {
+      // Clear selection if deleted company was selected
+      if ($selectedCompany.id === companyToDelete.id) {
+        selectedCompany.set(null)
+        selectedProject.set(null)
       }
     }
-    companyToEdit = null
     companyToDelete = null
+  }
+  async function handleCompanyEditModalSuccess(editedCompany: DBCompany) {
+    showEditModal = false
+    await fetchCompanies()
+    if (editedCompany) {
+      // Update selected company if it was edited
+      selectedCompany.set(editedCompany)
+    }
   }
 </script>
 
-{#if showEditModal && companyToEdit}
-  <EditCompanyModal
-    company={companyToEdit}
-    onClose={(s, c) => handleCompanyModalClose(s, c)}
-  />
-{/if}
-
-{#if showDeleteModal && companyToDelete}
-  <DeleteCompanyModal
-    company={companyToDelete}
-    onClose={s => handleCompanyModalClose(s)}
-  />
-{/if}
-
-<section class="section">
-  <h1 class="text-2xl font-bold">Companies</h1>
-  <h2 class="text-lg text-base-content/70">
-    Manage your companies. Select a company to view its projects.
-  </h2>
-
-  <div class="grid grid-cols-2 gap-4 mt-4">
-    <!-- Add Company -->
-    <div class="card bg-base-200 shadow-xl">
-      <div class="card-body">
-        <h2 class="card-title">New Company</h2>
-        <form on:submit={handleAddCompany}>
-          <div class="form-control">
-            <label class="label">
-              <span class="label-text">Company Name</span>
+<div class="flex justify-between">
+  <ul class="flex space-x-2">
+    {#if $companies.length !== 0}
+      <li>
+        <span class="tooltip tooltip-bottom" data-tip="Companies">
+          <span class="flex space-x-2">
+            <label
+              class="label icon {$selectedCompany &&
+              $selectedCompany.name !== ''
+                ? 'text-accent'
+                : ''}"
+              for="company-select"
+            >
+              <Store size="16" />
             </label>
-            <input
-              type="text"
-              name="name"
-              placeholder="Company Name"
-              class="input input-bordered"
-              required
-            />
-          </div>
-          <div class="form-control mt-4">
-            <button type="submit" class="btn btn-primary">Add Company</button>
-          </div>
-        </form>
-      </div>
-    </div>
-
-    <!-- Companies List -->
-    {#if companiesList.length > 0}
-      <div class="card bg-base-200 shadow-xl">
-        <div class="card-body">
-          <h2 class="card-title">Companies</h2>
-          <div class="space-y-2">
-            {#each companiesList as company}
-              <div
-                class="p-3 rounded cursor-pointer transition-colors"
-                class:bg-primary={isSelected(company)}
-                class:text-primary-content={isSelected(company)}
-                on:click={() => handleCompanySelect(company)}
+            <select
+              id="company-select"
+              class="select {$selectedCompany && $selectedCompany.name !== ''
+                ? 'select-accent'
+                : ''}"
+              onchange={handleCompanySelect}
+            >
+              <option value="" selected={!$selectedCompany}
+                >Select a company</option
               >
-                <div class="flex justify-between items-center">
-                  <p class="font-semibold">{company.name}</p>
-                  <div class="flex gap-2">
-                    {#if hasActiveTask(company.name)}
-                      <InfoBox type="warning" title="Warning">
-                        A task belonging to this company is currently active,
-                        you need to stop it to perform any action.
-                      </InfoBox>
-                    {:else}
-                      <button
-                        class="btn btn-warning btn-sm"
-                        on:click|stopPropagation={() =>
-                          handleEditClick(company)}
-                      >
-                        Edit
-                      </button>
-                      <button
-                        class="btn btn-error btn-sm"
-                        on:click|stopPropagation={() =>
-                          handleDeleteClick(company)}
-                      >
-                        Delete
-                      </button>
-                    {/if}
-                  </div>
-                </div>
-              </div>
-            {/each}
-          </div>
-        </div>
-      </div>
+              {#each $companies as company (company.id)}
+                <option
+                  value={company.id}
+                  selected={$selectedCompany &&
+                    $selectedCompany.id === company.id}
+                >
+                  {company.name}
+                </option>
+              {/each}
+            </select>
+          </span>
+        </span>
+      </li>
     {/if}
-  </div>
-</section>
+    <li>
+      <div class="tooltip tooltip-bottom" data-tip="Add a company">
+        <button
+          class="btn hover:btn-secondary"
+          onclick={() => (showAddModal = true)}><Plus size="16" /></button
+        >
+      </div>
+    </li>
+    {#if $selectedCompany && $selectedCompany.id}
+      <li>
+        <div class="tooltip tooltip-bottom" data-tip="Edit company">
+          <button class="btn hover:btn-accent" onclick={handleEditClick}
+            ><SquarePen size="16" /></button
+          >
+        </div>
+      </li>
+      <li>
+        <div
+          class="tooltip tooltip-bottom hover:btn-error"
+          data-tip="Delete company"
+        >
+          <button class="btn hover:btn-error" onclick={handleDeleteClick}
+            ><Trash size="16" /></button
+          >
+        </div>
+      </li>
+    {/if}
+  </ul>
+</div>
+
+{#if showAddModal}
+  <AddCompanyModal
+    onSuccess={handleCompanyAddModalSuccess}
+    onClose={handleCompanyAddModalClose}
+  />
+{/if}
+
+{#if showEditModal && $selectedCompany}
+  <EditCompanyModal
+    company={$selectedCompany}
+    onSuccess={c => handleCompanyEditModalSuccess(c)}
+    onClose={() => {
+      showEditModal = false
+    }}
+  />
+{/if}
+
+{#if showDeleteModal && $selectedCompany}
+  <DeleteCompanyModal
+    company={$selectedCompany}
+    onSuccess={() => handleCompanyDeleteModalSuccess()}
+    onClose={() => {
+      showDeleteModal = false
+    }}
+  />
+{/if}

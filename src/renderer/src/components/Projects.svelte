@@ -1,49 +1,33 @@
 <script lang="ts">
-  import { onMount } from 'svelte'
   import {
     projects,
     selectedProject,
     selectedCompany,
-    activeTasks,
     selectedTask,
     selectedTaskDefinition,
     projectsForSelectedCompany,
   } from '../stores'
+  import AddProjectModal from './modals/AddProjectModal.svelte'
   import EditProjectModal from './modals/EditProjectModal.svelte'
   import DeleteProjectModal from './modals/DeleteProjectModal.svelte'
-  import InfoBox from './InfoBox.svelte'
+  import { Plus, Folder, Trash, SquarePen } from '@lucide/svelte'
 
-  let projectsList: DBProject[] = []
-  let showEditModal = false
-  let showDeleteModal = false
-  let projectToEdit: DBProject | null = null
-  let projectToDelete: DBProject | null = null
+  let modalType = $state<'add' | 'edit' | 'delete' | null>(null)
 
-  $: activeTasksList = $activeTasks
-  $: selectedProj = $selectedProject
-  $: selectedComp = $selectedCompany
-  $: companyProjects = $projectsForSelectedCompany
+  const companyProjects = $derived(projectsForSelectedCompany)
 
-  onMount(async () => {
-    await fetchProjects()
-  })
-
-  projects.subscribe(value => {
-    projectsList = value
-  })
-
-  selectedCompany.subscribe(async () => {
-    if ($selectedCompany.name) {
-      await fetchProjects($selectedCompany.name)
+  selectedCompany.subscribe(async value => {
+    if (value && value.id) {
+      await fetchProjects(value.id)
     } else {
       projects.set([])
     }
   })
 
-  async function fetchProjects(companyName?: string) {
+  async function fetchProjects(companyId?: string) {
     if (window.electron) {
       try {
-        const data = await window.electron.getProjects(companyName)
+        const data = await window.electron.getProjects(companyId)
         projects.set(data)
       } catch (error) {
         console.error('Error loading projects:', error)
@@ -51,173 +35,123 @@
     }
   }
 
-  async function handleAddProject(e: Event) {
-    e.preventDefault()
-    const form = e.target as HTMLFormElement
-    const formData = new FormData(form)
-    const name = formData.get('name') as string
-
-    if (name && $selectedCompany.name && window.electron) {
-      const result = await window.electron.addProject(
-        name,
-        $selectedCompany.name,
-      )
-      if (result.success) {
-        await fetchProjects($selectedCompany.name)
-        form.reset()
-      }
+  function handleProjectSelect(e: Event) {
+    const select = e.target as HTMLSelectElement
+    const projectId = select.value
+    if (projectId === '') {
+      selectedProject.set(null)
+      selectedTask.set(null)
+      selectedTaskDefinition.set(null)
+      return
     }
-  }
-
-  function handleProjectSelect(project: DBProject) {
+    const project = $companyProjects.find(p => p.id === projectId) || null
     selectedTask.set(null)
     selectedTaskDefinition.set(null)
-    selectedProject.set({
-      name: project.name,
-      company_name: project.company_name,
-    })
-  }
-
-  function handleEditClick(project: DBProject) {
-    projectToEdit = project
-    showEditModal = true
-  }
-
-  function handleDeleteClick(project: DBProject) {
-    projectToDelete = project
-    showDeleteModal = true
-  }
-
-  function handleEditModalClose(success: boolean, editedProject?: DBProject) {
-    showEditModal = false
-    if (success && editedProject) {
-      selectedProject.set({
-        name: editedProject.name,
-        company_name: editedProject.company_name,
-      })
-      fetchProjects($selectedCompany.name)
-    }
-    projectToEdit = null
-  }
-
-  function handleDeleteModalClose(success: boolean) {
-    showDeleteModal = false
-    if (success) {
-      selectedProject.set({ name: null, company_name: null })
-      fetchProjects($selectedCompany.name)
-    }
-    projectToDelete = null
-  }
-
-  function hasActiveTask(projectName: string): boolean {
-    return activeTasksList.some(at => at.project_name === projectName)
+    selectedProject.set(project)
   }
 </script>
 
-{#if showEditModal && projectToEdit}
-  <EditProjectModal project={projectToEdit} onClose={handleEditModalClose} />
-{/if}
-
-{#if showDeleteModal && projectToDelete}
-  <DeleteProjectModal
-    project={projectToDelete}
-    onClose={handleDeleteModalClose}
+{#if modalType === 'add'}
+  <AddProjectModal
+    company={$selectedCompany}
+    onSuccess={async () => {
+      modalType = null
+      await fetchProjects($selectedCompany.id || undefined)
+    }}
+    onClose={() => (modalType = null)}
   />
 {/if}
 
-<section class="section">
-  <h1 class="text-2xl font-bold">Projects</h1>
-  <h2 class="text-lg text-base-content/70">
-    Manage your projects for {selectedComp.name || 'the selected company'}.
-    Select a project to view its tasks.
-  </h2>
+{#if modalType === 'edit'}
+  <EditProjectModal
+    onSuccess={async () => {
+      modalType = null
+      await fetchProjects($selectedCompany.id || undefined)
+    }}
+    project={$selectedProject}
+    onClose={() => (modalType = null)}
+  />
+{/if}
 
-  {#if !selectedComp.name}
-    <InfoBox type="info" title="Select a Company">
-      Please select a company first to view and manage its projects.
-    </InfoBox>
-  {:else}
-    <div class="grid grid-cols-3 gap-4 mt-4">
-      <!-- New Project -->
-      <div class="card bg-base-200 shadow-xl">
-        <div class="card-body">
-          <h2 class="card-title">New</h2>
-          <form on:submit={handleAddProject}>
-            <div class="form-control">
-              <label class="label">
-                <span class="label-text">Project Name</span>
-              </label>
-              <input
-                type="text"
-                name="name"
-                placeholder="Project Name"
-                class="input input-bordered"
-                required
-              />
-            </div>
-            <div class="form-control mt-4">
-              <button type="submit" class="btn btn-primary">Add Project</button>
-            </div>
-          </form>
-        </div>
-      </div>
+{#if modalType === 'delete'}
+  <DeleteProjectModal
+    project={$selectedProject}
+    onSuccess={async () => {
+      modalType = null
+      $selectedProject = null
+      await fetchProjects($selectedCompany.id || undefined)
+    }}
+    onClose={() => (modalType = null)}
+  />
+{/if}
 
-      <!-- Available Projects -->
-      <div class="card bg-base-200 shadow-xl">
-        <div class="card-body">
-          <h2 class="card-title">Available</h2>
-          <div class="space-y-2">
-            {#each companyProjects as project}
-              <div
-                class="p-3 rounded cursor-pointer transition-colors"
-                class:bg-primary={selectedProj.name === project.name}
-                class:text-primary-content={selectedProj.name === project.name}
-                on:click={() => handleProjectSelect(project)}
+{#if $selectedCompany && $selectedCompany}
+  <div class="flex justify-between">
+    <ul class="flex space-x-2">
+      {#if $companyProjects.length !== 0}
+        <li>
+          <span class="tooltip tooltip-bottom" data-tip="Projects">
+            <span class="flex space-x-2">
+              <label
+                class="label icon {$selectedProject &&
+                $selectedProject.name !== ''
+                  ? 'text-accent'
+                  : ''}"
+                for="project-select"
               >
-                <p class="font-semibold">{project.name}</p>
-              </div>
-            {/each}
-          </div>
-        </div>
-      </div>
-
-      <!-- Actions -->
-      {#if selectedProj.name}
-        <div class="card bg-base-200 shadow-xl">
-          <div class="card-body">
-            <h2 class="card-title">Actions</h2>
-            {#if hasActiveTask(selectedProj.name)}
-              <InfoBox type="warning" title="Warning">
-                A task belonging to this project is currently active, you need
-                to stop it to perform any action.
-              </InfoBox>
-            {:else}
-              <div class="flex gap-2">
-                <button
-                  class="btn btn-warning"
-                  on:click={() =>
-                    handleEditClick({
-                      name: selectedProj.name!,
-                      company_name: selectedProj.company_name!,
-                    })}
+                <Folder size="16" />
+              </label>
+              <select
+                id="project-select"
+                class="select {$selectedProject && $selectedProject.name !== ''
+                  ? 'select-accent'
+                  : ''}"
+                onchange={handleProjectSelect}
+              >
+                <option value="" selected={!$selectedProject}
+                  >Select a project</option
                 >
-                  Edit
-                </button>
-                <button
-                  class="btn btn-error"
-                  on:click={() =>
-                    handleDeleteClick({
-                      name: selectedProj.name!,
-                      company_name: selectedProj.company_name!,
-                    })}
-                >
-                  Delete
-                </button>
-              </div>
-            {/if}
-          </div>
-        </div>
+                {#each $companyProjects as project (project.name)}
+                  <option
+                    value={project.id}
+                    selected={$selectedProject &&
+                      $selectedProject.id === project.id}
+                  >
+                    {project.name}
+                  </option>
+                {/each}
+              </select>
+            </span>
+          </span>
+        </li>
       {/if}
-    </div>
-  {/if}
-</section>
+      <li>
+        <div class="tooltip tooltip-bottom" data-tip="Add Project">
+          <button
+            class="btn hover:btn-secondary"
+            onclick={() => (modalType = 'add')}><Plus size="16" /></button
+          >
+        </div>
+      </li>
+      {#if $selectedProject !== null && $selectedProject.id !== null}
+        <li>
+          <div class="tooltip tooltip-bottom" data-tip="Edit project">
+            <button
+              class="btn hover:btn-accent"
+              onclick={() => (modalType = 'edit')}
+              ><SquarePen size="16" /></button
+            >
+          </div>
+        </li>
+        <li>
+          <div class="tooltip tooltip-bottom hover:btn-error" data-tip="Delete">
+            <button
+              class="btn hover:btn-error"
+              onclick={() => (modalType = 'delete')}><Trash size="16" /></button
+            >
+          </div>
+        </li>
+      {/if}
+    </ul>
+  </div>
+{/if}

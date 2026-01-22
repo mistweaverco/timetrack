@@ -1,13 +1,12 @@
 import { app, BrowserWindow, shell } from 'electron'
 import { electronApp } from '@electron-toolkit/utils'
 import { join } from 'path'
-import { initDB, PrismaClient } from '../database'
+import { initDB } from '../database'
 import { initIpcHandlers, periodicSaveActiveTasks } from './ipcHandlers'
 import { loadWindowContents } from './utils'
 import icon from './../assets/icon/icon.png?asset'
 
 let mainWindow: BrowserWindow | null = null
-let DB: PrismaClient | null = null
 
 function createWindow(): void {
   mainWindow = new BrowserWindow({
@@ -38,10 +37,7 @@ function createWindow(): void {
 }
 
 app.on('window-all-closed', async () => {
-  if (DB) {
-    await periodicSaveActiveTasks(DB)
-    await DB.$disconnect()
-  }
+  await periodicSaveActiveTasks()
   if (process.platform !== 'darwin') {
     app.quit()
   }
@@ -59,22 +55,20 @@ app.whenReady().then(async () => {
   app.commandLine.appendSwitch('disable-gpu-vsync')
 
   // Initialize database
-  DB = await initDB()
+  await initDB()
 
   // Periodic save every 30 seconds
   setInterval(async () => {
-    if (DB) {
-      await periodicSaveActiveTasks(DB)
-    }
+    await periodicSaveActiveTasks()
   }, 30000)
 
   createWindow()
 
   // Initialize IPC handlers after window is created
   // Wait a bit for window to be ready
-  setTimeout(() => {
-    if (mainWindow && DB) {
-      initIpcHandlers(mainWindow, DB)
+  setTimeout(async () => {
+    if (mainWindow) {
+      await initIpcHandlers(mainWindow)
     }
   }, 100)
 })

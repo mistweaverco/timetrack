@@ -1,4 +1,9 @@
 <script lang="ts">
+  let { onClose, onSuccess, company } = $props<{
+    company: DBCompany
+    onClose: () => void
+    onSuccess: () => void
+  }>()
   import {
     companies,
     selectedCompany,
@@ -7,29 +12,30 @@
   } from '../../stores'
   import InfoBox from '../InfoBox.svelte'
 
-  export let company: DBCompany
-  export let onClose: (success: boolean) => void
-
   async function handleDelete() {
     if (window.electron) {
-      const result = await window.electron.deleteCompany(company.name)
+      const result = await window.electron.deleteCompany(company.id)
       if (result.success) {
-        await companies.update(cs => cs.filter(c => c.name !== company.name))
+        companies.update(cs => cs.filter(c => c.id !== company.id))
         // Clear selection if deleted company was selected
-        if ($selectedCompany.name === company.name) {
-          selectedCompany.set({ name: null })
-          selectedProject.set({ name: null, company_name: null })
+        if ($selectedCompany.id === company.id) {
+          selectedCompany.set(null)
+          selectedProject.set(null)
         }
-        onClose(true)
+        onSuccess()
       }
     }
   }
 
   function handleCancel() {
-    onClose(false)
+    onClose()
   }
 
-  $: companyProjects = $projects.filter(p => p.company_name === company.name)
+  let companyProjects: DBProject[] = $derived([])
+
+  $effect(() => {
+    companyProjects = $projects.filter(p => p.companyId === company.id)
+  })
 </script>
 
 <div class="modal modal-open">
@@ -46,11 +52,16 @@
       >?
     </p>
     <div class="modal-action">
-      <button type="button" class="btn btn-error" on:click={handleDelete}>
+      <button type="button" class="btn btn-error" onclick={handleDelete}>
         Delete
       </button>
-      <button type="button" class="btn" on:click={handleCancel}>Cancel</button>
+      <button type="button" class="btn" onclick={handleCancel}>Cancel</button>
     </div>
   </div>
-  <div class="modal-backdrop" on:click={handleCancel}></div>
+  <div
+    class="modal-backdrop"
+    onkeypress={(evt: KeyboardEvent) => evt.key === 'Escape' && handleCancel()}
+    role="button"
+    tabindex="0"
+  ></div>
 </div>

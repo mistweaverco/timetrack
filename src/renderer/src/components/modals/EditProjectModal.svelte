@@ -1,49 +1,46 @@
 <script lang="ts">
+  let { onClose, onSuccess, project } = $props<{
+    project: DBProject
+    onSuccess: (dbProject: DBProject) => void
+    onClose: () => void
+  }>()
   import { projects, companies } from '../../stores'
 
-  export let project: DBProject
-  export let onClose: (success: boolean, editedProject?: DBProject) => void
-
-  let projectName = project.name
-  let companyName = project.company_name
-  let status = project.status || 'active'
+  let projectName = $derived(project.name)
+  let companyId = $derived(project.companyId)
+  let status = $derived(project.status || 'active')
 
   async function handleSubmit(e: Event) {
     e.preventDefault()
-    if (window.electron) {
-      const result = await window.electron.editProject({
-        oldname: project.name,
-        name: projectName,
-        company_name: companyName,
-        status,
-      })
-      if (result.success) {
-        await projects.update(ps =>
-          ps.map(p =>
-            p.name === project.name
-              ? { name: projectName, company_name: companyName, status }
-              : p,
-          ),
-        )
-        onClose(true, { name: projectName, company_name: companyName, status })
-      }
+    const result = await window.electron.editProject({
+      id: project.id,
+      name: projectName,
+      companyId,
+      status,
+    })
+    if (result.success) {
+      projects.update(ps =>
+        ps.map(p =>
+          p.id === project.id
+            ? { ...p, name: projectName, companyId, status }
+            : p,
+        ),
+      )
+      onSuccess({ id: project.id, name: projectName, companyId, status })
     }
-  }
-
-  function handleCancel() {
-    onClose(false)
   }
 </script>
 
 <div class="modal modal-open">
   <div class="modal-box">
     <h3 class="font-bold text-lg">Edit Project</h3>
-    <form on:submit={handleSubmit}>
+    <form onsubmit={handleSubmit}>
       <div class="form-control mt-4">
-        <label class="label">
+        <label class="label" for="projectName">
           <span class="label-text">Project Name</span>
         </label>
         <input
+          id="projectName"
           type="text"
           bind:value={projectName}
           class="input input-bordered"
@@ -51,34 +48,44 @@
         />
       </div>
       <div class="form-control mt-4">
-        <label class="label">
+        <label class="label" for="companyId">
           <span class="label-text">Company</span>
         </label>
         <select
-          bind:value={companyName}
+          id="companyId"
+          bind:value={companyId}
           class="select select-bordered"
           required
         >
-          {#each $companies as company}
-            <option value={company.name}>{company.name}</option>
+          {#each $companies as comp (comp.id)}
+            <option value={comp.id}>{comp.name}</option>
           {/each}
         </select>
       </div>
       <div class="form-control mt-4">
-        <label class="label">
+        <label class="label" for="status">
           <span class="label-text">Status</span>
         </label>
-        <select bind:value={status} class="select select-bordered" required>
+        <select
+          bind:value={status}
+          class="select select-bordered"
+          required
+          id="status"
+        >
           <option value="active">Active</option>
           <option value="inactive">Inactive</option>
         </select>
       </div>
       <div class="modal-action">
         <button type="submit" class="btn btn-warning">Edit</button>
-        <button type="button" class="btn" on:click={handleCancel}>Cancel</button
-        >
+        <button type="button" class="btn" onclick={onClose}>Cancel</button>
       </div>
     </form>
   </div>
-  <div class="modal-backdrop" on:click={handleCancel}></div>
+  <div
+    class="modal-backdrop"
+    onkeypress={(evt: KeyboardEvent) => evt.key === 'Escape' && onClose()}
+    role="button"
+    tabindex="0"
+  ></div>
 </div>

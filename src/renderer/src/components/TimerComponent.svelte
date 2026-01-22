@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount, onDestroy } from 'svelte'
+  import { onDestroy } from 'svelte'
   import { getHMSStringFromSeconds } from '../lib/utils'
   import { activeTasks } from '../stores'
 
@@ -12,7 +12,8 @@
   $: isActive = 'isActive' in task && task.isActive
   $: currentSeconds = task.seconds
 
-  // Update local seconds when task seconds change (but not when active, to avoid resetting during count)
+  // Update local seconds when task seconds change
+  // (but not when active, to avoid resetting during count)
   $: if (!isActive && currentSeconds !== undefined) {
     localSeconds = currentSeconds
     displayTime = getHMSStringFromSeconds(localSeconds)
@@ -30,9 +31,8 @@
           // Update the active task in store
           activeTasks.update(tasks =>
             tasks.map(t =>
-              t.name === task.name &&
-              t.project_name === task.project_name &&
-              t.date === task.date
+              ('taskId' in task && t.taskId === task.taskId) ||
+              ('id' in task && t.taskId === task.id)
                 ? { ...t, seconds: localSeconds }
                 : t,
             ),

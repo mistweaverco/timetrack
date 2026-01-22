@@ -26,41 +26,64 @@ import {
   getDataForPDFExport,
   getProjects,
   getSearchResult,
+  getTaskById,
+  getTaskByTaskDefinitionAndDate,
   getTaskDefinitions,
   getTasks,
   getTasksByNameAndProject,
   getTasksToday,
-  PrismaClient,
   saveActiveTask,
   saveActiveTasks,
+  getDatabase,
 } from '../database'
+import { drizzle } from 'drizzle-orm/better-sqlite3'
+import { task, taskDefinition, project, company } from '../db/schema'
+import { eq } from 'drizzle-orm'
 
-let DB: PrismaClient
+let DB: ReturnType<typeof drizzle>
 let WINDOW: BrowserWindow
 const activeTasks: InstanceType<typeof CountUp>[] = []
 
-export const initIpcHandlers = (
+export const initIpcHandlers = async (
   mainWindow: BrowserWindow,
-  db: PrismaClient,
-): void => {
+): Promise<void> => {
   WINDOW = mainWindow
-  DB = db
+  DB = await getDatabase()
 
-  const getActiveTasks = (): ActiveTask[] => {
-    return activeTasks.map(t => ({
-      name: t.name,
-      project_name: t.project_name,
-      description: t.description,
-      date: t.date,
-      seconds: t.seconds,
-      isActive: t.isActive,
-    }))
+  const getActiveTasks = async (): Promise<ActiveTask[]> => {
+    return Promise.all(
+      activeTasks.map(async t => {
+        // Fetch task details from database to include name and projectName
+        const taskResult = await DB.select({
+          taskDefinitionName: taskDefinition.name,
+          projectName: project.name,
+          companyName: company.name,
+        })
+          .from(task)
+          .innerJoin(taskDefinition, eq(task.taskDefinitionId, taskDefinition.id))
+          .innerJoin(project, eq(taskDefinition.projectId, project.id))
+          .innerJoin(company, eq(project.companyId, company.id))
+          .where(eq(task.id, parseInt(t.taskId, 10)))
+          .limit(1)
+
+        const taskData = taskResult[0]
+        return {
+          taskId: t.taskId,
+          description: t.description,
+          date: t.date,
+          seconds: t.seconds,
+          isActive: t.isActive,
+          name: taskData?.taskDefinitionName || '',
+          projectName: taskData?.projectName || '',
+          companyName: taskData?.companyName || '',
+        }
+      }),
+    )
   }
 
   const addActiveTask = (task: ActiveTask) => {
     const countup = new CountUp({
-      name: task.name,
-      project_name: task.project_name,
+      taskId: task.taskId,
       description: task.description,
       date: task.date,
       seconds: task.seconds,
@@ -69,134 +92,223 @@ export const initIpcHandlers = (
     return countup
   }
 
-  const getActiveTask = (
-    opts: MainProcessManageActiveTasksOpts,
-  ): InstanceType<typeof CountUp> | null => {
-    const task = activeTasks.find(
-      t =>
-        t.name === opts.name &&
-        t.project_name === opts.project_name &&
-        t.date === opts.date,
-    )
-    return task || null
+  const getActiveTask = (id: string): InstanceType<typeof CountUp> | null => {
+    return activeTasks.find(t => t.taskId === id) || null
   }
 
-  const startActiveTask = (
-    opts: ActiveTask,
-  ): ActiveTask & { success: boolean } => {
-    const task = getActiveTask(opts)
-    if (!task) {
+  const startActiveTask = async (
+    id: string,
+  ): Promise<ActiveTask & { success: boolean }> => {
+    const activeTask = getActiveTask(id)
+    if (!activeTask) {
+      // Fetch task details for response
+      const dbTaskResult = await DB.select({
+        taskDefinitionName: taskDefinition.name,
+        projectName: project.name,
+        companyName: company.name,
+        description: task.description,
+        date: task.date,
+        seconds: task.seconds,
+      })
+        .from(task)
+        .innerJoin(taskDefinition, eq(task.taskDefinitionId, taskDefinition.id))
+        .innerJoin(project, eq(taskDefinition.projectId, project.id))
+        .innerJoin(company, eq(project.companyId, company.id))
+        .where(eq(task.id, parseInt(id, 10)))
+        .limit(1)
+
+      const dbTask = dbTaskResult[0]
+      if (!dbTask) {
+        throw new Error(`Task not found: ${id}`)
+      }
+
       const addedTask = addActiveTask({
-        name: opts.name,
-        description: opts.description,
-        project_name: opts.project_name,
-        date: opts.date,
-        seconds: opts.seconds,
+        name: dbTask.taskDefinitionName,
+        companyName: dbTask.companyName,
+        projectName: dbTask.projectName,
+        taskId: id,
+        description: dbTask.description || '',
+        date: dbTask.date.toISOString(),
+        seconds: dbTask.seconds,
         isActive: true,
       })
       addedTask.start()
       return {
         success: true,
-        project_name: addedTask.project_name,
-        description: addedTask.description,
-        name: addedTask.name,
-        date: addedTask.date,
-        seconds: addedTask.seconds,
+        taskId: id,
+        description: dbTask.taskDefinitionName,
+        date: dbTask.date.toISOString(),
+        seconds: dbTask.seconds,
         isActive: true,
+        name: dbTask.taskDefinitionName,
+        projectName: dbTask.projectName,
+        companyName: dbTask.companyName,
       }
     }
-    if (task.isActive) {
-      console.warn('task already active', opts)
+    if (activeTask.isActive) {
+      console.warn('task already active', id)
+      const dbTaskResult = await DB.select({
+        taskDefinitionName: taskDefinition.name,
+        projectName: project.name,
+        companyName: company.name,
+        date: task.date,
+      })
+        .from(task)
+        .innerJoin(taskDefinition, eq(task.taskDefinitionId, taskDefinition.id))
+        .innerJoin(project, eq(taskDefinition.projectId, project.id))
+        .innerJoin(company, eq(project.companyId, company.id))
+        .where(eq(task.id, parseInt(id, 10)))
+        .limit(1)
+
+      const dbTask = dbTaskResult[0]
+      if (!dbTask) {
+        throw new Error(`Task not found: ${id}`)
+      }
+
       return {
         success: false,
-        project_name: task.project_name,
-        description: task.description,
-        name: task.name,
-        date: task.date,
-        seconds: task.seconds,
+        taskId: id,
+        description: activeTask.description,
+        date: dbTask.date.toISOString(),
+        seconds: activeTask.seconds,
         isActive: true,
+        name: dbTask.taskDefinitionName,
+        projectName: dbTask.projectName,
+        companyName: dbTask.companyName,
       }
     } else {
-      task.start()
+      activeTask.start()
+      const dbTaskResult = await DB.select({
+        taskDefinitionName: taskDefinition.name,
+        projectName: project.name,
+        companyName: company.name,
+        date: task.date,
+      })
+        .from(task)
+        .innerJoin(taskDefinition, eq(task.taskDefinitionId, taskDefinition.id))
+        .innerJoin(project, eq(taskDefinition.projectId, project.id))
+        .innerJoin(company, eq(project.companyId, company.id))
+        .where(eq(task.id, parseInt(id, 10)))
+        .limit(1)
+
+      const dbTask = dbTaskResult[0]
+      if (!dbTask) {
+        throw new Error(`Task not found: ${id}`)
+      }
+
       return {
         success: true,
-        project_name: task.project_name,
-        description: task.description,
-        name: task.name,
-        date: task.date,
-        seconds: task.seconds,
+        taskId: id,
+        description: activeTask.description,
+        date: dbTask.date.toISOString(),
+        seconds: activeTask.seconds,
         isActive: true,
+        name: dbTask.taskDefinitionName,
+        projectName: dbTask.projectName,
+        companyName: dbTask.companyName,
       }
     }
   }
 
-  const stopActiveTask = (
-    opts: ActiveTask,
-  ): (ActiveTask & { success: true }) | { success: false } => {
-    const task = getActiveTask(opts)
-    if (!task) {
-      console.error('task not found', opts)
+  const stopActiveTask = async (
+    id: string,
+  ): Promise<(ActiveTask & { success: true }) | { success: false }> => {
+    const activeTask = getActiveTask(id)
+    if (!activeTask) {
+      console.error('task not found', id)
       return { success: false }
     }
-    task.stop()
-    saveActiveTask(DB, {
-      name: task.name,
-      project_name: task.project_name,
-      date: task.date,
-      seconds: task.seconds,
+    activeTask.stop()
+    // Save using taskId directly
+    await saveActiveTask(DB, {
+      taskId: activeTask.taskId,
+      date: activeTask.date,
+      seconds: activeTask.seconds,
     })
-    const idx = activeTasks.findIndex(
-      t =>
-        t.name === opts.name &&
-        t.project_name === opts.project_name &&
-        t.date === opts.date,
-    )
-    const f = activeTasks.find(
-      t =>
-        t.name === opts.name &&
-        t.project_name === opts.project_name &&
-        t.date === opts.date,
-    )
+    const idx = activeTasks.findIndex(t => t.taskId === id)
+    const f = activeTasks.find(t => t.taskId === id)
     if (f) {
       const clone = Object.assign({}, f)
       activeTasks.splice(idx, 1)
+      // Fetch task details for response
+      const dbTaskResult = await DB.select({
+        taskDefinitionName: taskDefinition.name,
+        projectName: project.name,
+        companyName: company.name,
+        date: task.date,
+      })
+        .from(task)
+        .innerJoin(taskDefinition, eq(task.taskDefinitionId, taskDefinition.id))
+        .innerJoin(project, eq(taskDefinition.projectId, project.id))
+        .innerJoin(company, eq(project.companyId, company.id))
+        .where(eq(task.id, parseInt(activeTask.taskId, 10)))
+        .limit(1)
+
+      const dbTask = dbTaskResult[0]
+      if (!dbTask) {
+        throw new Error(`Task not found: ${activeTask.taskId}`)
+      }
+
       return {
         success: true,
-        project_name: clone.project_name,
+        taskId: id,
         description: clone.description,
-        name: clone.name,
-        date: clone.date,
+        date: dbTask.date.toISOString(),
         seconds: clone.seconds,
         isActive: false,
+        name: dbTask.taskDefinitionName,
+        projectName: dbTask.projectName,
+        companyName: dbTask.companyName,
       }
     } else {
       return { success: false }
     }
   }
 
-  const pauseActiveTask = (
-    opts: ActiveTask,
-  ): (ActiveTask & { success: true }) | { success: false } => {
-    const task = getActiveTask(opts)
-    if (!task) {
-      console.error('task not found', opts)
+  const pauseActiveTask = async (
+    id: string,
+  ): Promise<(ActiveTask & { success: true }) | { success: false }> => {
+    const activeTask = getActiveTask(id)
+    if (!activeTask) {
+      console.error('task not found', id)
       return { success: false }
     }
-    task.pause()
-    saveActiveTask(DB, {
-      name: task.name,
-      project_name: task.project_name,
-      date: task.date,
-      seconds: task.seconds,
+    activeTask.pause()
+    // Save using taskId directly
+    await saveActiveTask(DB, {
+      taskId: activeTask.taskId,
+      date: activeTask.date,
+      seconds: activeTask.seconds,
     })
+    // Fetch task details for response
+    const dbTaskResult = await DB.select({
+      taskDefinitionName: taskDefinition.name,
+      projectName: project.name,
+      companyName: company.name,
+      date: task.date,
+    })
+      .from(task)
+      .innerJoin(taskDefinition, eq(task.taskDefinitionId, taskDefinition.id))
+      .innerJoin(project, eq(taskDefinition.projectId, project.id))
+      .innerJoin(company, eq(project.companyId, company.id))
+      .where(eq(task.id, parseInt(activeTask.taskId)))
+      .limit(1)
+
+    const dbTask = dbTaskResult[0]
+    if (!dbTask) {
+      throw new Error(`Task not found: ${activeTask.taskId}`)
+    }
+
     return {
       success: true,
-      name: task.name,
-      project_name: task.project_name,
-      description: task.description,
-      date: task.date,
-      seconds: task.seconds,
+      taskId: activeTask.taskId,
+      description: activeTask.description,
+      date: dbTask.date.toISOString(),
+      seconds: activeTask.seconds,
       isActive: false,
+      name: dbTask.taskDefinitionName,
+      projectName: dbTask.projectName,
+      companyName: dbTask.companyName,
     }
   }
 
@@ -208,7 +320,9 @@ export const initIpcHandlers = (
     }
     const options = {}
     const pdfWriterResult = await win.webContents.printToPDF(options)
-    fs.writeFileSync(filepath, pdfWriterResult)
+    // Buffer is compatible with writeFileSync, but TypeScript types are strict
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    fs.writeFileSync(filepath, pdfWriterResult as any)
     evt.sender.send('on-pdf-export-file-saved', filepath)
     shell.openExternal('file://' + filepath)
   }
@@ -238,22 +352,22 @@ export const initIpcHandlers = (
   ipcMain.handle('editCompany', async (_, opts: DBEditCompanyOpts) =>
     editCompany(DB, opts),
   )
-  ipcMain.handle('deleteCompany', async (_, name: string) =>
-    deleteCompany(DB, name),
+  ipcMain.handle('deleteCompany', async (_, id: string) =>
+    deleteCompany(DB, id),
   )
 
   // Project handlers
-  ipcMain.handle('getProjects', async (_, companyName?: string) =>
-    getProjects(DB, companyName),
+  ipcMain.handle('getProjects', async (_, companyId?: string) =>
+    getProjects(DB, companyId),
   )
-  ipcMain.handle('addProject', async (_, name: string, companyName: string) =>
-    addProject(DB, name, companyName),
+  ipcMain.handle('addProject', async (_, name: string, companyId: string) =>
+    addProject(DB, name, companyId),
   )
   ipcMain.handle('editProject', async (_, opts: DBEditProjectOpts) =>
     editProject(DB, opts),
   )
-  ipcMain.handle('deleteProject', async (_, name: string) =>
-    deleteProject(DB, name),
+  ipcMain.handle('deleteProject', async (_, id: string) =>
+    deleteProject(DB, id),
   )
   ipcMain.handle(
     'addTaskDefinition',
@@ -268,8 +382,8 @@ export const initIpcHandlers = (
     async (_, opts: DBDeleteTaskDefinitionOpts) =>
       deleteTaskDefinition(DB, opts),
   )
-  ipcMain.handle('getTaskDefinitions', async (_, name: string) =>
-    getTaskDefinitions(DB, name),
+  ipcMain.handle('getTaskDefinitions', async (_, projectId: string) =>
+    getTaskDefinitions(DB, projectId),
   )
   ipcMain.handle('getAllTaskDefinitions', async () => getAllTaskDefinitions(DB))
   ipcMain.handle('addTask', async (_, opts: DBAddTaskOpts) => addTask(DB, opts))
@@ -280,25 +394,31 @@ export const initIpcHandlers = (
   ipcMain.handle('deleteTask', async (_, opts: DBDeleteTaskOpts) =>
     deleteTask(DB, opts),
   )
-  ipcMain.handle('getTasks', async (_, name: string) => getTasks(DB, name))
+  ipcMain.handle('getTasks', async (_, projectId: string) =>
+    getTasks(DB, projectId),
+  )
   ipcMain.handle(
     'getTasksByNameAndProject',
-    async (_, opts: { name: string; project_name: string }) =>
+    async (_, opts: { taskDefinitionId: string }) =>
       getTasksByNameAndProject(DB, opts),
   )
-  ipcMain.handle('getTasksToday', async (_, name: string) =>
-    getTasksToday(DB, name),
+  ipcMain.handle('getTaskById', async (_, id: string) => getTaskById(DB, id))
+  ipcMain.handle(
+    'getTaskByTaskDefinitionAndDate',
+    async (_, id: string, date: string) =>
+      getTaskByTaskDefinitionAndDate(DB, id, date),
   )
-  ipcMain.handle('getActiveTasks', () => getActiveTasks())
-  ipcMain.handle('startActiveTask', async (_, opts: ActiveTask) =>
-    startActiveTask(opts),
+  ipcMain.handle('getTasksToday', async (_, projectId: string) =>
+    getTasksToday(DB, projectId),
   )
-  ipcMain.handle('pauseActiveTask', async (_, opts: ActiveTask) =>
-    pauseActiveTask(opts),
+  ipcMain.handle('getActiveTasks', async () => getActiveTasks())
+  ipcMain.handle('startActiveTask', async (_, id: string) =>
+    startActiveTask(id),
   )
-  ipcMain.handle('stopActiveTask', async (_, opts: ActiveTask) =>
-    stopActiveTask(opts),
+  ipcMain.handle('pauseActiveTask', async (_, id: string) =>
+    pauseActiveTask(id),
   )
+  ipcMain.handle('stopActiveTask', async (_, id: string) => stopActiveTask(id))
   ipcMain.handle('getDataForPDFExport', async (_, opts: PDFQuery) =>
     getDataForPDFExport(DB, opts),
   )
@@ -307,18 +427,26 @@ export const initIpcHandlers = (
   )
 }
 
-export const getActiveTasksForSave = (): ActiveTask[] => {
+export const getActiveTasksForSave = (): Array<{
+  taskId: string
+  date: string
+  seconds: number
+}> => {
   return activeTasks.map(t => ({
-    name: t.name,
-    project_name: t.project_name,
-    description: t.description,
+    taskId: t.taskId,
     date: t.date,
     seconds: t.seconds,
-    isActive: t.isActive,
   }))
 }
 
-export const periodicSaveActiveTasks = async (db: PrismaClient) => {
-  const tasks = getActiveTasksForSave()
-  await saveActiveTasks(db, tasks)
+export const periodicSaveActiveTasks = async () => {
+  const activeTasksToSave = getActiveTasksForSave()
+  // Now we can use taskId directly
+  const validTasks = activeTasksToSave.map(task => ({
+    taskId: task.taskId,
+    date: task.date,
+    seconds: task.seconds,
+  }))
+
+  await saveActiveTasks(DB, validTasks)
 }
