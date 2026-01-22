@@ -32,49 +32,50 @@ import {
   getTasks,
   getTasksByNameAndProject,
   getTasksToday,
-  PrismaClient,
   saveActiveTask,
   saveActiveTasks,
+  getDatabase,
 } from '../database'
+import { drizzle } from 'drizzle-orm/better-sqlite3'
+import { task, taskDefinition, project, company } from '../db/schema'
+import { eq } from 'drizzle-orm'
 
-let DB: PrismaClient
+let DB: ReturnType<typeof drizzle>
 let WINDOW: BrowserWindow
 const activeTasks: InstanceType<typeof CountUp>[] = []
 
-export const initIpcHandlers = (
+export const initIpcHandlers = async (
   mainWindow: BrowserWindow,
-  db: PrismaClient,
-): void => {
+): Promise<void> => {
   WINDOW = mainWindow
-  DB = db
+  DB = await getDatabase()
 
   const getActiveTasks = async (): Promise<ActiveTask[]> => {
     return Promise.all(
       activeTasks.map(async t => {
         // Fetch task details from database to include name and projectName
-        const task = await DB.task.findUnique({
-          where: { id: parseInt(t.taskId, 10) },
-          include: {
-            taskDefinition: {
-              include: {
-                project: {
-                  include: {
-                    company: true,
-                  },
-                },
-              },
-            },
-          },
+        const taskResult = await DB.select({
+          taskDefinitionName: taskDefinition.name,
+          projectName: project.name,
+          companyName: company.name,
         })
+          .from(task)
+          .innerJoin(taskDefinition, eq(task.taskDefinitionId, taskDefinition.id))
+          .innerJoin(project, eq(taskDefinition.projectId, project.id))
+          .innerJoin(company, eq(project.companyId, company.id))
+          .where(eq(task.id, parseInt(t.taskId, 10)))
+          .limit(1)
+
+        const taskData = taskResult[0]
         return {
           taskId: t.taskId,
           description: t.description,
           date: t.date,
           seconds: t.seconds,
           isActive: t.isActive,
-          name: task?.taskDefinition.name || '',
-          projectName: task.taskDefinition.project.name,
-          companyName: task.taskDefinition.project.company.name,
+          name: taskData?.taskDefinitionName || '',
+          projectName: taskData?.projectName || '',
+          companyName: taskData?.companyName || '',
         }
       }),
     )
@@ -98,29 +99,35 @@ export const initIpcHandlers = (
   const startActiveTask = async (
     id: string,
   ): Promise<ActiveTask & { success: boolean }> => {
-    const task = getActiveTask(id)
-    if (!task) {
+    const activeTask = getActiveTask(id)
+    if (!activeTask) {
       // Fetch task details for response
-      const dbTask = await DB.task.findUnique({
-        where: { id: parseInt(id, 10) },
-        include: {
-          taskDefinition: {
-            include: {
-              project: {
-                include: {
-                  company: true,
-                },
-              },
-            },
-          },
-        },
+      const dbTaskResult = await DB.select({
+        taskDefinitionName: taskDefinition.name,
+        projectName: project.name,
+        companyName: company.name,
+        description: task.description,
+        date: task.date,
+        seconds: task.seconds,
       })
+        .from(task)
+        .innerJoin(taskDefinition, eq(task.taskDefinitionId, taskDefinition.id))
+        .innerJoin(project, eq(taskDefinition.projectId, project.id))
+        .innerJoin(company, eq(project.companyId, company.id))
+        .where(eq(task.id, parseInt(id, 10)))
+        .limit(1)
+
+      const dbTask = dbTaskResult[0]
+      if (!dbTask) {
+        throw new Error(`Task not found: ${id}`)
+      }
+
       const addedTask = addActiveTask({
-        name: dbTask.taskDefinition.name,
-        companyName: dbTask.taskDefinition.project.company.name,
-        projectName: dbTask.taskDefinition.project.name,
+        name: dbTask.taskDefinitionName,
+        companyName: dbTask.companyName,
+        projectName: dbTask.projectName,
         taskId: id,
-        description: dbTask.description,
+        description: dbTask.description || '',
         date: dbTask.date.toISOString(),
         seconds: dbTask.seconds,
         isActive: true,
@@ -129,68 +136,76 @@ export const initIpcHandlers = (
       return {
         success: true,
         taskId: id,
-        description: dbTask.taskDefinition.name,
+        description: dbTask.taskDefinitionName,
         date: dbTask.date.toISOString(),
         seconds: dbTask.seconds,
         isActive: true,
-        name: dbTask.taskDefinition.name,
-        projectName: dbTask.taskDefinition.project.name,
-        companyName: dbTask.taskDefinition.project.company.name,
+        name: dbTask.taskDefinitionName,
+        projectName: dbTask.projectName,
+        companyName: dbTask.companyName,
       }
     }
-    if (task.isActive) {
+    if (activeTask.isActive) {
       console.warn('task already active', id)
-      const dbTask = await DB.task.findUnique({
-        where: { id: parseInt(id, 10) },
-        include: {
-          taskDefinition: {
-            include: {
-              project: {
-                include: {
-                  company: true,
-                },
-              },
-            },
-          },
-        },
+      const dbTaskResult = await DB.select({
+        taskDefinitionName: taskDefinition.name,
+        projectName: project.name,
+        companyName: company.name,
+        date: task.date,
       })
+        .from(task)
+        .innerJoin(taskDefinition, eq(task.taskDefinitionId, taskDefinition.id))
+        .innerJoin(project, eq(taskDefinition.projectId, project.id))
+        .innerJoin(company, eq(project.companyId, company.id))
+        .where(eq(task.id, parseInt(id, 10)))
+        .limit(1)
+
+      const dbTask = dbTaskResult[0]
+      if (!dbTask) {
+        throw new Error(`Task not found: ${id}`)
+      }
+
       return {
         success: false,
         taskId: id,
-        description: task.description,
+        description: activeTask.description,
         date: dbTask.date.toISOString(),
-        seconds: task.seconds,
+        seconds: activeTask.seconds,
         isActive: true,
-        name: dbTask?.taskDefinition.name,
-        projectName: dbTask.taskDefinition.project.name,
-        companyName: dbTask.taskDefinition.project.company.name,
+        name: dbTask.taskDefinitionName,
+        projectName: dbTask.projectName,
+        companyName: dbTask.companyName,
       }
     } else {
-      task.start()
-      const dbTask = await DB.task.findUnique({
-        where: { id: parseInt(id, 10) },
-        include: {
-          taskDefinition: {
-            include: {
-              project: {
-                include: {
-                  company: true,
-                },
-              },
-            },
-          },
-        },
+      activeTask.start()
+      const dbTaskResult = await DB.select({
+        taskDefinitionName: taskDefinition.name,
+        projectName: project.name,
+        companyName: company.name,
+        date: task.date,
       })
+        .from(task)
+        .innerJoin(taskDefinition, eq(task.taskDefinitionId, taskDefinition.id))
+        .innerJoin(project, eq(taskDefinition.projectId, project.id))
+        .innerJoin(company, eq(project.companyId, company.id))
+        .where(eq(task.id, parseInt(id, 10)))
+        .limit(1)
+
+      const dbTask = dbTaskResult[0]
+      if (!dbTask) {
+        throw new Error(`Task not found: ${id}`)
+      }
+
       return {
         success: true,
         taskId: id,
-        description: task.description,
+        description: activeTask.description,
         date: dbTask.date.toISOString(),
-        seconds: dbTask.seconds,
+        seconds: activeTask.seconds,
         isActive: true,
-        name: dbTask.taskDefinition.name,
-        projectName: dbTask.taskDefinition.project.name,
-        companyName: dbTask.taskDefinition.project.company.name,
+        name: dbTask.taskDefinitionName,
+        projectName: dbTask.projectName,
+        companyName: dbTask.companyName,
       }
     }
   }
@@ -198,17 +213,17 @@ export const initIpcHandlers = (
   const stopActiveTask = async (
     id: string,
   ): Promise<(ActiveTask & { success: true }) | { success: false }> => {
-    const task = getActiveTask(id)
-    if (!task) {
+    const activeTask = getActiveTask(id)
+    if (!activeTask) {
       console.error('task not found', id)
       return { success: false }
     }
-    task.stop()
+    activeTask.stop()
     // Save using taskId directly
     await saveActiveTask(DB, {
-      taskId: task.taskId,
-      date: task.date,
-      seconds: task.seconds,
+      taskId: activeTask.taskId,
+      date: activeTask.date,
+      seconds: activeTask.seconds,
     })
     const idx = activeTasks.findIndex(t => t.taskId === id)
     const f = activeTasks.find(t => t.taskId === id)
@@ -216,20 +231,24 @@ export const initIpcHandlers = (
       const clone = Object.assign({}, f)
       activeTasks.splice(idx, 1)
       // Fetch task details for response
-      const dbTask = await DB.task.findUnique({
-        where: { id: parseInt(task.taskId, 10) },
-        include: {
-          taskDefinition: {
-            include: {
-              project: {
-                include: {
-                  company: true,
-                },
-              },
-            },
-          },
-        },
+      const dbTaskResult = await DB.select({
+        taskDefinitionName: taskDefinition.name,
+        projectName: project.name,
+        companyName: company.name,
+        date: task.date,
       })
+        .from(task)
+        .innerJoin(taskDefinition, eq(task.taskDefinitionId, taskDefinition.id))
+        .innerJoin(project, eq(taskDefinition.projectId, project.id))
+        .innerJoin(company, eq(project.companyId, company.id))
+        .where(eq(task.id, parseInt(activeTask.taskId, 10)))
+        .limit(1)
+
+      const dbTask = dbTaskResult[0]
+      if (!dbTask) {
+        throw new Error(`Task not found: ${activeTask.taskId}`)
+      }
+
       return {
         success: true,
         taskId: id,
@@ -237,9 +256,9 @@ export const initIpcHandlers = (
         date: dbTask.date.toISOString(),
         seconds: clone.seconds,
         isActive: false,
-        name: dbTask.taskDefinition.name,
-        projectName: dbTask.taskDefinition.project.name,
-        companyName: dbTask.taskDefinition.project.company.name,
+        name: dbTask.taskDefinitionName,
+        projectName: dbTask.projectName,
+        companyName: dbTask.companyName,
       }
     } else {
       return { success: false }
@@ -249,43 +268,47 @@ export const initIpcHandlers = (
   const pauseActiveTask = async (
     id: string,
   ): Promise<(ActiveTask & { success: true }) | { success: false }> => {
-    const task = getActiveTask(id)
-    if (!task) {
+    const activeTask = getActiveTask(id)
+    if (!activeTask) {
       console.error('task not found', id)
       return { success: false }
     }
-    task.pause()
+    activeTask.pause()
     // Save using taskId directly
     await saveActiveTask(DB, {
-      taskId: task.taskId,
-      date: task.date,
-      seconds: task.seconds,
+      taskId: activeTask.taskId,
+      date: activeTask.date,
+      seconds: activeTask.seconds,
     })
     // Fetch task details for response
-    const dbTask = await DB.task.findUnique({
-      where: { id: parseInt(task.taskId) },
-      include: {
-        taskDefinition: {
-          include: {
-            project: {
-              include: {
-                company: true,
-              },
-            },
-          },
-        },
-      },
+    const dbTaskResult = await DB.select({
+      taskDefinitionName: taskDefinition.name,
+      projectName: project.name,
+      companyName: company.name,
+      date: task.date,
     })
+      .from(task)
+      .innerJoin(taskDefinition, eq(task.taskDefinitionId, taskDefinition.id))
+      .innerJoin(project, eq(taskDefinition.projectId, project.id))
+      .innerJoin(company, eq(project.companyId, company.id))
+      .where(eq(task.id, parseInt(activeTask.taskId)))
+      .limit(1)
+
+    const dbTask = dbTaskResult[0]
+    if (!dbTask) {
+      throw new Error(`Task not found: ${activeTask.taskId}`)
+    }
+
     return {
       success: true,
-      taskId: task.taskId,
-      description: task.description,
+      taskId: activeTask.taskId,
+      description: activeTask.description,
       date: dbTask.date.toISOString(),
-      seconds: task.seconds,
+      seconds: activeTask.seconds,
       isActive: false,
-      name: dbTask.taskDefinition.name,
-      projectName: dbTask.taskDefinition.project.name,
-      companyName: dbTask.taskDefinition.project.company.name,
+      name: dbTask.taskDefinitionName,
+      projectName: dbTask.projectName,
+      companyName: dbTask.companyName,
     }
   }
 
@@ -297,7 +320,9 @@ export const initIpcHandlers = (
     }
     const options = {}
     const pdfWriterResult = await win.webContents.printToPDF(options)
-    fs.writeFileSync(filepath, pdfWriterResult)
+    // Buffer is compatible with writeFileSync, but TypeScript types are strict
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    fs.writeFileSync(filepath, pdfWriterResult as any)
     evt.sender.send('on-pdf-export-file-saved', filepath)
     shell.openExternal('file://' + filepath)
   }
@@ -414,7 +439,7 @@ export const getActiveTasksForSave = (): Array<{
   }))
 }
 
-export const periodicSaveActiveTasks = async (db: PrismaClient) => {
+export const periodicSaveActiveTasks = async () => {
   const activeTasksToSave = getActiveTasksForSave()
   // Now we can use taskId directly
   const validTasks = activeTasksToSave.map(task => ({
@@ -423,5 +448,5 @@ export const periodicSaveActiveTasks = async (db: PrismaClient) => {
     seconds: task.seconds,
   }))
 
-  await saveActiveTasks(db, validTasks)
+  await saveActiveTasks(DB, validTasks)
 }

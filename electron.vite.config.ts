@@ -11,7 +11,7 @@ export default defineConfig({
         input: {
           index: 'src/main/index.ts',
         },
-        external: ['./../generated/prisma/client', '@prisma/client'],
+        external: [],
       },
     },
   },

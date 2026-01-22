@@ -5,19 +5,14 @@ directories:
   buildResources: build
 files:
   - 'out/**/*'
-  - 'node_modules/@prisma/client/**/*'
-  - 'generated/**/*'
   - '!**/.vscode/*'
   - '!src/*'
   - '!electron.vite.config.{js,ts,mjs,cjs}'
   - '!{.eslintignore,.eslintrc.cjs,.prettierignore,.prettierrc.yaml,CHANGELOG.md,README.md}'
   - '!{.env,.env.*,.npmrc,pnpm-lock.yaml,bun.lock}'
   - '!{tsconfig.json,tsconfig.node.json}'
-  - '!prisma/schema.prisma'
-  - 'prisma/migrations/**'
-asarUnpack:
-  - 'generated/prisma/client/*'
-  - 'node_modules/@prisma/client/*'
+  - '!prisma/**'
+  - '!drizzle/**'
 win:
   executableName: timetrack
   icon: resources/icon.ico

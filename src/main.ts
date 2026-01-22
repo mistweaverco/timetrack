@@ -24,17 +24,17 @@ import {
   editTaskDefinition,
   getAllTaskDefinitions,
   getDataForPDFExport,
-  getPrismaClient,
+  getDatabase,
   getProjects,
   getSearchResult,
   getTaskDefinitions,
   getTasks,
   getTasksByNameAndProject,
   getTasksToday,
-  PrismaClient,
   saveActiveTask,
   saveActiveTasks,
 } from './database'
+import { drizzle } from 'drizzle-orm/better-sqlite3'
 
 // if first time install on windows, do not run application, rather
 // let squirrel installer do its work
@@ -43,7 +43,7 @@ if (windowsInstallerSetupEvents()) {
 }
 
 let WINDOW: BrowserWindow = null
-let DB: PrismaClient
+let DB: ReturnType<typeof drizzle>
 const activeTasks: InstanceType<typeof CountUp>[] = []
 
 const getPDFExport = async (evt: IpcMainInvokeEvent, filepath: string) => {
@@ -437,7 +437,7 @@ const setupIPCHandles = async () => {
 }
 
 const onWhenReady = async () => {
-  DB = await getPrismaClient()
+  DB = await getDatabase()
 
   await setupIPCHandles()
 
@@ -452,7 +452,6 @@ app.whenReady().then(onWhenReady)
 
 const onWindowAllClosed = async () => {
   await periodicSaveActiveTasks()
-  await DB.$disconnect()
   if (process.platform !== 'darwin') {
     app.quit()
   }

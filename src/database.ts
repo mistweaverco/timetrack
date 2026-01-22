@@ -1,14 +1,20 @@
-export { PrismaClient } from './../generated/prisma/client'
-import { type Prisma, PrismaClient } from './../generated/prisma/client'
-import { PrismaBetterSqlite3 } from '@prisma/adapter-better-sqlite3'
+import { drizzle } from 'drizzle-orm/better-sqlite3'
+import Database from 'better-sqlite3'
 import logger from 'node-color-log'
-import path from 'node:path'
-import { execSync } from 'child_process'
+import fs from 'fs'
+import path from 'path'
 import { getDBFilePath } from './lib/ConfigFile'
-import { schema } from '@prisma/migrate'
-import { app } from 'electron'
+import {
+  status,
+  company,
+  project,
+  taskDefinition,
+  task,
+} from './db/schema'
+import { eq, and, gte, lt, like, sql, inArray } from 'drizzle-orm'
+import { migrate } from 'drizzle-orm/better-sqlite3/migrator'
 
-let prisma: PrismaClient
+let db: ReturnType<typeof drizzle> | null = null
 
 type Task = {
   taskId: string
@@ -16,112 +22,140 @@ type Task = {
   seconds: number
 }
 
-export const getPrismaClient = async (): Promise<PrismaClient> => {
-  if (!prisma) {
+export const getDatabase = async () => {
+  if (!db) {
     await initDB()
   }
-  return prisma
+  return db!
 }
 
 // Helper function to get or create status
-// Works with both PrismaClient and transaction clients
 const getOrCreateStatus = async (
-  prisma: PrismaClient,
+  db: ReturnType<typeof drizzle>,
   statusName: string,
 ): Promise<number> => {
-  let status = await prisma.status.findUnique({
-    where: { name: statusName },
-  })
+  const existingStatus = await db
+    .select()
+    .from(status)
+    .where(eq(status.name, statusName))
+    .limit(1)
 
-  if (!status) {
-    status = await prisma.status.create({
-      data: { name: statusName },
-    })
+  if (existingStatus.length > 0) {
+    return existingStatus[0].id
   }
 
-  return status.id
+  const result = await db
+    .insert(status)
+    .values({ name: statusName })
+    .returning({ id: status.id })
+
+  return result[0].id
 }
 
-const initDB = async (): Promise<PrismaClient> => {
+const initDB = async () => {
   const sqlFilePath = await getDBFilePath()
 
-  process.env.DATABASE_URL = `file:${sqlFilePath}`
+  logger.info('🗃️ Initializing database with Drizzle...')
 
-  // Regenerate Prisma client first to ensure types match schema
-  logger.info('🗃️ Regenerating Prisma client...')
+  // Create SQLite database connection
+  const sqlite = new Database(sqlFilePath)
+  
+  // Enable foreign keys
+  sqlite.pragma('foreign_keys = ON')
+
+  // Create Drizzle instance
+  db = drizzle(sqlite)
+
+  // Try to run migrations programmatically, but fall back to creating tables if migrations don't exist
   try {
-    execSync(
-      `${path.join('node_modules', 'prisma', 'build', 'index.js')} generate`,
-      {
-        env: { ...process.env, DATABASE_URL: `file:${sqlFilePath}` },
-        stdio: 'pipe',
-        cwd: path.join(process.resourcesPath, 'app.asar.unpacked'),
-      },
-    )
-    logger.info('🗃️ Prisma client generated')
-  } catch (genError) {
-    logger.error('📢 Error generating Prisma client:', genError)
-    throw genError
-  }
-
-  logger.info('🗃️ Pushing database schema with Prisma...')
-  try {
-    // Push the schema to create a fresh database
-    execSync(
-      `${path.join(
-        'node_modules',
-        'prisma',
-        'build',
-        'index.js',
-      )} db push --accept-data-loss`,
-      {
-        env: { ...process.env, DATABASE_URL: `file:${sqlFilePath}` },
-        stdio: 'pipe',
-        cwd: path.join(process.resourcesPath, 'app.asar.unpacked'),
-      },
-    )
-    logger.info('🗃️ Database schema pushed successfully')
-  } catch (pushError) {
-    logger.error('📢 Error pushing schema:', pushError)
-    // Re-throw to prevent app from starting with invalid database
-    throw pushError
-  }
-
-  // Create Prisma client after schema is pushed and client is regenerated
-  const adapter = new PrismaBetterSqlite3({
-    url: process.env.DATABASE_URL!,
-  })
-  prisma = new PrismaClient({ adapter })
-
-  try {
-    // Test connection
-    await prisma.$connect()
-    await prisma.$executeRawUnsafe('PRAGMA foreign_keys = ON')
-
-    // Initialize default statuses if they don't exist
-    try {
-      await getOrCreateStatus(prisma, 'active')
-      await getOrCreateStatus(prisma, 'inactive')
-      logger.info('🗃️ Default statuses initialized')
-    } catch (statusError) {
-      logger.warn(
-        '⚠️ Error initializing default statuses (they may already exist):',
-        statusError,
-      )
-      // Don't throw - statuses might already exist from a previous run
+    const migrationsPath = path.join(process.cwd(), 'drizzle')
+    
+    // Check if migrations folder exists
+    if (fs.existsSync(migrationsPath)) {
+      logger.info('🗃️ Running database migrations...')
+      migrate(db, { migrationsFolder: migrationsPath })
+      logger.info('🗃️ Database migrations completed')
+    } else {
+      logger.info('🗃️ No migrations folder found, creating tables directly...')
+      createTablesIfNotExist(db, sqlite)
     }
-
-    logger.info('🗃️ Database connected successfully')
-  } catch (err) {
-    logger.error('📢 Error connecting to database file:', sqlFilePath, err)
-    throw err
+  } catch (migrateError) {
+    logger.warn('⚠️ Migration error, creating tables directly:', migrateError)
+    // If migrations fail, try to create tables manually
+    try {
+      createTablesIfNotExist(db, sqlite)
+    } catch (createError) {
+      logger.error('📢 Error creating tables:', createError)
+      throw createError
+    }
   }
 
-  return prisma
+  try {
+    // Initialize default statuses if they don't exist
+    await getOrCreateStatus(db, 'active')
+    await getOrCreateStatus(db, 'inactive')
+    logger.info('🗃️ Default statuses initialized')
+  } catch (statusError) {
+    logger.warn(
+      '⚠️ Error initializing default statuses (they may already exist):',
+      statusError,
+    )
+    // Don't throw - statuses might already exist from a previous run
+  }
+
+  logger.info('🗃️ Database connected successfully')
+  return db
+}
+
+// Fallback function to create tables if migrations don't work
+const createTablesIfNotExist = (
+  db: ReturnType<typeof drizzle>,
+  sqlite: Database.Database,
+) => {
+  sqlite.exec(`
+    CREATE TABLE IF NOT EXISTS Status (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL UNIQUE
+    );
+
+    CREATE TABLE IF NOT EXISTS Company (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL UNIQUE,
+      statusId INTEGER NOT NULL REFERENCES Status(id) ON DELETE RESTRICT
+    );
+
+    CREATE TABLE IF NOT EXISTS Project (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      companyId INTEGER NOT NULL REFERENCES Company(id) ON DELETE CASCADE,
+      statusId INTEGER NOT NULL REFERENCES Status(id) ON DELETE RESTRICT,
+      UNIQUE(name, companyId)
+    );
+
+    CREATE TABLE IF NOT EXISTS TaskDefinition (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      projectId INTEGER NOT NULL REFERENCES Project(id) ON DELETE CASCADE,
+      statusId INTEGER NOT NULL REFERENCES Status(id) ON DELETE RESTRICT,
+      UNIQUE(name, projectId)
+    );
+
+    CREATE TABLE IF NOT EXISTS Task (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      taskDefinitionId INTEGER NOT NULL REFERENCES TaskDefinition(id) ON DELETE CASCADE,
+      description TEXT,
+      date INTEGER NOT NULL,
+      seconds INTEGER NOT NULL DEFAULT 0,
+      statusId INTEGER NOT NULL REFERENCES Status(id) ON DELETE RESTRICT,
+      UNIQUE(taskDefinitionId, date)
+    );
+
+    CREATE INDEX IF NOT EXISTS tasks_task_def_date_IDX ON Task(taskDefinitionId, date);
+  `)
 }
 
 const getTaskByTaskDefinitionAndDate = async (
-  prisma: PrismaClient,
+  db: ReturnType<typeof drizzle>,
   taskDefinitionId: string,
   date: string,
 ): Promise<DBTask | null> => {
@@ -136,75 +170,90 @@ const getTaskByTaskDefinitionAndDate = async (
     0,
   )
 
-  const task = await prisma.task.findFirst({
-    where: {
-      taskDefinitionId: parseInt(taskDefinitionId),
-      date: targetDate,
-    },
-    include: {
-      taskDefinition: {
-        include: {
-          project: true,
-        },
-      },
-      status: true,
-    },
-  })
+  const result = await db
+    .select({
+      id: task.id,
+      taskDefinitionId: task.taskDefinitionId,
+      description: task.description,
+      seconds: task.seconds,
+      date: task.date,
+      status: status.name,
+      taskDefinitionName: taskDefinition.name,
+      projectName: project.name,
+    })
+    .from(task)
+    .innerJoin(taskDefinition, eq(task.taskDefinitionId, taskDefinition.id))
+    .innerJoin(project, eq(taskDefinition.projectId, project.id))
+    .innerJoin(status, eq(task.statusId, status.id))
+    .where(
+      and(
+        eq(task.taskDefinitionId, parseInt(taskDefinitionId)),
+        eq(task.date, targetDate),
+      ),
+    )
+    .limit(1)
 
-  if (!task) {
+  if (result.length === 0) {
     return null
   }
+
+  const t = result[0]
   return {
-    id: task.id.toString(),
-    name: task.taskDefinition.name,
-    taskDefinitionId: task.taskDefinitionId.toString(),
-    projectName: task.taskDefinition.project.name,
-    description: task.description || '',
-    seconds: task.seconds,
-    date: task.date.toISOString().split('T')[0],
-    status: task.status.name,
+    id: t.id.toString(),
+    name: t.taskDefinitionName,
+    taskDefinitionId: t.taskDefinitionId.toString(),
+    projectName: t.projectName,
+    description: t.description || '',
+    seconds: t.seconds,
+    date: t.date.toISOString().split('T')[0],
+    status: t.status,
   }
 }
 
 const getTaskById = async (
-  prisma: PrismaClient,
+  db: ReturnType<typeof drizzle>,
   taskId: string,
 ): Promise<DBTask | null> => {
-  const task = await prisma.task.findUnique({
-    where: { id: parseInt(taskId, 10) },
-    include: {
-      taskDefinition: {
-        include: {
-          project: {
-            include: {
-              company: true,
-            },
-          },
-        },
-      },
-      status: true,
-    },
-  })
+  const result = await db
+    .select({
+      id: task.id,
+      taskDefinitionId: task.taskDefinitionId,
+      description: task.description,
+      seconds: task.seconds,
+      date: task.date,
+      status: status.name,
+      taskDefinitionName: taskDefinition.name,
+      projectName: project.name,
+      companyName: company.name,
+    })
+    .from(task)
+    .innerJoin(taskDefinition, eq(task.taskDefinitionId, taskDefinition.id))
+    .innerJoin(project, eq(taskDefinition.projectId, project.id))
+    .innerJoin(company, eq(project.companyId, company.id))
+    .innerJoin(status, eq(task.statusId, status.id))
+    .where(eq(task.id, parseInt(taskId, 10)))
+    .limit(1)
 
-  if (!task) {
+  if (result.length === 0) {
     return null
   }
 
+  const t = result[0]
   return {
-    id: task.id.toString(),
-    name: task.taskDefinition.name,
-    taskDefinitionId: task.taskDefinitionId.toString(),
-    projectName: task.taskDefinition.project.name,
-    companyName: task.taskDefinition.project.company.name,
-    description: task.description || '',
-    seconds: task.seconds,
-    date: task.date.toISOString().split('T')[0],
-    status: task.status.name,
+    id: t.id.toString(),
+    name: t.taskDefinitionName,
+    taskDefinitionId: t.taskDefinitionId.toString(),
+    projectName: t.projectName,
+    companyName: t.companyName,
+    description: t.description || '',
+    seconds: t.seconds,
+    date: t.date.toISOString().split('T')[0],
+    status: t.status,
   }
 }
 
 const getSearchResult = async (
-  prisma: PrismaClient,
+  db: ReturnType<typeof drizzle>,
   q: SearchQuery,
 ): Promise<SearchQueryResult> => {
   const project_name = q.task.project_name.replace(/\*/g, '%')
@@ -223,99 +272,118 @@ const getSearchResult = async (
   // Filter by status if specified
   let statusId: number | undefined
   if (q.active_state === 'active' || q.active_state === 'inactive') {
-    const status = await prisma.status.findUnique({
-      where: { name: q.active_state },
-    })
-    statusId = status?.id
+    const statusResult = await db
+      .select()
+      .from(status)
+      .where(eq(status.name, q.active_state))
+      .limit(1)
+    statusId = statusResult[0]?.id
   }
 
-  const statusFilter = statusId ? { statusId } : {}
-
   if (q.search_in.includes('companies')) {
-    const companies = await prisma.company.findMany({
-      where: {
-        name: {
-          contains: company_name.replace(/%/g, ''),
-        },
-        ...statusFilter,
-      },
-      include: {
-        status: true,
-      },
-    })
+    let query = db
+      .select({
+        id: company.id,
+        name: company.name,
+        status: status.name,
+      })
+      .from(company)
+      .innerJoin(status, eq(company.statusId, status.id))
+
+    if (company_name !== '%' && company_name !== '*') {
+      query = query.where(like(company.name, `%${company_name.replace(/%/g, '')}%`)) as any
+    }
+
+    if (statusId) {
+      query = query.where(eq(company.statusId, statusId)) as any
+    }
+
+    const companies = await query
     results.companies = companies.map(c => ({
       id: c.id.toString(),
       name: c.name,
-      status: c.status.name,
+      status: c.status,
     }))
   }
 
   if (q.search_in.includes('projects')) {
-    const whereClause: Prisma.ProjectWhereInput = {
-      name: {
-        contains: project_name.replace(/%/g, ''),
-      },
-      ...statusFilter,
-    }
+    let query = db
+      .select({
+        id: project.id,
+        name: project.name,
+        companyId: project.companyId,
+        companyName: company.name,
+        status: status.name,
+      })
+      .from(project)
+      .innerJoin(company, eq(project.companyId, company.id))
+      .innerJoin(status, eq(project.statusId, status.id))
 
-    // If company name filter is specified, filter by company
+    const conditions = []
+    if (project_name !== '%' && project_name !== '*') {
+      conditions.push(like(project.name, `%${project_name.replace(/%/g, '')}%`))
+    }
     if (company_name !== '%' && company_name !== '*') {
-      whereClause.company = {
-        name: {
-          contains: company_name.replace(/%/g, ''),
-        },
-      }
+      conditions.push(like(company.name, `%${company_name.replace(/%/g, '')}%`))
+    }
+    if (statusId) {
+      conditions.push(eq(project.statusId, statusId))
     }
 
-    const projects = await prisma.project.findMany({
-      where: whereClause,
-      include: {
-        company: true,
-        status: true,
-      },
-    })
+    if (conditions.length > 0) {
+      query = query.where(and(...conditions)) as any
+    }
+
+    const projects = await query
     results.projects = projects.map(p => ({
       id: p.id.toString(),
       name: p.name,
       companyId: p.companyId.toString(),
-      companyName: p.company.name,
-      company: { id: p.company.id.toString(), name: p.company.name },
-      status: p.status.name,
+      companyName: p.companyName,
+      company: { id: p.companyId.toString(), name: p.companyName },
+      status: p.status,
     }))
   }
 
   if (q.search_in.includes('task_definitions')) {
-    const whereClause: Prisma.TaskDefinitionWhereInput = {
-      name: {
-        contains: task_definition_name.replace(/%/g, ''),
-      },
-      project: {
-        name: {
-          contains: project_name.replace(/%/g, ''),
-        },
-      },
-      ...statusFilter,
+    const conditions = []
+    if (task_definition_name !== '%' && task_definition_name !== '*') {
+      conditions.push(like(taskDefinition.name, `%${task_definition_name.replace(/%/g, '')}%`))
+    }
+    if (project_name !== '%' && project_name !== '*') {
+      conditions.push(like(project.name, `%${project_name.replace(/%/g, '')}%`))
+    }
+    if (statusId) {
+      conditions.push(eq(taskDefinition.statusId, statusId))
     }
 
-    const taskDefs = await prisma.taskDefinition.findMany({
-      where: whereClause,
-      include: {
-        project: true,
-        status: true,
-      },
-    })
+    let query = db
+      .select({
+        id: taskDefinition.id,
+        name: taskDefinition.name,
+        projectId: taskDefinition.projectId,
+        projectName: project.name,
+        status: status.name,
+      })
+      .from(taskDefinition)
+      .innerJoin(project, eq(taskDefinition.projectId, project.id))
+      .innerJoin(status, eq(taskDefinition.statusId, status.id))
+
+    if (conditions.length > 0) {
+      query = query.where(and(...conditions)) as any
+    }
+
+    const taskDefs = await query
     results.task_definitions = taskDefs.map(td => ({
       id: td.id.toString(),
       name: td.name,
       projectId: td.projectId.toString(),
-      projectName: td.project.name,
-      status: td.status.name,
+      projectName: td.projectName,
+      status: td.status,
     }))
   }
 
   if (q.search_in.includes('tasks')) {
-    // Parse dates and set to start of day for from_date
-    // and start of next day for to_date (using lt instead of lte)
     const fromDateParts = q.from_date.split('-')
     const toDateParts = q.to_date.split('-')
 
@@ -341,47 +409,50 @@ const getSearchResult = async (
     const toDateEnd = new Date(toDate)
     toDateEnd.setDate(toDateEnd.getDate() + 1)
 
-    const whereClause: Prisma.TaskWhereInput = {
-      date: {
-        gte: fromDate,
-        lt: toDateEnd,
-      },
-      taskDefinition: {
-        name: {
-          contains: task_name.replace(/%/g, ''),
-        },
-        project: {
-          name: {
-            contains: project_name.replace(/%/g, ''),
-          },
-        },
-      },
-      description: {
-        contains: task_description.replace(/%/g, ''),
-      },
-      ...statusFilter,
+    const conditions = [
+      gte(task.date, fromDate),
+      lt(task.date, toDateEnd),
+    ]
+
+    if (task_name !== '%' && task_name !== '*') {
+      conditions.push(like(taskDefinition.name, `%${task_name.replace(/%/g, '')}%`))
+    }
+    if (project_name !== '%' && project_name !== '*') {
+      conditions.push(like(project.name, `%${project_name.replace(/%/g, '')}%`))
+    }
+    if (task_description !== '%' && task_description !== '*') {
+      conditions.push(like(task.description, `%${task_description.replace(/%/g, '')}%`))
+    }
+    if (statusId) {
+      conditions.push(eq(task.statusId, statusId))
     }
 
-    const tasks = await prisma.task.findMany({
-      where: whereClause,
-      include: {
-        taskDefinition: {
-          include: {
-            project: true,
-          },
-        },
-        status: true,
-      },
-    })
+    const tasks = await db
+      .select({
+        id: task.id,
+        taskDefinitionId: task.taskDefinitionId,
+        description: task.description,
+        seconds: task.seconds,
+        date: task.date,
+        status: status.name,
+        taskDefinitionName: taskDefinition.name,
+        projectName: project.name,
+      })
+      .from(task)
+      .innerJoin(taskDefinition, eq(task.taskDefinitionId, taskDefinition.id))
+      .innerJoin(project, eq(taskDefinition.projectId, project.id))
+      .innerJoin(status, eq(task.statusId, status.id))
+      .where(and(...conditions))
+
     results.tasks = tasks.map(t => ({
       id: t.id.toString(),
-      name: t.taskDefinition.name,
+      name: t.taskDefinitionName,
       taskDefinitionId: t.taskDefinitionId.toString(),
-      projectName: t.taskDefinition.project.name,
+      projectName: t.projectName,
       date: t.date.toISOString().split('T')[0],
       description: t.description || '',
       seconds: t.seconds,
-      status: t.status.name,
+      status: t.status,
     }))
   }
 
@@ -389,11 +460,9 @@ const getSearchResult = async (
 }
 
 const getDataForPDFExport = async (
-  prisma: PrismaClient,
+  db: ReturnType<typeof drizzle>,
   q: PDFQuery,
 ): Promise<PDFQueryResult[]> => {
-  // Parse date strings as local dates (YYYY-MM-DD format)
-  // Create dates at local midnight to match how tasks are stored
   const fromDateParts = q.from.split('-')
   const toDateParts = q.to.split('-')
 
@@ -420,377 +489,341 @@ const getDataForPDFExport = async (
   toDateEnd.setDate(toDateEnd.getDate() + 1)
 
   logger.info(
-    `PDF Export query: from=${q.from}, to=${q.to}, tasks=${JSON.stringify(
-      q.tasks,
-    )}`,
+    `PDF Export query: from=${q.from}, to=${q.to}, tasks=${JSON.stringify(q.tasks)}`,
   )
   logger.info(
     `PDF Export date range: ${fromDate.toISOString()} to ${toDateEnd.toISOString()}`,
   )
 
-  // Build OR conditions for each task (name + project_name combination)
-  // First, find all matching task definitions
-  const taskDefIds = await Promise.all(
-    q.tasks.map(async task => {
-      const project = await prisma.project.findFirst({
-        where: {
-          name: task.project_name,
-        },
-      })
+  // Find all matching task definitions
+  const taskDefIds: number[] = []
+  for (const taskQuery of q.tasks) {
+    const projectResult = await db
+      .select()
+      .from(project)
+      .where(eq(project.name, taskQuery.project_name))
+      .limit(1)
 
-      if (!project) {
-        return null
-      }
+    if (projectResult.length === 0) {
+      continue
+    }
 
-      const taskDef = await prisma.taskDefinition.findFirst({
-        where: {
-          name: task.name,
-          project: {
-            id: project.id,
-          },
-        },
-      })
+    const taskDefResult = await db
+      .select()
+      .from(taskDefinition)
+      .where(
+        and(
+          eq(taskDefinition.name, taskQuery.name),
+          eq(taskDefinition.projectId, projectResult[0].id),
+        ),
+      )
+      .limit(1)
 
-      return taskDef ? taskDef.id : null
-    }),
-  )
+    if (taskDefResult.length > 0) {
+      taskDefIds.push(taskDefResult[0].id)
+    }
+  }
 
-  const validTaskDefIds = taskDefIds.filter((id): id is bigint => id !== null)
+  logger.info(`Task definition IDs:`, taskDefIds.map(id => id.toString()))
 
-  logger.info(
-    `Task definition IDs:`,
-    validTaskDefIds.map(id => id.toString()),
-  )
+  if (taskDefIds.length === 0) {
+    return []
+  }
 
-  // Debug: Check what tasks exist for the selected project/name combination (any date)
-  const allTasksForProjectAndName = await prisma.task.findMany({
-    where: {
-      taskDefinition: {
-        id: {
-          in: validTaskDefIds,
-        },
-      },
-    },
-    include: {
-      taskDefinition: {
-        include: {
-          project: true,
-        },
-      },
-      status: true,
-    },
-    take: 20,
-  })
-
-  logger.info(
-    `Found ${allTasksForProjectAndName.length} tasks matching name/project (any date). Sample dates:`,
-    allTasksForProjectAndName.map(t => ({
-      dateStr: t.date.toISOString().split('T')[0],
-      dateISO: t.date.toISOString(),
-      dateValue: t.date.getTime(),
-    })),
-  )
-
-  logger.info(
-    `Date range for comparison: fromDate=${fromDate.getTime()} (${fromDate.toISOString()}), toDateEnd=${toDateEnd.getTime()} (${toDateEnd.toISOString()})`,
-  )
-
-  const res = await prisma.task.findMany({
-    where: {
-      date: {
-        gte: fromDate,
-        lt: toDateEnd,
-      },
-      taskDefinition: {
-        id: {
-          in: validTaskDefIds,
-        },
-      },
-    },
-    include: {
-      taskDefinition: {
-        include: {
-          project: true,
-        },
-      },
-      status: true,
-    },
-  })
+  const res = await db
+    .select({
+      name: taskDefinition.name,
+      projectName: project.name,
+      date: task.date,
+      description: task.description,
+      seconds: task.seconds,
+    })
+    .from(task)
+    .innerJoin(taskDefinition, eq(task.taskDefinitionId, taskDefinition.id))
+    .innerJoin(project, eq(taskDefinition.projectId, project.id))
+    .where(
+      and(
+        gte(task.date, fromDate),
+        lt(task.date, toDateEnd),
+        inArray(task.taskDefinitionId, taskDefIds),
+      ),
+    )
 
   logger.info(`PDF Export found ${res.length} tasks matching criteria`)
 
   return res.map(t => ({
-    name: t.taskDefinition.name,
-    projectName: t.taskDefinition.project.name,
+    name: t.name,
+    projectName: t.projectName,
     date: t.date.toISOString().split('T')[0],
     description: t.description || '',
     seconds: t.seconds,
   }))
 }
 
-const saveActiveTask = async (prisma: PrismaClient, task: Task) => {
-  // Use taskId directly to update
-  await prisma.task.update({
-    where: {
-      id: parseInt(task.taskId, 10),
-    },
-    data: {
-      seconds: task.seconds,
-    },
-  })
+const saveActiveTask = async (db: ReturnType<typeof drizzle>, taskData: Task) => {
+  await db
+    .update(task)
+    .set({ seconds: taskData.seconds })
+    .where(eq(task.id, parseInt(taskData.taskId, 10)))
 }
 
-const saveActiveTasks = async (prisma: PrismaClient, tasks: Task[]) => {
+const saveActiveTasks = async (db: ReturnType<typeof drizzle>, tasks: Task[]) => {
   await Promise.all(
-    tasks.map(async task => {
-      // Use taskId directly to update
-      await prisma.task.update({
-        where: {
-          id: parseInt(task.taskId),
-        },
-        data: {
-          seconds: task.seconds,
-        },
-      })
+    tasks.map(async taskData => {
+      await db
+        .update(task)
+        .set({ seconds: taskData.seconds })
+        .where(eq(task.id, parseInt(taskData.taskId)))
     }),
   )
 }
 
 // Company functions
-const getCompanies = async (prisma: PrismaClient): Promise<DBCompany[]> => {
-  const companies = await prisma.company.findMany({
-    include: {
-      status: true,
-    },
-  })
+const getCompanies = async (db: ReturnType<typeof drizzle>): Promise<DBCompany[]> => {
+  const companies = await db
+    .select({
+      id: company.id,
+      name: company.name,
+      status: status.name,
+    })
+    .from(company)
+    .innerJoin(status, eq(company.statusId, status.id))
+
   return companies.map(c => ({
     id: c.id.toString(),
     name: c.name,
-    status: c.status.name,
+    status: c.status,
   }))
 }
 
-const addCompany = async (prisma: PrismaClient, name: string) => {
-  const activeStatusId = await getOrCreateStatus(prisma, 'active')
-  const company = await prisma.company.create({
-    data: {
+const addCompany = async (db: ReturnType<typeof drizzle>, name: string) => {
+  const activeStatusId = await getOrCreateStatus(db, 'active')
+  const result = await db
+    .insert(company)
+    .values({
       name,
       statusId: activeStatusId,
-    },
-  })
-  return { success: true, id: company.id.toString() }
+    })
+    .returning({ id: company.id })
+
+  return { success: true, id: result[0].id.toString() }
 }
 
-const editCompany = async (prisma: PrismaClient, opts: DBEditCompanyOpts) => {
+const editCompany = async (db: ReturnType<typeof drizzle>, opts: DBEditCompanyOpts) => {
   const updateData: { name: string; statusId?: number } = { name: opts.name }
   if (opts.status !== undefined) {
-    const statusId = await getOrCreateStatus(prisma, opts.status)
+    const statusId = await getOrCreateStatus(db, opts.status)
     updateData.statusId = statusId
   }
 
-  await prisma.company.update({
-    where: { id: parseInt(opts.id) },
-    data: updateData,
-  })
+  await db
+    .update(company)
+    .set(updateData)
+    .where(eq(company.id, parseInt(opts.id)))
+
   return { success: true }
 }
 
-const deleteCompany = async (prisma: PrismaClient, id: string) => {
-  await prisma.company.delete({
-    where: { id: parseInt(id) },
-  })
+const deleteCompany = async (db: ReturnType<typeof drizzle>, id: string) => {
+  await db.delete(company).where(eq(company.id, parseInt(id)))
   return { success: true }
 }
 
 // Project functions
 const getProjects = async (
-  prisma: PrismaClient,
+  db: ReturnType<typeof drizzle>,
   companyId?: string,
 ): Promise<DBProject[]> => {
-  const projects = await prisma.project.findMany({
-    include: {
-      company: true,
-      status: true,
-    },
-    where: companyId ? { companyId: parseInt(companyId) } : undefined,
-  })
+  let query = db
+    .select({
+      id: project.id,
+      name: project.name,
+      companyId: project.companyId,
+      companyName: company.name,
+      status: status.name,
+    })
+    .from(project)
+    .innerJoin(company, eq(project.companyId, company.id))
+    .innerJoin(status, eq(project.statusId, status.id))
+
+  if (companyId) {
+    query = query.where(eq(project.companyId, parseInt(companyId))) as any
+  }
+
+  const projects = await query
   return projects.map(p => ({
     id: p.id.toString(),
     name: p.name,
     companyId: p.companyId.toString(),
-    companyName: p.company.name,
-    company: { id: p.company.id.toString(), name: p.company.name },
-    status: p.status.name,
+    companyName: p.companyName,
+    company: { id: p.companyId.toString(), name: p.companyName },
+    status: p.status,
   }))
 }
 
 const addProject = async (
-  prisma: PrismaClient,
+  db: ReturnType<typeof drizzle>,
   name: string,
   companyId: string,
 ) => {
-  const activeStatusId = await getOrCreateStatus(prisma, 'active')
-  const project = await prisma.project.create({
-    data: {
+  const activeStatusId = await getOrCreateStatus(db, 'active')
+  const result = await db
+    .insert(project)
+    .values({
       name,
-      company: {
-        connect: { id: parseInt(companyId) },
-      },
-      status: {
-        connect: { id: activeStatusId },
-      },
-    },
-  })
-  return { success: true, id: project.id.toString() }
+      companyId: parseInt(companyId),
+      statusId: activeStatusId,
+    })
+    .returning({ id: project.id })
+
+  return { success: true, id: result[0].id.toString() }
 }
 
-const editProject = async (prisma: PrismaClient, opts: DBEditProjectOpts) => {
+const editProject = async (db: ReturnType<typeof drizzle>, opts: DBEditProjectOpts) => {
   const updateData: {
     name: string
-    company: { connect: { id: number } }
-    status?: { connect: { id: number } }
+    companyId: number
+    statusId?: number
   } = {
     name: opts.name,
-    company: {
-      connect: { id: parseInt(opts.companyId) },
-    },
+    companyId: parseInt(opts.companyId),
   }
   if (opts.status !== undefined) {
-    const statusId = await getOrCreateStatus(prisma, opts.status)
-    updateData.status = {
-      connect: { id: statusId },
-    }
+    const statusId = await getOrCreateStatus(db, opts.status)
+    updateData.statusId = statusId
   }
 
-  await prisma.project.update({
-    where: { id: parseInt(opts.id) },
-    data: updateData,
-  })
+  await db
+    .update(project)
+    .set(updateData)
+    .where(eq(project.id, parseInt(opts.id)))
+
   return { success: true }
 }
 
-const deleteProject = async (prisma: PrismaClient, id: string) => {
-  await prisma.project.delete({
-    where: { id: parseInt(id) },
-  })
+const deleteProject = async (db: ReturnType<typeof drizzle>, id: string) => {
+  await db.delete(project).where(eq(project.id, parseInt(id)))
   return { success: true }
 }
 
 const addTaskDefinition = async (
-  prisma: PrismaClient,
+  db: ReturnType<typeof drizzle>,
   opts: DBAddTaskDefinitionOpts,
 ) => {
-  const activeStatusId = await getOrCreateStatus(prisma, 'active')
-  const taskDef = await prisma.taskDefinition.create({
-    data: {
+  const activeStatusId = await getOrCreateStatus(db, 'active')
+  const result = await db
+    .insert(taskDefinition)
+    .values({
       name: opts.name,
-      project: {
-        connect: { id: parseInt(opts.projectId) },
-      },
-      status: {
-        connect: { id: activeStatusId },
-      },
-    },
-  })
-  return { success: true, id: taskDef.id.toString() }
+      projectId: parseInt(opts.projectId),
+      statusId: activeStatusId,
+    })
+    .returning({ id: taskDefinition.id })
+
+  return { success: true, id: result[0].id.toString() }
 }
 
 const editTaskDefinition = async (
-  prisma: PrismaClient,
+  db: ReturnType<typeof drizzle>,
   opts: DBEditTaskDefinitionOpts,
 ) => {
-  const updateData: { name: string; status?: { connect: { id: number } } } = {
+  const updateData: { name: string; statusId?: number } = {
     name: opts.name,
   }
   if (opts.status !== undefined) {
-    const statusId = await getOrCreateStatus(prisma, opts.status)
-    updateData.status = {
-      connect: { id: statusId },
-    }
+    const statusId = await getOrCreateStatus(db, opts.status)
+    updateData.statusId = statusId
   }
 
-  await prisma.taskDefinition.update({
-    where: { id: parseInt(opts.id) },
-    data: updateData,
-  })
+  await db
+    .update(taskDefinition)
+    .set(updateData)
+    .where(eq(taskDefinition.id, parseInt(opts.id)))
+
   return { success: true }
 }
 
 const deleteTaskDefinition = async (
-  prisma: PrismaClient,
+  db: ReturnType<typeof drizzle>,
   opts: DBDeleteTaskDefinitionOpts,
 ) => {
-  await prisma.taskDefinition.delete({
-    where: { id: parseInt(opts.id) },
-  })
+  await db
+    .delete(taskDefinition)
+    .where(eq(taskDefinition.id, parseInt(opts.id)))
+
   return { success: true }
 }
 
 const getTaskDefinitions = async (
-  prisma: PrismaClient,
+  db: ReturnType<typeof drizzle>,
   projectId: string,
 ): Promise<DBTaskDefinition[]> => {
-  const tasks = await prisma.taskDefinition.findMany({
-    where: {
-      projectId: parseInt(projectId),
-    },
-    include: {
-      project: true,
-      status: true,
-    },
-  })
+  const tasks = await db
+    .select({
+      id: taskDefinition.id,
+      name: taskDefinition.name,
+      projectId: taskDefinition.projectId,
+      projectName: project.name,
+      status: status.name,
+    })
+    .from(taskDefinition)
+    .innerJoin(project, eq(taskDefinition.projectId, project.id))
+    .innerJoin(status, eq(taskDefinition.statusId, status.id))
+    .where(eq(taskDefinition.projectId, parseInt(projectId)))
+
   return tasks.map(t => ({
     id: t.id.toString(),
     name: t.name,
     projectId: t.projectId.toString(),
-    projectName: t.project.name,
-    status: t.status.name,
+    projectName: t.projectName,
+    status: t.status,
   }))
 }
 
 const getAllTaskDefinitions = async (
-  prisma: PrismaClient,
+  db: ReturnType<typeof drizzle>,
 ): Promise<DBTaskDefinition[]> => {
-  const res = await prisma.taskDefinition.findMany({
-    include: {
-      project: true,
-      status: true,
-    },
-  })
+  const res = await db
+    .select({
+      id: taskDefinition.id,
+      name: taskDefinition.name,
+      projectId: taskDefinition.projectId,
+      projectName: project.name,
+      status: status.name,
+    })
+    .from(taskDefinition)
+    .innerJoin(project, eq(taskDefinition.projectId, project.id))
+    .innerJoin(status, eq(taskDefinition.statusId, status.id))
+
   return res.map(t => ({
     id: t.id.toString(),
     name: t.name,
     projectId: t.projectId.toString(),
-    projectName: t.project.name,
-    status: t.status.name,
+    projectName: t.projectName,
+    status: t.status,
   }))
 }
 
-const addTask = async (prisma: PrismaClient, opts: DBAddTaskOpts) => {
-  const activeStatusId = await getOrCreateStatus(prisma, 'active')
-  const task = await prisma.task.create({
-    data: {
-      taskDefinition: {
-        connect: { id: parseInt(opts.taskDefinitionId) },
-      },
+const addTask = async (db: ReturnType<typeof drizzle>, opts: DBAddTaskOpts) => {
+  const activeStatusId = await getOrCreateStatus(db, 'active')
+  const result = await db
+    .insert(task)
+    .values({
+      taskDefinitionId: parseInt(opts.taskDefinitionId),
       description: opts.description,
       seconds: opts.seconds,
-      status: {
-        connect: { id: activeStatusId },
-      },
-    },
-  })
-  return { success: true, id: task.id.toString() }
+      statusId: activeStatusId,
+    })
+    .returning({ id: task.id })
+
+  return { success: true, id: result[0].id.toString() }
 }
 
-const editTask = async (prisma: PrismaClient, opts: DBEditTaskOpts) => {
-  // Normalize date strings to YYYY-MM-DD format for comparison
+const editTask = async (db: ReturnType<typeof drizzle>, opts: DBEditTaskOpts) => {
   const oldDateStr = opts.oldDate.split('T')[0]
   const newDateStr = opts.date.split('T')[0]
 
-  // Create Date objects at UTC midnight to avoid timezone issues
   const newDateParts = newDateStr.split('-')
-
   const newDate = new Date(
     Date.UTC(
       parseInt(newDateParts[0]),
@@ -803,7 +836,6 @@ const editTask = async (prisma: PrismaClient, opts: DBEditTaskOpts) => {
     ),
   )
 
-  // Find old task by ID
   const oldDate = new Date(
     Date.UTC(
       parseInt(oldDateStr.split('-')[0]),
@@ -816,144 +848,141 @@ const editTask = async (prisma: PrismaClient, opts: DBEditTaskOpts) => {
     ),
   )
 
-  const existingTask = await prisma.task.findUnique({
-    where: { id: parseInt(opts.id) },
-  })
+  const existingTaskResult = await db
+    .select()
+    .from(task)
+    .where(eq(task.id, parseInt(opts.id)))
+    .limit(1)
 
-  if (!existingTask) {
+  if (existingTaskResult.length === 0) {
     throw new Error(`Task not found: ${opts.id}`)
   }
 
+  const existingTask = existingTaskResult[0]
+
   // If date changed, delete and recreate
   if (oldDateStr !== newDateStr) {
-    await prisma.$transaction(async tx => {
-      await tx.task.delete({
-        where: { id: parseInt(opts.id) },
-      })
+    await db.transaction(async tx => {
+      await tx.delete(task).where(eq(task.id, parseInt(opts.id)))
 
-      const activeStatusId = await getOrCreateStatus(prisma, 'active')
+      const activeStatusId = await getOrCreateStatus(tx, 'active')
       const statusId =
         opts.status !== undefined
           ? await getOrCreateStatus(tx, opts.status)
           : activeStatusId
-      await tx.task.create({
-        data: {
-          taskDefinition: {
-            connect: { id: parseInt(opts.taskDefinitionId) },
-          },
-          description: opts.description,
-          date: newDate,
-          seconds: opts.seconds,
-          status: {
-            connect: { id: statusId },
-          },
-        },
+
+      await tx.insert(task).values({
+        taskDefinitionId: parseInt(opts.taskDefinitionId),
+        description: opts.description,
+        date: newDate,
+        seconds: opts.seconds,
+        statusId,
       })
     })
   } else {
-    const activeStatusId = await getOrCreateStatus(prisma, 'active')
-    // Update existing task
+    const activeStatusId = await getOrCreateStatus(db, 'active')
     const updateData: {
-      taskDefinition?: { connect: { id: number } }
+      taskDefinitionId?: number
       description: string
       seconds: number
-      status: {
-        connect: { id: activeStatusId }
-      }
+      statusId: number
     } = {
       description: opts.description,
       seconds: opts.seconds,
-    }
-    if (opts.status !== undefined) {
-      const statusId = await getOrCreateStatus(prisma, opts.status)
-      updateData.status = {
-        connect: { id: statusId },
-      }
-    }
-    // Update task definition if it changed
-    if (existingTask.taskDefinitionId.toString() !== opts.taskDefinitionId) {
-      updateData.taskDefinition = {
-        connect: { id: parseInt(opts.taskDefinitionId) },
-      }
+      statusId: activeStatusId,
     }
 
-    await prisma.task.update({
-      where: { id: parseInt(opts.id) },
-      data: updateData,
-    })
+    if (opts.status !== undefined) {
+      const statusId = await getOrCreateStatus(db, opts.status)
+      updateData.statusId = statusId
+    }
+
+    // Update task definition if it changed
+    if (existingTask.taskDefinitionId.toString() !== opts.taskDefinitionId) {
+      updateData.taskDefinitionId = parseInt(opts.taskDefinitionId)
+    }
+
+    await db
+      .update(task)
+      .set(updateData)
+      .where(eq(task.id, parseInt(opts.id)))
   }
   return { success: true }
 }
 
-const deleteTask = async (prisma: PrismaClient, opts: DBDeleteTaskOpts) => {
-  await prisma.task.delete({
-    where: { id: parseInt(opts.id) },
-  })
+const deleteTask = async (db: ReturnType<typeof drizzle>, opts: DBDeleteTaskOpts) => {
+  await db.delete(task).where(eq(task.id, parseInt(opts.id)))
   return { success: true }
 }
 
 const getTasks = async (
-  prisma: PrismaClient,
+  db: ReturnType<typeof drizzle>,
   projectId: string,
 ): Promise<DBTask[]> => {
-  const tasks = await prisma.task.findMany({
-    where: {
-      taskDefinition: {
-        projectId: parseInt(projectId),
-      },
-    },
-    include: {
-      taskDefinition: {
-        include: {
-          project: true,
-        },
-      },
-      status: true,
-    },
-  })
+  const tasks = await db
+    .select({
+      id: task.id,
+      taskDefinitionId: task.taskDefinitionId,
+      description: task.description,
+      seconds: task.seconds,
+      date: task.date,
+      status: status.name,
+      taskDefinitionName: taskDefinition.name,
+      projectName: project.name,
+    })
+    .from(task)
+    .innerJoin(taskDefinition, eq(task.taskDefinitionId, taskDefinition.id))
+    .innerJoin(project, eq(taskDefinition.projectId, project.id))
+    .innerJoin(status, eq(task.statusId, status.id))
+    .where(eq(project.id, parseInt(projectId)))
+
   return tasks.map(t => ({
     id: t.id.toString(),
-    name: t.taskDefinition.name,
+    name: t.taskDefinitionName,
     taskDefinitionId: t.taskDefinitionId.toString(),
-    projectName: t.taskDefinition.project.name,
+    projectName: t.projectName,
     description: t.description || '',
     seconds: t.seconds,
     date: t.date.toISOString().split('T')[0],
-    status: t.status.name,
+    status: t.status,
   }))
 }
 
 const getTasksByNameAndProject = async (
-  prisma: PrismaClient,
+  db: ReturnType<typeof drizzle>,
   opts: { taskDefinitionId: string },
 ): Promise<DBTask[]> => {
-  const tasks = await prisma.task.findMany({
-    where: {
-      taskDefinitionId: parseInt(opts.taskDefinitionId),
-    },
-    include: {
-      taskDefinition: {
-        include: {
-          project: true,
-        },
-      },
-      status: true,
-    },
-  })
+  const tasks = await db
+    .select({
+      id: task.id,
+      taskDefinitionId: task.taskDefinitionId,
+      description: task.description,
+      seconds: task.seconds,
+      date: task.date,
+      status: status.name,
+      taskDefinitionName: taskDefinition.name,
+      projectName: project.name,
+    })
+    .from(task)
+    .innerJoin(taskDefinition, eq(task.taskDefinitionId, taskDefinition.id))
+    .innerJoin(project, eq(taskDefinition.projectId, project.id))
+    .innerJoin(status, eq(task.statusId, status.id))
+    .where(eq(task.taskDefinitionId, parseInt(opts.taskDefinitionId)))
+
   return tasks.map(t => ({
     id: t.id.toString(),
-    name: t.taskDefinition.name,
+    name: t.taskDefinitionName,
     taskDefinitionId: t.taskDefinitionId.toString(),
-    projectName: t.taskDefinition.project.name,
+    projectName: t.projectName,
     description: t.description || '',
     seconds: t.seconds,
     date: t.date.toISOString().split('T')[0],
-    status: t.status.name,
+    status: t.status,
   }))
 }
 
 const getTasksToday = async (
-  prisma: PrismaClient,
+  db: ReturnType<typeof drizzle>,
   projectId: string,
 ): Promise<DBTask[]> => {
   const today = new Date()
@@ -961,85 +990,84 @@ const getTasksToday = async (
   const tomorrow = new Date(today)
   tomorrow.setDate(tomorrow.getDate() + 1)
 
-  const tasks = await prisma.task.findMany({
-    where: {
-      taskDefinition: {
-        projectId: parseInt(projectId),
-      },
-      date: {
-        gte: today,
-        lt: tomorrow,
-      },
-    },
-    include: {
-      taskDefinition: {
-        include: {
-          project: {
-            include: {
-              company: true,
-            },
-          },
-        },
-      },
-      status: true,
-    },
-  })
+  const tasks = await db
+    .select({
+      id: task.id,
+      taskDefinitionId: task.taskDefinitionId,
+      description: task.description,
+      seconds: task.seconds,
+      date: task.date,
+      status: status.name,
+      taskDefinitionName: taskDefinition.name,
+      projectName: project.name,
+      companyName: company.name,
+    })
+    .from(task)
+    .innerJoin(taskDefinition, eq(task.taskDefinitionId, taskDefinition.id))
+    .innerJoin(project, eq(taskDefinition.projectId, project.id))
+    .innerJoin(company, eq(project.companyId, company.id))
+    .innerJoin(status, eq(task.statusId, status.id))
+    .where(
+      and(
+        eq(project.id, parseInt(projectId)),
+        gte(task.date, today),
+        lt(task.date, tomorrow),
+      ),
+    )
+
   return tasks.map(t => ({
     id: t.id.toString(),
-    name: t.taskDefinition.name,
+    name: t.taskDefinitionName,
     taskDefinitionId: t.taskDefinitionId.toString(),
-    projectName: t.taskDefinition.project.name,
-    companyName: t.taskDefinition.project.company.name,
+    projectName: t.projectName,
+    companyName: t.companyName,
     description: t.description || '',
     seconds: t.seconds,
     date: t.date.toISOString().split('T')[0],
-    status: t.status.name,
+    status: t.status,
   }))
 }
 
 // Helper functions to query tasks by company and by project
 const getTasksByCompany = async (
-  prisma: PrismaClient,
+  db: ReturnType<typeof drizzle>,
   companyId: string,
 ): Promise<DBTask[]> => {
-  const tasks = await prisma.task.findMany({
-    where: {
-      taskDefinition: {
-        project: {
-          companyId: parseInt(companyId),
-        },
-      },
-    },
-    include: {
-      taskDefinition: {
-        include: {
-          project: {
-            include: {
-              company: true,
-            },
-          },
-        },
-      },
-      status: true,
-    },
-  })
+  const tasks = await db
+    .select({
+      id: task.id,
+      taskDefinitionId: task.taskDefinitionId,
+      description: task.description,
+      seconds: task.seconds,
+      date: task.date,
+      status: status.name,
+      taskDefinitionName: taskDefinition.name,
+      projectName: project.name,
+    })
+    .from(task)
+    .innerJoin(taskDefinition, eq(task.taskDefinitionId, taskDefinition.id))
+    .innerJoin(project, eq(taskDefinition.projectId, project.id))
+    .innerJoin(company, eq(project.companyId, company.id))
+    .innerJoin(status, eq(task.statusId, status.id))
+    .where(eq(company.id, parseInt(companyId)))
+
   return tasks.map(t => ({
     id: t.id.toString(),
-    name: t.taskDefinition.name,
+    name: t.taskDefinitionName,
     taskDefinitionId: t.taskDefinitionId.toString(),
-    projectName: t.taskDefinition.project.name,
+    projectName: t.projectName,
     description: t.description || '',
     seconds: t.seconds,
     date: t.date.toISOString().split('T')[0],
-    status: t.status.name,
+    status: t.status,
   }))
 }
 
 const getTasksByProject = async (
-  prisma: PrismaClient,
+  db: ReturnType<typeof drizzle>,
   projectId: string,
 ): Promise<DBTask[]> => {
-  return getTasks(prisma, projectId)
+  return getTasks(db, projectId)
 }
 
 export {
