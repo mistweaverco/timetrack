@@ -4,6 +4,7 @@ productName: timetrack
 directories:
   buildResources: build
 files:
+  - 'resources/**'
   - 'out/**/*'
   - 'node_modules/better-sqlite3/**/*'
   - 'node_modules/bindings/**/*'
