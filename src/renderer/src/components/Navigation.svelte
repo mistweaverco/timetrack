@@ -1,6 +1,4 @@
 <script lang="ts">
-  import { buttonVariants } from '@ui/button'
-  import * as Tooltip from '@ui/tooltip'
   import { House, Search, Download, Bug, Code } from '@lucide/svelte'
   import { selectedPanel } from '../stores'
 

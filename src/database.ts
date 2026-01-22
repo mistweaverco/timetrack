@@ -5,6 +5,8 @@ import logger from 'node-color-log'
 import path from 'node:path'
 import { execSync } from 'child_process'
 import { getDBFilePath } from './lib/ConfigFile'
+import { schema } from '@prisma/migrate'
+import { app } from 'electron'
 
 let prisma: PrismaClient
 
@@ -48,11 +50,14 @@ const initDB = async (): Promise<PrismaClient> => {
   // Regenerate Prisma client first to ensure types match schema
   logger.info('🗃️ Regenerating Prisma client...')
   try {
-    execSync(`prisma generate`, {
-      env: { ...process.env, DATABASE_URL: `file:${sqlFilePath}` },
-      stdio: 'pipe',
-      cwd: path.join(__dirname, '../..'),
-    })
+    execSync(
+      `${path.join('node_modules', 'prisma', 'build', 'index.js')} generate`,
+      {
+        env: { ...process.env, DATABASE_URL: `file:${sqlFilePath}` },
+        stdio: 'pipe',
+        cwd: path.join(process.resourcesPath, 'app.asar.unpacked'),
+      },
+    )
     logger.info('🗃️ Prisma client generated')
   } catch (genError) {
     logger.error('📢 Error generating Prisma client:', genError)
@@ -62,11 +67,19 @@ const initDB = async (): Promise<PrismaClient> => {
   logger.info('🗃️ Pushing database schema with Prisma...')
   try {
     // Push the schema to create a fresh database
-    execSync(`prisma db push --accept-data-loss`, {
-      env: { ...process.env, DATABASE_URL: `file:${sqlFilePath}` },
-      stdio: 'pipe',
-      cwd: path.join(__dirname, '../..'),
-    })
+    execSync(
+      `${path.join(
+        'node_modules',
+        'prisma',
+        'build',
+        'index.js',
+      )} db push --accept-data-loss`,
+      {
+        env: { ...process.env, DATABASE_URL: `file:${sqlFilePath}` },
+        stdio: 'pipe',
+        cwd: path.join(process.resourcesPath, 'app.asar.unpacked'),
+      },
+    )
     logger.info('🗃️ Database schema pushed successfully')
   } catch (pushError) {
     logger.error('📢 Error pushing schema:', pushError)
