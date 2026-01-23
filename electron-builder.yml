@@ -4,7 +4,7 @@ productName: timetrack
 directories:
   buildResources: build
 files:
-  - 'resources/**'
+  - 'build/**'
   - 'out/**/*'
   - 'node_modules/better-sqlite3/**/*'
   - 'node_modules/bindings/**/*'
@@ -37,7 +37,7 @@ nsis:
   perMachine: false
   allowToChangeInstallationDirectory: true
 mac:
-  icon: resources/icon.icns
+  icon: build/icon.icns
   target:
     - target: dmg
       arch:
@@ -45,14 +45,13 @@ mac:
         - arm64
 dmg:
   artifactName: ${name}_${arch}.${ext}
-  icon: resources/icon.icns
+  icon: build/icon.icns
 linux:
   target:
     - AppImage
     - deb
   maintainer: timetrack.mwco.app
   category: Utility
-  icon: resources/icon.png
 appImage:
   artifactName: ${name}_${arch}.${ext}
 deb:
