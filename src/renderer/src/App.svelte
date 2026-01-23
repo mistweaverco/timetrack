@@ -1,26 +1,15 @@
 <script lang="ts">
-  import { onMount, onDestroy } from 'svelte'
   import { selectedPanel, activeTasks, companies } from './stores'
   import Navigation from './components/Navigation.svelte'
   import Overview from './components/Overview.svelte'
   import Search from './components/Search.svelte'
   import PDFExport from './components/PDFExport.svelte'
+  import { onMount } from 'svelte'
 
-  let currentPanel = $selectedPanel
-  let isLoading = true
-  let loadError: string | null = null
-
-  selectedPanel.subscribe(value => {
-    currentPanel = value
-  })
+  let loadError: string | null = $state(null)
+  let appReady: boolean = $state(false)
 
   async function loadInitialData() {
-    if (!window.electron) {
-      loadError = 'Electron API not available'
-      isLoading = false
-      return
-    }
-
     try {
       const companiesData = await window.electron.getCompanies()
       companies.set(companiesData)
@@ -32,32 +21,22 @@
     } catch (error) {
       console.error('Error loading initial data:', error)
       loadError = 'Failed to load initial data. Please restart the app.'
-    } finally {
-      isLoading = false
     }
   }
-
-  onMount(() => {
-    // Wait for the main process to signal that IPC handlers are ready
-    if (window.electron) {
-      window.electron.on('app-ready', () => {
-        loadInitialData()
-      })
-    } else {
-      // Fallback: try loading immediately if electron API isn't available
+  $effect(() => {
+    if (appReady) {
       loadInitialData()
     }
   })
-
-  onDestroy(() => {
-    if (window.electron) {
-      window.electron.off('app-ready')
-    }
+  onMount(() => {
+    window.electron.on('app-ready', () => {
+      appReady = true
+    })
   })
 </script>
 
 <div class="min-h-screen bg-base-100">
-  {#if isLoading}
+  {#if appReady === false}
     <div class="flex h-screen items-center justify-center">
       <div class="text-center space-y-4">
         <div class="loading loading-spinner loading-lg mx-auto"></div>
@@ -74,19 +53,19 @@
       </div>
     </div>
   {:else}
-    {#if currentPanel !== 'PDFDocument'}
+    {#if $selectedPanel !== 'PDFDocument'}
       <Navigation
-        {currentPanel}
+        currentPanel={$selectedPanel}
         onPanelChange={panel => selectedPanel.set(panel)}
       />
     {/if}
 
     <div class="w-full p-4">
-      {#if currentPanel === 'Overview'}
+      {#if $selectedPanel === 'Overview'}
         <Overview />
-      {:else if currentPanel === 'Search'}
+      {:else if $selectedPanel === 'Search'}
         <Search />
-      {:else if currentPanel === 'PDFExport' || currentPanel === 'PDFDocument'}
+      {:else if $selectedPanel === 'PDFExport' || $selectedPanel === 'PDFDocument'}
         <PDFExport />
       {/if}
     </div>

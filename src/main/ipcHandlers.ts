@@ -23,6 +23,7 @@ import {
   editTaskDefinition,
   getAllTaskDefinitions,
   getCompanies,
+  getDatabase,
   getDataForPDFExport,
   getProjects,
   getSearchResult,
@@ -34,15 +35,17 @@ import {
   getTasksToday,
   saveActiveTask,
   saveActiveTasks,
-  getDatabase,
 } from '../database'
 import { drizzle } from 'drizzle-orm/better-sqlite3'
-import { task, taskDefinition, project, company } from '../db/schema'
+import { company, project, task, taskDefinition } from '../db/schema'
 import { eq } from 'drizzle-orm'
 
 let DB: ReturnType<typeof drizzle>
 let WINDOW: BrowserWindow
 const activeTasks: InstanceType<typeof CountUp>[] = []
+let handlersInitialized = false
+
+export const areHandlersReady = (): boolean => handlersInitialized
 
 export const initIpcHandlers = async (
   mainWindow: BrowserWindow,
@@ -429,6 +432,7 @@ export const initIpcHandlers = async (
     getSearchResult(DB, opts),
   )
 
+  handlersInitialized = true
   // Signal to renderer that IPC handlers are ready and database is initialized
   mainWindow.webContents.send('app-ready')
 }
