@@ -27,10 +27,6 @@
     }
   }
 
-  function handleCancel() {
-    onClose()
-  }
-
   let companyProjects: DBProject[] = $derived([])
 
   $effect(() => {
@@ -55,12 +51,12 @@
       <button type="button" class="btn btn-error" onclick={handleDelete}>
         Delete
       </button>
-      <button type="button" class="btn" onclick={handleCancel}>Cancel</button>
+      <button type="button" class="btn" onclick={onClose}>Cancel</button>
     </div>
   </div>
   <div
     class="modal-backdrop"
-    onkeypress={(evt: KeyboardEvent) => evt.key === 'Escape' && handleCancel()}
+    onkeypress={(evt: KeyboardEvent) => evt.key === 'Escape' && onClose()}
     role="button"
     tabindex="0"
   ></div>

@@ -61,7 +61,7 @@
       </div>
       <div class="modal-action">
         <button type="submit" class="btn btn-success">Add</button>
-        <button type="button" class="btn" onclick={handleCancel}>Cancel</button>
+        <button type="button" class="btn" onclick={onClose}>Cancel</button>
       </div>
     </form>
   </div>
