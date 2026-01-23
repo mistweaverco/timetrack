@@ -1,18 +1,61 @@
-import { app, BrowserWindow, shell } from 'electron'
+import { app, BrowserWindow, dialog, shell } from 'electron'
 import { electronApp } from '@electron-toolkit/utils'
 import { join } from 'path'
-import { initDB } from '../database'
+import { initDB, setDatabaseFilePath } from '../database'
 import { initIpcHandlers, periodicSaveActiveTasks } from './ipcHandlers'
 import { loadWindowContents } from './utils'
 import icon from './../assets/icon/icon.png?asset'
+import {
+  getConfiguredDatabases,
+  getDBFilePath,
+  getUserConfig,
+} from '../lib/ConfigFile'
 
 let mainWindow: BrowserWindow | null = null
 
-function createWindow(): void {
+async function chooseDatabaseForSession(
+  parentWindow?: BrowserWindow,
+): Promise<void> {
+  const userConfig = await getUserConfig()
+
+  if (userConfig) {
+    const databases = getConfiguredDatabases(userConfig)
+
+    if (databases.length > 0) {
+      const buttons = databases.map(db => db.name)
+
+      const { response } = await dialog.showMessageBox(parentWindow || null, {
+        type: 'question',
+        buttons,
+        title: 'Select database',
+        message:
+          'A configuration file with multiple databases was found.\n\nSelect the database you want to use for this session:',
+        cancelId: -1,
+        noLink: true,
+      })
+
+      if (response === -1) {
+        // User closed the dialog or pressed Escape
+        app.quit()
+        return
+      }
+
+      const selected = databases[response]
+      setDatabaseFilePath(selected.path)
+      return
+    }
+  }
+
+  // No config file or no databases configured: fall back to default location
+  const defaultPath = await getDBFilePath()
+  setDatabaseFilePath(defaultPath)
+}
+
+function createWindow(): BrowserWindow {
   mainWindow = new BrowserWindow({
     width: 960,
     height: 600,
-    show: false,
+    show: true, // Show immediately for better UX
     autoHideMenuBar: true,
     ...(process.platform === 'linux' ? { icon } : {}),
     webPreferences: {
@@ -26,14 +69,12 @@ function createWindow(): void {
 
   loadWindowContents(mainWindow, 'index.html')
 
-  mainWindow.on('ready-to-show', () => {
-    mainWindow?.show()
-  })
-
   mainWindow.webContents.setWindowOpenHandler(details => {
     shell.openExternal(details.url)
     return { action: 'deny' }
   })
+
+  return mainWindow
 }
 
 app.on('window-all-closed', async () => {
@@ -54,21 +95,26 @@ app.whenReady().then(async () => {
 
   app.commandLine.appendSwitch('disable-gpu-vsync')
 
-  // Initialize database
+  // Create and show window immediately for better UX
+  const window = createWindow()
+
+  // Wait a bit for window to be ready before showing dialogs
+  await new Promise(resolve => setTimeout(resolve, 100))
+
+  // Resolve database file path (may prompt user if config with multiple DBs exists)
+  // Dialog will appear on top of the window
+  await chooseDatabaseForSession(window)
+
+  // Initialize database (will create DB file if it does not yet exist, then run migrations)
   await initDB()
+
+  // Initialize IPC handlers now that database is ready
+  if (mainWindow) {
+    await initIpcHandlers(mainWindow)
+  }
 
   // Periodic save every 30 seconds
   setInterval(async () => {
     await periodicSaveActiveTasks()
   }, 30000)
-
-  createWindow()
-
-  // Initialize IPC handlers after window is created
-  // Wait a bit for window to be ready
-  setTimeout(async () => {
-    if (mainWindow) {
-      await initIpcHandlers(mainWindow)
-    }
-  }, 100)
 })

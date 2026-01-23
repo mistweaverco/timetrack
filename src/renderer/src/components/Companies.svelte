@@ -127,7 +127,12 @@
       </li>
     {/if}
     <li>
-      <div class="tooltip tooltip-bottom" data-tip="Add a company">
+      <div
+        class="tooltip {$selectedCompany && $selectedCompany.id
+          ? 'tooltip-bottom'
+          : 'tooltip-right'}"
+        data-tip="Add a company"
+      >
         <button
           class="btn hover:btn-secondary"
           onclick={() => (showAddModal = true)}><Plus size="16" /></button

@@ -50,6 +50,9 @@ if [ ! -f ./web/static/logo.png ] || [ ! -f ./web/static/logo.svg ]; then
   cp ./assets/logo.* ./web/static/ || exit 1
 fi
 
+# copy config.schema.json to web static
+cp ./config.schema.json ./web/static/ || exit 1
+
 # build web
 cd web || exit 1
 bun install --frozen-lockfile || exit 1

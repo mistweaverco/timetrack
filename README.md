@@ -26,12 +26,18 @@ The configuration file should be located at:
 > Example configuration file for timetrack:
 
 ```yaml
-# Default value for database_file_path is
-# Linux: ~/.config/timetrack/timetrack.db
-# Mac: ~/Library/Application Support/timetrack/timetrack.db
-# Windows: %APPDATA%\timetrack\timetrack.db
-database_file_path="/home/marco/Desktop/timetrack.db"
+# yaml-language-server: $schema=https://timetrack.mwco.app/config.schema.json
+---
+databases:
+  - marco: /home/marco/Desktop/timetrack.db
+  - work: /home/marco/Desktop/timetrack-work.db
 ```
+
+If no configuration file is present, the default database location is:
+
+- Linux: `~/.local/share/timetrack/timetrack.db`
+- Mac: `~/Library/Application Support/timetrack/timetrack.db`
+- Windows: `%LOCALAPPDATA%\timetrack\timetrack.db`
 
 ## Development
 

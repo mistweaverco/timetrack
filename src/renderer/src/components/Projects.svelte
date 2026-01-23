@@ -126,7 +126,12 @@
         </li>
       {/if}
       <li>
-        <div class="tooltip tooltip-bottom" data-tip="Add Project">
+        <div
+          class="tooltip {$selectedProject !== null && $selectedProject.id
+            ? 'tooltip-bottom'
+            : 'tooltip-right'}"
+          data-tip="Add Project"
+        >
           <button
             class="btn hover:btn-secondary"
             onclick={() => (modalType = 'add')}><Plus size="16" /></button
