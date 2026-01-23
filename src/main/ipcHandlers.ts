@@ -43,6 +43,9 @@ import { eq } from 'drizzle-orm'
 let DB: ReturnType<typeof drizzle>
 let WINDOW: BrowserWindow
 const activeTasks: InstanceType<typeof CountUp>[] = []
+let handlersInitialized = false
+
+export const areHandlersReady = (): boolean => handlersInitialized
 
 export const initIpcHandlers = async (
   mainWindow: BrowserWindow,
@@ -428,6 +431,10 @@ export const initIpcHandlers = async (
   ipcMain.handle('getSearchResult', async (_, opts: SearchQuery) =>
     getSearchResult(DB, opts),
   )
+
+  handlersInitialized = true
+  // Signal to renderer that IPC handlers are ready and database is initialized
+  mainWindow.webContents.send('app-ready')
 }
 
 export const getActiveTasksForSave = (): Array<{

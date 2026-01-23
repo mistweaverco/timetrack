@@ -2,7 +2,11 @@ import { app, BrowserWindow, dialog, shell } from 'electron'
 import { electronApp } from '@electron-toolkit/utils'
 import { join } from 'path'
 import { initDB, setDatabaseFilePath } from '../database'
-import { initIpcHandlers, periodicSaveActiveTasks } from './ipcHandlers'
+import {
+  initIpcHandlers,
+  periodicSaveActiveTasks,
+  areHandlersReady,
+} from './ipcHandlers'
 import { loadWindowContents } from './utils'
 import icon from './../assets/icon/icon.png?asset'
 import {
@@ -74,6 +78,14 @@ async function createWindow(): Promise<BrowserWindow> {
     return { action: 'deny' }
   })
 
+  // When the window finishes loading, check if handlers are ready and send event
+  // This handles both initial load and reloads
+  mainWindow.webContents.on('did-finish-load', () => {
+    if (areHandlersReady()) {
+      mainWindow?.webContents.send('app-ready')
+    }
+  })
+
   return mainWindow
 }
 
@@ -106,10 +118,8 @@ app.whenReady().then(async () => {
   await initDB()
 
   // Initialize IPC handlers now that database is ready
+  // The initIpcHandlers function will send 'app-ready' event when done
   await initIpcHandlers(win)
-
-  // Signal to renderer that IPC handlers are ready and database is initialized
-  mainWindow.webContents.send('app-ready')
 
   // Periodic save every 30 seconds
   setInterval(async () => {
