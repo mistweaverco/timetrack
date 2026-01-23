@@ -1,7 +1,6 @@
 # website
 /web/static/logo.*
 /web/static/favicon.*
-build/
 generated/
 dist/
 
