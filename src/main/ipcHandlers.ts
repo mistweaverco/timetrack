@@ -23,6 +23,7 @@ import {
   editTaskDefinition,
   getAllTaskDefinitions,
   getCompanies,
+  getDatabase,
   getDataForPDFExport,
   getProjects,
   getSearchResult,
@@ -34,10 +35,9 @@ import {
   getTasksToday,
   saveActiveTask,
   saveActiveTasks,
-  getDatabase,
 } from '../database'
 import { drizzle } from 'drizzle-orm/better-sqlite3'
-import { task, taskDefinition, project, company } from '../db/schema'
+import { company, project, task, taskDefinition } from '../db/schema'
 import { eq } from 'drizzle-orm'
 
 let DB: ReturnType<typeof drizzle>
@@ -428,9 +428,6 @@ export const initIpcHandlers = async (
   ipcMain.handle('getSearchResult', async (_, opts: SearchQuery) =>
     getSearchResult(DB, opts),
   )
-
-  // Signal to renderer that IPC handlers are ready and database is initialized
-  mainWindow.webContents.send('app-ready')
 }
 
 export const getActiveTasksForSave = (): Array<{

@@ -51,7 +51,7 @@ async function chooseDatabaseForSession(
   setDatabaseFilePath(defaultPath)
 }
 
-function createWindow(): BrowserWindow {
+async function createWindow(): Promise<BrowserWindow> {
   mainWindow = new BrowserWindow({
     width: 960,
     height: 600,
@@ -67,7 +67,7 @@ function createWindow(): BrowserWindow {
     },
   })
 
-  loadWindowContents(mainWindow, 'index.html')
+  await loadWindowContents(mainWindow, 'index.html')
 
   mainWindow.webContents.setWindowOpenHandler(details => {
     shell.openExternal(details.url)
@@ -96,22 +96,20 @@ app.whenReady().then(async () => {
   app.commandLine.appendSwitch('disable-gpu-vsync')
 
   // Create and show window immediately for better UX
-  const window = createWindow()
-
-  // Wait a bit for window to be ready before showing dialogs
-  await new Promise(resolve => setTimeout(resolve, 100))
+  const win = await createWindow()
 
   // Resolve database file path (may prompt user if config with multiple DBs exists)
   // Dialog will appear on top of the window
-  await chooseDatabaseForSession(window)
+  await chooseDatabaseForSession(win)
 
   // Initialize database (will create DB file if it does not yet exist, then run migrations)
   await initDB()
 
   // Initialize IPC handlers now that database is ready
-  if (mainWindow) {
-    await initIpcHandlers(mainWindow)
-  }
+  await initIpcHandlers(win)
+
+  // Signal to renderer that IPC handlers are ready and database is initialized
+  mainWindow.webContents.send('app-ready')
 
   // Periodic save every 30 seconds
   setInterval(async () => {
