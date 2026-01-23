@@ -16,7 +16,6 @@ files:
   - '!{.eslintignore,.eslintrc.cjs,.prettierignore,.prettierrc.yaml,CHANGELOG.md,README.md}'
   - '!{.env,.env.*,.npmrc,pnpm-lock.yaml,bun.lock}'
   - '!{tsconfig.json,tsconfig.node.json}'
-  - '!prisma/**'
   - '!drizzle/**'
 asar: true
 asarUnpack:

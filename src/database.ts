@@ -9,6 +9,7 @@ import { eq, and, gte, lt, like, sql, inArray } from 'drizzle-orm'
 import { migrate } from 'drizzle-orm/better-sqlite3/migrator'
 
 let db: ReturnType<typeof drizzle> | null = null
+let dbFilePathOverride: string | null = null
 
 type Task = {
   taskId: string
@@ -21,6 +22,20 @@ export const getDatabase = async () => {
     await initDB()
   }
   return db!
+}
+
+/**
+ * Configure the database file path to be used for this application run.
+ * Must be called before the first call to `initDB` / `getDatabase`.
+ */
+export const setDatabaseFilePath = (filePath: string) => {
+  if (db) {
+    logger.warn(
+      '⚠️ Database file path override was set after initialization; ignoring.',
+    )
+    return
+  }
+  dbFilePathOverride = filePath
 }
 
 // Helper function to get or create status
@@ -47,7 +62,7 @@ const getOrCreateStatus = async (
 }
 
 const initDB = async () => {
-  const sqlFilePath = await getDBFilePath()
+  const sqlFilePath = dbFilePathOverride ?? (await getDBFilePath())
 
   logger.info('🗃️ Initializing database with Drizzle...')
 

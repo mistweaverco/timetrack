@@ -358,7 +358,9 @@
       {#if taskDefs.length === 0 || $selectedTaskDefinition === null}
         <li>
           <div
-            class="tooltip tooltip-bottom"
+            class="tooltip {taskDefs.length === 0
+              ? 'tooltip-right'
+              : 'tooltip-bottom'}"
             data-tip="Add a new task definition"
           >
             <button
