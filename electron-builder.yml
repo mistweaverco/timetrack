@@ -26,13 +26,13 @@ asarUnpack:
   - '**/*.node'
 win:
   executableName: timetrack
-  icon: resources/icon.ico
+  icon: build/icon.ico
 nsis:
   artifactName: ${name}-setup_${arch}.${ext}
   shortcutName: ${productName}
   uninstallDisplayName: ${productName}
   createDesktopShortcut: always
-  installerIcon: resources/icon.ico
+  installerIcon: build/icon.ico
   oneClick: false
   perMachine: false
   allowToChangeInstallationDirectory: true
