@@ -1,21 +1,32 @@
-import { app, BrowserWindow, dialog, shell } from 'electron'
+import {
+  app,
+  BrowserWindow,
+  dialog,
+  Menu,
+  nativeImage,
+  shell,
+  Tray,
+} from 'electron'
 import { electronApp } from '@electron-toolkit/utils'
 import { join } from 'path'
 import { initDB, setDatabaseFilePath } from '../database'
 import {
+  areHandlersReady,
   initIpcHandlers,
   periodicSaveActiveTasks,
-  areHandlersReady,
 } from './ipcHandlers'
 import { loadWindowContents } from './utils'
 import icon from './../assets/icon/icon.png?asset'
+import trayIcon from './../../build/icons/64x64.png'
 import {
   getConfiguredDatabases,
   getDBFilePath,
   getUserConfig,
 } from '../lib/ConfigFile'
 
-let mainWindow: BrowserWindow | null = null
+let TRAY: Tray | null = null
+
+let MAIN_WINDOW: BrowserWindow | null = null
 
 async function chooseDatabaseForSession(
   parentWindow?: BrowserWindow,
@@ -56,7 +67,7 @@ async function chooseDatabaseForSession(
 }
 
 async function createWindow(): Promise<BrowserWindow> {
-  mainWindow = new BrowserWindow({
+  MAIN_WINDOW = new BrowserWindow({
     width: 960,
     height: 600,
     show: true, // Show immediately for better UX
@@ -71,22 +82,22 @@ async function createWindow(): Promise<BrowserWindow> {
     },
   })
 
-  await loadWindowContents(mainWindow, 'index.html')
+  await loadWindowContents(MAIN_WINDOW, 'index.html')
 
-  mainWindow.webContents.setWindowOpenHandler(details => {
+  MAIN_WINDOW.webContents.setWindowOpenHandler(details => {
     shell.openExternal(details.url)
     return { action: 'deny' }
   })
 
   // When the window finishes loading, check if handlers are ready and send event
   // This handles both initial load and reloads
-  mainWindow.webContents.on('did-finish-load', () => {
+  MAIN_WINDOW.webContents.on('did-finish-load', () => {
     if (areHandlersReady()) {
-      mainWindow?.webContents.send('app-ready')
+      MAIN_WINDOW?.webContents.send('app-ready')
     }
   })
 
-  return mainWindow
+  return MAIN_WINDOW
 }
 
 app.on('window-all-closed', async () => {
@@ -107,8 +118,33 @@ app.whenReady().then(async () => {
 
   app.commandLine.appendSwitch('disable-gpu-vsync')
 
-  // Create and show window immediately for better UX
   const win = await createWindow()
+
+  // Minimize to tray behavior
+  win.on('minimize', () => {
+    if (!TRAY) {
+      TRAY = new Tray(nativeImage.createFromDataURL(trayIcon))
+      TRAY.setToolTip('TimeTrack')
+    }
+    TRAY.setContextMenu(
+      Menu.buildFromTemplate([
+        {
+          label: 'Show',
+          click: async () => {
+            TRAY.setContextMenu(Menu.buildFromTemplate([{ role: 'quit' }]))
+            if (!MAIN_WINDOW) {
+              await createWindow()
+            } else {
+              MAIN_WINDOW.restore()
+              MAIN_WINDOW.show()
+            }
+          },
+        },
+        { role: 'quit' },
+      ]),
+    )
+    win.hide()
+  })
 
   // Resolve database file path (may prompt user if config with multiple DBs exists)
   // Dialog will appear on top of the window
