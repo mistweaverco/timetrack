@@ -185,19 +185,21 @@ interface Window {
     on: (channel: string, callback: ElectronOnCallback) => void
     off: (channel: string) => void
     getCompanies: () => Promise<DBCompany[]>
-    addCompany: (name: string) => Promise<{ success: boolean; id: string }>
+    addCompany: (
+      name: string,
+    ) => Promise<{ success: boolean; company: DBCompany }>
     editCompany: (opts: DBEditCompanyOpts) => Promise<{ success: boolean }>
     deleteCompany: (id: string) => Promise<{ success: boolean }>
     addProject: (
       name: string,
       companyId: string,
-    ) => Promise<{ success: boolean; id: string }>
+    ) => Promise<{ success: boolean; project: DBProject }>
     editProject: (opts: DBEditProjectOpts) => Promise<{ success: boolean }>
     deleteProject: (id: string) => Promise<{ success: boolean }>
     getProjects: (companyId?: string) => Promise<DBProject[]>
     addTaskDefinition: (opts: DBAddTaskDefinitionOpts) => Promise<{
       success: boolean
-      id: string
+      taskDefinition: DBTaskDefinition
     }>
     editTaskDefinition: (opts: DBEditTaskDefinitionOpts) => Promise<{
       success: boolean

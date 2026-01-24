@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte'
+  import { selectedProject } from '../../stores'
 
   let { onClose, onSuccess, company } = $props<{
     company: DBCompany
@@ -23,6 +24,7 @@
     if (result.success) {
       onSuccess()
       projectName = ''
+      selectedProject.set(result.project)
     }
   }
   onMount(() => {

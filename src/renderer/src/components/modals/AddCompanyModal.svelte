@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte'
+  import { selectedCompany } from '../../stores'
 
   let { onClose, onSuccess } = $props<{
     onSuccess: () => void
@@ -19,6 +20,7 @@
     if (result.success) {
       onSuccess()
       companyName = ''
+      selectedCompany.set(result.company)
     }
   }
   function handleCancel() {

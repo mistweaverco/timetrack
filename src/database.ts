@@ -4,8 +4,8 @@ import logger from 'node-color-log'
 import fs from 'fs'
 import path from 'path'
 import { getDBFilePath } from './lib/ConfigFile'
-import { status, company, project, taskDefinition, task } from './db/schema'
-import { eq, and, gte, lt, like, sql, inArray } from 'drizzle-orm'
+import { company, project, status, task, taskDefinition } from './db/schema'
+import { and, eq, gte, inArray, like, lt, sql } from 'drizzle-orm'
 import { migrate } from 'drizzle-orm/better-sqlite3/migrator'
 
 let db: ReturnType<typeof drizzle> | null = null
@@ -506,7 +506,9 @@ const getDataForPDFExport = async (
   toDateEnd.setDate(toDateEnd.getDate() + 1)
 
   logger.info(
-    `PDF Export query: from=${q.from}, to=${q.to}, tasks=${JSON.stringify(q.tasks)}`,
+    `PDF Export query: from=${q.from}, to=${q.to}, tasks=${JSON.stringify(
+      q.tasks,
+    )}`,
   )
   logger.info(
     `PDF Export date range: ${fromDate.toISOString()} to ${toDateEnd.toISOString()}`,
@@ -604,6 +606,56 @@ const saveActiveTasks = async (
   )
 }
 
+const getCompanyByName = async (
+  db: ReturnType<typeof drizzle>,
+  name: string,
+): Promise<DBCompany | null> => {
+  const result = await db
+    .select({
+      id: company.id,
+      name: company.name,
+      status: status.name,
+    })
+    .from(company)
+    .innerJoin(status, eq(company.statusId, status.id))
+    .where(eq(company.name, name))
+    .limit(1)
+  if (result.length === 0) {
+    return null
+  }
+  const c = result[0]
+  return {
+    id: c.id.toString(),
+    name: c.name,
+    status: c.status,
+  }
+}
+
+const getCompanyById = async (
+  db: ReturnType<typeof drizzle>,
+  companyId: string,
+): Promise<DBCompany | null> => {
+  const result = await db
+    .select({
+      id: company.id,
+      name: company.name,
+      status: status.name,
+    })
+    .from(company)
+    .innerJoin(status, eq(company.statusId, status.id))
+    .where(eq(company.id, parseInt(companyId)))
+    .limit(1)
+  if (result.length === 0) {
+    return null
+  }
+  const c = result[0]
+  return {
+    id: c.id.toString(),
+    name: c.name,
+    status: c.status,
+  }
+}
+
 // Company functions
 const getCompanies = async (
   db: ReturnType<typeof drizzle>,
@@ -624,7 +676,14 @@ const getCompanies = async (
   }))
 }
 
-const addCompany = async (db: ReturnType<typeof drizzle>, name: string) => {
+const addCompany = async (
+  db: ReturnType<typeof drizzle>,
+  name: string,
+): Promise<{ success: true; company: DBCompany } | { success: false }> => {
+  const existingCompany = await getCompanyByName(db, name)
+  if (existingCompany) {
+    return { success: true, company: existingCompany }
+  }
   const activeStatusId = await getOrCreateStatus(db, 'active')
   const result = await db
     .insert(company)
@@ -632,9 +691,12 @@ const addCompany = async (db: ReturnType<typeof drizzle>, name: string) => {
       name,
       statusId: activeStatusId,
     })
-    .returning({ id: company.id })
+    .returning({ id: company.id, name: company.name })
 
-  return { success: true, id: result[0].id.toString() }
+  return {
+    success: true,
+    company: { id: result[0].id.toString(), name: result[0].name },
+  }
 }
 
 const editCompany = async (
@@ -692,11 +754,80 @@ const getProjects = async (
   }))
 }
 
+const getProjectByName = async (
+  db: ReturnType<typeof drizzle>,
+  name: string,
+  companyId: string,
+): Promise<DBProject | null> => {
+  const result = await db
+    .select({
+      id: project.id,
+      name: project.name,
+      companyId: project.companyId,
+      companyName: company.name,
+      status: status.name,
+    })
+    .from(project)
+    .innerJoin(company, eq(project.companyId, company.id))
+    .innerJoin(status, eq(project.statusId, status.id))
+    .where(
+      and(eq(project.name, name), eq(project.companyId, parseInt(companyId))),
+    )
+    .limit(1)
+  if (result.length === 0) {
+    return null
+  }
+  const p = result[0]
+  return {
+    id: p.id.toString(),
+    name: p.name,
+    companyId: p.companyId.toString(),
+    companyName: p.companyName,
+    company: { id: p.companyId.toString(), name: p.companyName },
+    status: p.status,
+  }
+}
+
+const getProjectById = async (
+  db: ReturnType<typeof drizzle>,
+  projectId: string,
+): Promise<DBProject | null> => {
+  const result = await db
+    .select({
+      id: project.id,
+      name: project.name,
+      companyId: project.companyId,
+      companyName: company.name,
+      status: status.name,
+    })
+    .from(project)
+    .innerJoin(company, eq(project.companyId, company.id))
+    .innerJoin(status, eq(project.statusId, status.id))
+    .where(eq(project.id, parseInt(projectId)))
+    .limit(1)
+  if (result.length === 0) {
+    return null
+  }
+  const p = result[0]
+  return {
+    id: p.id.toString(),
+    name: p.name,
+    companyId: p.companyId.toString(),
+    companyName: p.companyName,
+    company: { id: p.companyId.toString(), name: p.companyName },
+    status: p.status,
+  }
+}
+
 const addProject = async (
   db: ReturnType<typeof drizzle>,
   name: string,
   companyId: string,
-) => {
+): Promise<{ success: true; project: DBProject } | { success: false }> => {
+  const existingProject = await getProjectByName(db, name, companyId)
+  if (existingProject) {
+    return { success: true, project: existingProject }
+  }
   const activeStatusId = await getOrCreateStatus(db, 'active')
   const result = await db
     .insert(project)
@@ -705,9 +836,26 @@ const addProject = async (
       companyId: parseInt(companyId),
       statusId: activeStatusId,
     })
-    .returning({ id: project.id })
+    .returning({
+      id: project.id,
+      name: project.name,
+    })
+  const company = await getCompanyById(db, companyId)
 
-  return { success: true, id: result[0].id.toString() }
+  if (!company) {
+    return { success: false }
+  }
+
+  return {
+    success: true,
+    project: {
+      id: result[0].id.toString(),
+      name: result[0].name,
+      companyName: company.name,
+      companyId: companyId,
+      company: { id: companyId, name: company.name },
+    },
+  }
 }
 
 const editProject = async (
@@ -740,10 +888,53 @@ const deleteProject = async (db: ReturnType<typeof drizzle>, id: string) => {
   return { success: true }
 }
 
+const getTaskDefinitionByName = async (
+  db: ReturnType<typeof drizzle>,
+  name: string,
+  projectId: string,
+): Promise<DBTaskDefinition | null> => {
+  const result = await db
+    .select({
+      id: taskDefinition.id,
+      name: taskDefinition.name,
+      projectId: taskDefinition.projectId,
+      projectName: project.name,
+    })
+    .from(taskDefinition)
+    .innerJoin(project, eq(taskDefinition.projectId, project.id))
+    .where(
+      and(
+        eq(taskDefinition.name, name),
+        eq(taskDefinition.projectId, parseInt(projectId)),
+      ),
+    )
+    .limit(1)
+  if (result.length === 0) {
+    return null
+  }
+  const td = result[0]
+  return {
+    id: td.id.toString(),
+    name: td.name,
+    projectId: td.projectId.toString(),
+    projectName: td.projectName,
+  }
+}
+
 const addTaskDefinition = async (
   db: ReturnType<typeof drizzle>,
   opts: DBAddTaskDefinitionOpts,
-) => {
+): Promise<
+  { success: true; taskDefinition: DBTaskDefinition } | { success: false }
+> => {
+  const existingTaskDef = await getTaskDefinitionByName(
+    db,
+    opts.name,
+    opts.projectId,
+  )
+  if (existingTaskDef) {
+    return { success: true, taskDefinition: existingTaskDef }
+  }
   const activeStatusId = await getOrCreateStatus(db, 'active')
   const result = await db
     .insert(taskDefinition)
@@ -752,9 +943,22 @@ const addTaskDefinition = async (
       projectId: parseInt(opts.projectId),
       statusId: activeStatusId,
     })
-    .returning({ id: taskDefinition.id })
+    .returning({ id: taskDefinition.id, name: taskDefinition.name })
 
-  return { success: true, id: result[0].id.toString() }
+  const project = await getProjectById(db, opts.projectId)
+  if (!project) {
+    return { success: false }
+  }
+
+  return {
+    success: true,
+    taskDefinition: {
+      id: result[0].id.toString(),
+      name: result[0].name,
+      projectId: opts.projectId,
+      projectName: project.name,
+    },
+  }
 }
 
 const editTaskDefinition = async (
