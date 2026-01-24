@@ -1,6 +1,10 @@
 <script lang="ts">
   import { onMount } from 'svelte'
-  import { selectedProject } from '../../stores'
+  import {
+    selectedProject,
+    selectedTask,
+    selectedTaskDefinition,
+  } from '../../stores'
 
   let { onClose, onSuccess, company } = $props<{
     company: DBCompany
@@ -22,9 +26,11 @@
       company.id,
     )
     if (result.success) {
-      onSuccess()
+      await onSuccess()
       projectName = ''
       selectedProject.set(result.project)
+      selectedTask.set(null)
+      selectedTaskDefinition.set(null)
     }
   }
   onMount(() => {

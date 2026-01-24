@@ -1,6 +1,11 @@
 <script lang="ts">
   import { onMount } from 'svelte'
-  import { selectedCompany } from '../../stores'
+  import {
+    selectedCompany,
+    selectedProject,
+    selectedTask,
+    selectedTaskDefinition,
+  } from '../../stores'
 
   let { onClose, onSuccess } = $props<{
     onSuccess: () => void
@@ -18,9 +23,12 @@
 
     const result = await window.electron.addCompany(companyName)
     if (result.success) {
-      onSuccess()
+      await onSuccess()
       companyName = ''
       selectedCompany.set(result.company)
+      selectedProject.set(null)
+      selectedTask.set(null)
+      selectedTaskDefinition.set(null)
     }
   }
   function handleCancel() {

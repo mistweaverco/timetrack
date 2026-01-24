@@ -22,7 +22,7 @@
       name: taskDefinitionName.trim(),
     })
     if (result.success) {
-      onSuccess()
+      await onSuccess()
       taskDefinitionName = ''
       selectedTaskDefinition.set(result.taskDefinition)
     }
