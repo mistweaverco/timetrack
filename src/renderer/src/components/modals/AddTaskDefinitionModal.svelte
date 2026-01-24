@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte'
+  import { selectedTaskDefinition } from '../../stores'
 
   let { onClose, onSuccess, project } = $props<{
     project: DBProject
@@ -23,6 +24,7 @@
     if (result.success) {
       onSuccess()
       taskDefinitionName = ''
+      selectedTaskDefinition.set(result.taskDefinition)
     }
   }
   onMount(() => {
