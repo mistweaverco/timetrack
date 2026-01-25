@@ -4,17 +4,23 @@
     onSuccess: (editTaskDefinition: DBTaskDefinition) => void
     onClose: () => void
   }>()
-  import { selectedTaskDefinition, taskDefinitions } from '../../stores'
+  import {
+    selectedTask,
+    selectedTaskDefinition,
+    taskDefinitions,
+  } from '../../stores'
 
-  let taskDefName = $derived(taskDefinition.name)
-  let status = $derived(taskDefinition.status || 'active')
+  let taskDefName = $derived(taskDefinition && taskDefinition.name)
+  let status: 'active' | 'inactive' = $derived(
+    taskDefinition && taskDefinition.status,
+  )
 
   async function handleSubmit(e: Event) {
     e.preventDefault()
     const result = await window.electron.editTaskDefinition({
       id: taskDefinition.id,
-      name: taskDefName,
-      status,
+      name: taskDefinition.name,
+      status: status,
     })
 
     if (result.success) {
@@ -31,6 +37,10 @@
           ? { ...td, name: taskDefName, status }
           : td,
       )
+      if (status === 'inactive') {
+        selectedTask.set(null)
+        selectedTaskDefinition.set(null)
+      }
 
       onSuccess({
         ...taskDefinition,

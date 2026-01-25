@@ -353,7 +353,9 @@ export const initIpcHandlers = async (
   })
 
   // Company handlers
-  ipcMain.handle('getCompanies', async () => getCompanies(DB))
+  ipcMain.handle('getCompanies', async (_, statusName?: string) =>
+    getCompanies(DB, statusName),
+  )
   ipcMain.handle('addCompany', async (_, name: string) => addCompany(DB, name))
   ipcMain.handle('editCompany', async (_, opts: DBEditCompanyOpts) =>
     editCompany(DB, opts),
@@ -363,8 +365,10 @@ export const initIpcHandlers = async (
   )
 
   // Project handlers
-  ipcMain.handle('getProjects', async (_, companyId?: string) =>
-    getProjects(DB, companyId),
+  ipcMain.handle(
+    'getProjects',
+    async (_, companyId?: string, statusName?: string) =>
+      getProjects(DB, companyId, statusName),
   )
   ipcMain.handle('addProject', async (_, name: string, companyId: string) =>
     addProject(DB, name, companyId),

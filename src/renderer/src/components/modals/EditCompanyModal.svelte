@@ -4,7 +4,13 @@
     onClose: () => void
     onSuccess: (company: DBCompany) => void
   }>()
-  import { companies } from '../../stores'
+  import {
+    companies,
+    selectedCompany,
+    selectedProject,
+    selectedTask,
+    selectedTaskDefinition,
+  } from '../../stores'
 
   let name = $derived(company.name)
   let status = $derived(company.status || 'active')
@@ -19,9 +25,23 @@
       })
 
       if (result.success) {
-        companies.update(cs =>
-          cs.map(c => (c.id === company.id ? { ...c, name, status } : c)),
+        companies.update(
+          cs =>
+            status === 'active' &&
+            cs.map(c => (c.id === company.id ? { ...c, name, status } : c)),
         )
+        selectedCompany.update(c =>
+          c && c.id === company.id ? { ...c, name, status } : c,
+        )
+        if (status !== 'active') {
+          selectedProject.set(null)
+          selectedTaskDefinition.set(null)
+          selectedTask.set(null)
+          selectedCompany.set(null)
+          await onSuccess(null)
+          return
+        }
+
         onSuccess({ id: company.id, name, status })
       }
     }
@@ -60,7 +80,7 @@
         </select>
       </div>
       <div class="modal-action">
-        <button type="submit" class="btn btn-success">Add</button>
+        <button type="submit" class="btn btn-success">Edit</button>
         <button type="button" class="btn" onclick={onClose}>Cancel</button>
       </div>
     </form>
