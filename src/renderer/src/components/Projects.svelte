@@ -27,7 +27,7 @@
   async function fetchProjects(companyId?: string) {
     if (window.electron) {
       try {
-        const data = await window.electron.getProjects(companyId)
+        const data = await window.electron.getProjects(companyId, 'active')
         projects.set(data)
       } catch (error) {
         console.error('Error loading projects:', error)
@@ -111,7 +111,7 @@
                 <option value="" selected={!$selectedProject}
                   >Select a project</option
                 >
-                {#each $companyProjects as project (project.name)}
+                {#each $companyProjects as project (`unique-project-${project.id}`)}
                   <option
                     value={project.id}
                     selected={$selectedProject &&

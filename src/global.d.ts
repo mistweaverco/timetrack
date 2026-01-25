@@ -62,6 +62,7 @@ type DBCompany = {
   id: string
   name: string
   status?: string
+  statusId?: number
 }
 
 type DBProject = {
@@ -71,6 +72,7 @@ type DBProject = {
   companyName: string
   company: DBCompany
   status?: string
+  statusId?: number
 }
 
 type DBTaskDefinition = {
@@ -79,6 +81,7 @@ type DBTaskDefinition = {
   projectId: string
   projectName: string
   status?: string
+  statusId?: number
 }
 
 type DBTask = {
@@ -184,7 +187,7 @@ interface Window {
   electron: {
     on: (channel: string, callback: ElectronOnCallback) => void
     off: (channel: string) => void
-    getCompanies: () => Promise<DBCompany[]>
+    getCompanies: (statusName?: string) => Promise<DBCompany[]>
     addCompany: (
       name: string,
     ) => Promise<{ success: boolean; company: DBCompany }>
@@ -196,7 +199,10 @@ interface Window {
     ) => Promise<{ success: boolean; project: DBProject }>
     editProject: (opts: DBEditProjectOpts) => Promise<{ success: boolean }>
     deleteProject: (id: string) => Promise<{ success: boolean }>
-    getProjects: (companyId?: string) => Promise<DBProject[]>
+    getProjects: (
+      companyId?: string,
+      statusName: string,
+    ) => Promise<DBProject[]>
     addTaskDefinition: (opts: DBAddTaskDefinitionOpts) => Promise<{
       success: boolean
       taskDefinition: DBTaskDefinition

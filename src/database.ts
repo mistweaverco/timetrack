@@ -5,7 +5,7 @@ import fs from 'fs'
 import path from 'path'
 import { getDBFilePath } from './lib/ConfigFile'
 import { company, project, status, task, taskDefinition } from './db/schema'
-import { and, eq, gte, inArray, like, lt, sql } from 'drizzle-orm'
+import { and, eq, gte, inArray, like, lt } from 'drizzle-orm'
 import { migrate } from 'drizzle-orm/better-sqlite3/migrator'
 
 let db: ReturnType<typeof drizzle> | null = null
@@ -659,7 +659,9 @@ const getCompanyById = async (
 // Company functions
 const getCompanies = async (
   db: ReturnType<typeof drizzle>,
+  statusName?: string,
 ): Promise<DBCompany[]> => {
+  const statusId = await getOrCreateStatus(db, statusName || 'active')
   const companies = await db
     .select({
       id: company.id,
@@ -668,6 +670,7 @@ const getCompanies = async (
     })
     .from(company)
     .innerJoin(status, eq(company.statusId, status.id))
+    .where(eq(company.statusId, statusId))
 
   return companies.map(c => ({
     id: c.id.toString(),
@@ -681,10 +684,18 @@ const addCompany = async (
   name: string,
 ): Promise<{ success: true; company: DBCompany } | { success: false }> => {
   const existingCompany = await getCompanyByName(db, name)
+  const activeStatusId = await getOrCreateStatus(db, 'active')
   if (existingCompany) {
+    if (existingCompany.statusId !== activeStatusId) {
+      await db
+        .update(company)
+        .set({ statusId: activeStatusId })
+        .where(and(eq(company.id, parseInt(existingCompany.id))))
+      existingCompany.status = 'active'
+      existingCompany.statusId = activeStatusId
+    }
     return { success: true, company: existingCompany }
   }
-  const activeStatusId = await getOrCreateStatus(db, 'active')
   const result = await db
     .insert(company)
     .values({
@@ -726,8 +737,11 @@ const deleteCompany = async (db: ReturnType<typeof drizzle>, id: string) => {
 const getProjects = async (
   db: ReturnType<typeof drizzle>,
   companyId?: string,
+  statusName?: string,
 ): Promise<DBProject[]> => {
-  let query = db
+  statusName = statusName || 'active'
+  const statusId = await getOrCreateStatus(db, statusName)
+  const query = db
     .select({
       id: project.id,
       name: project.name,
@@ -738,10 +752,11 @@ const getProjects = async (
     .from(project)
     .innerJoin(company, eq(project.companyId, company.id))
     .innerJoin(status, eq(project.statusId, status.id))
-
-  if (companyId) {
-    query = query.where(eq(project.companyId, parseInt(companyId))) as any
-  }
+    .where(
+      companyId
+        ? and(eq(project.statusId, statusId), eq(project.statusId, statusId))
+        : eq(project.statusId, statusId),
+    )
 
   const projects = await query
   return projects.map(p => ({
@@ -766,6 +781,7 @@ const getProjectByName = async (
       companyId: project.companyId,
       companyName: company.name,
       status: status.name,
+      statusId: project.statusId,
     })
     .from(project)
     .innerJoin(company, eq(project.companyId, company.id))
@@ -825,10 +841,18 @@ const addProject = async (
   companyId: string,
 ): Promise<{ success: true; project: DBProject } | { success: false }> => {
   const existingProject = await getProjectByName(db, name, companyId)
+  const activeStatusId = await getOrCreateStatus(db, 'active')
   if (existingProject) {
+    if (existingProject.statusId !== activeStatusId) {
+      await db
+        .update(project)
+        .set({ statusId: activeStatusId })
+        .where(and(eq(project.id, parseInt(existingProject.id))))
+      existingProject.status = 'active'
+      existingProject.statusId = activeStatusId
+    }
     return { success: true, project: existingProject }
   }
-  const activeStatusId = await getOrCreateStatus(db, 'active')
   const result = await db
     .insert(project)
     .values({
@@ -899,6 +923,7 @@ const getTaskDefinitionByName = async (
       name: taskDefinition.name,
       projectId: taskDefinition.projectId,
       projectName: project.name,
+      statusId: taskDefinition.statusId,
     })
     .from(taskDefinition)
     .innerJoin(project, eq(taskDefinition.projectId, project.id))
@@ -918,6 +943,7 @@ const getTaskDefinitionByName = async (
     name: td.name,
     projectId: td.projectId.toString(),
     projectName: td.projectName,
+    statusId: td.statusId,
   }
 }
 
@@ -927,15 +953,22 @@ const addTaskDefinition = async (
 ): Promise<
   { success: true; taskDefinition: DBTaskDefinition } | { success: false }
 > => {
+  const activeStatusId = await getOrCreateStatus(db, 'active')
   const existingTaskDef = await getTaskDefinitionByName(
     db,
     opts.name,
     opts.projectId,
   )
   if (existingTaskDef) {
+    if (existingTaskDef.statusId !== activeStatusId) {
+      await db
+        .update(taskDefinition)
+        .set({ statusId: activeStatusId })
+        .where(and(eq(taskDefinition.id, parseInt(existingTaskDef.id))))
+      existingTaskDef.statusId = activeStatusId
+    }
     return { success: true, taskDefinition: existingTaskDef }
   }
-  const activeStatusId = await getOrCreateStatus(db, 'active')
   const result = await db
     .insert(taskDefinition)
     .values({

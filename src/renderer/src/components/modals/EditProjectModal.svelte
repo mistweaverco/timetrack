@@ -4,11 +4,11 @@
     onSuccess: (dbProject: DBProject) => void
     onClose: () => void
   }>()
-  import { projects, companies } from '../../stores'
+  import { projects, companies, selectedProject } from '../../stores'
 
-  let projectName = $derived(project.name)
-  let companyId = $derived(project.companyId)
-  let status = $derived(project.status || 'active')
+  let projectName = $derived(project && project.name)
+  let companyId = $derived(project && project.companyId)
+  let status = $derived((project && project.status) || 'active')
 
   async function handleSubmit(e: Event) {
     e.preventDefault()
@@ -26,6 +26,16 @@
             : p,
         ),
       )
+      selectedProject.update(p =>
+        p && p.id === project.id
+          ? { ...p, name: projectName, companyId, status }
+          : p,
+      )
+      if (status === 'inactive') {
+        selectedProject.set(null)
+        await onSuccess(null)
+        return
+      }
       onSuccess({ id: project.id, name: projectName, companyId, status })
     }
   }

@@ -23,10 +23,7 @@
   async function fetchCompanies() {
     if (window.electron) {
       try {
-        const data = (await window.electron.getCompanies()).filter(
-          (company: DBCompany) => company.status === 'active',
-        )
-
+        const data = await window.electron.getCompanies('active')
         companies.set(data)
       } catch (error) {
         console.error('Error loading companies:', error)
