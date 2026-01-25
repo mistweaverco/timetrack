@@ -1,6 +1,6 @@
 {
   "name": "timetrack",
-  "version": "5.3.0",
+  "version": "5.4.0",
   "description": "Simple desktop application to track your time spent on different projects.",
   "main": "./out/main/index.js",
   "author": {
@@ -27,7 +27,7 @@
   },
   "dependencies": {
     "@electron-toolkit/utils": "4.0.0",
-    "better-sqlite3": "12.6.2",
+    "@libsql/client": "0.17.0",
     "drizzle-orm": "0.45.1",
     "electron-squirrel-startup": "1.0.1",
     "js-yaml": "4.1.1",

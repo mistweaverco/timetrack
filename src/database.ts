@@ -1,5 +1,5 @@
-import { drizzle } from 'drizzle-orm/better-sqlite3'
-import Database from 'better-sqlite3'
+import { drizzle } from 'drizzle-orm/libsql'
+import { alias } from 'drizzle-orm/sqlite-core'
 import logger from 'node-color-log'
 import fs from 'fs'
 import path from 'path'
@@ -66,14 +66,8 @@ const initDB = async () => {
 
   logger.info('🗃️ Initializing database with Drizzle...')
 
-  // Create SQLite database connection
-  const sqlite = new Database(sqlFilePath)
-
-  // Enable foreign keys
-  sqlite.pragma('foreign_keys = ON')
-
   // Create Drizzle instance
-  db = drizzle(sqlite)
+  db = drizzle(`file:${sqlFilePath}`)
 
   // Try to run migrations programmatically, but fall back to creating tables if migrations don't exist
   try {
@@ -86,13 +80,13 @@ const initDB = async () => {
       logger.info('🗃️ Database migrations completed')
     } else {
       logger.info('🗃️ No migrations folder found, creating tables directly...')
-      createTablesIfNotExist(db, sqlite)
+      createTablesIfNotExist(sqlite)
     }
   } catch (migrateError) {
     logger.warn('⚠️ Migration error, creating tables directly:', migrateError)
     // If migrations fail, try to create tables manually
     try {
-      createTablesIfNotExist(db, sqlite)
+      createTablesIfNotExist(db)
     } catch (createError) {
       logger.error('📢 Error creating tables:', createError)
       throw createError
@@ -117,11 +111,8 @@ const initDB = async () => {
 }
 
 // Fallback function to create tables if migrations don't work
-const createTablesIfNotExist = (
-  db: ReturnType<typeof drizzle>,
-  sqlite: Database.Database,
-) => {
-  sqlite.exec(`
+const createTablesIfNotExist = (db: ReturnType<typeof drizzle>) => {
+  db.$client.execute(`
     CREATE TABLE IF NOT EXISTS Status (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT NOT NULL UNIQUE
@@ -189,11 +180,13 @@ const getTaskByTaskDefinitionAndDate = async (
       status: status.name,
       taskDefinitionName: taskDefinition.name,
       projectName: project.name,
+      companyName: company.name,
     })
     .from(task)
     .innerJoin(taskDefinition, eq(task.taskDefinitionId, taskDefinition.id))
     .innerJoin(project, eq(taskDefinition.projectId, project.id))
     .innerJoin(status, eq(task.statusId, status.id))
+    .innerJoin(company, eq(project.companyId, company.id))
     .where(
       and(
         eq(task.taskDefinitionId, parseInt(taskDefinitionId)),
@@ -216,6 +209,7 @@ const getTaskByTaskDefinitionAndDate = async (
     seconds: t.seconds,
     date: t.date.toISOString().split('T')[0],
     status: t.status,
+    companyName: t.companyName,
   }
 }
 
@@ -454,11 +448,13 @@ const getSearchResult = async (
         status: status.name,
         taskDefinitionName: taskDefinition.name,
         projectName: project.name,
+        companyName: company.name,
       })
       .from(task)
       .innerJoin(taskDefinition, eq(task.taskDefinitionId, taskDefinition.id))
       .innerJoin(project, eq(taskDefinition.projectId, project.id))
       .innerJoin(status, eq(task.statusId, status.id))
+      .innerJoin(company, eq(project.companyId, company.id))
       .where(and(...conditions))
 
     results.tasks = tasks.map(t => ({
@@ -470,6 +466,7 @@ const getSearchResult = async (
       description: t.description || '',
       seconds: t.seconds,
       status: t.status,
+      companyName: t.companyName,
     }))
   }
 
@@ -710,6 +707,22 @@ const addCompany = async (
   }
 }
 
+const mergeCompanies = async (
+  db: ReturnType<typeof drizzle>,
+  sourceCompanyId: string,
+  targetCompanyId: string,
+): Promise<{ success: true }> => {
+  // We need to update all projects that belong to the source company
+  // to belong to the target company first
+  await db
+    .update(project)
+    .set({ companyId: parseInt(targetCompanyId) })
+    .where(eq(project.companyId, parseInt(sourceCompanyId)))
+  // Now we can delete the source company
+  await db.delete(company).where(eq(company.id, parseInt(sourceCompanyId)))
+  return { success: true }
+}
+
 const editCompany = async (
   db: ReturnType<typeof drizzle>,
   opts: DBEditCompanyOpts,
@@ -882,6 +895,46 @@ const addProject = async (
   }
 }
 
+const mergeProjects = async (
+  db: ReturnType<typeof drizzle>,
+  sourceProjectId: string,
+  targetProjectId: string,
+): Promise<{ success: true }> => {
+  const existingTaskDefsInTarget = await db
+    .select()
+    .from(taskDefinition)
+    .where(
+      and(
+        eq(taskDefinition.projectId, parseInt(targetProjectId)),
+        inArray(
+          taskDefinition.name,
+          db
+            .select({ name: taskDefinition.name })
+            .from(taskDefinition)
+            .where(eq(taskDefinition.projectId, parseInt(sourceProjectId))),
+        ),
+      ),
+    )
+  for (const existingTD of existingTaskDefsInTarget) {
+    const sourceTD = await db
+      .select()
+      .from(taskDefinition)
+      .where(and(eq(taskDefinition.projectId, parseInt(sourceProjectId))))
+      .limit(1)
+    if (sourceTD.length > 0) {
+      await mergeTaskDefinitions(
+        db,
+        sourceTD[0].id.toString(),
+        existingTD.id.toString(),
+      )
+    }
+  }
+
+  // Now we can delete the source project
+  await db.delete(project).where(eq(project.id, parseInt(sourceProjectId)))
+  return { success: true }
+}
+
 const editProject = async (
   db: ReturnType<typeof drizzle>,
   opts: DBEditProjectOpts,
@@ -992,6 +1045,68 @@ const addTaskDefinition = async (
       projectName: project.name,
     },
   }
+}
+
+const mergeTaskDefinitionsByIds = async (
+  db: ReturnType<typeof drizzle>,
+  sourceTaskDefId: string,
+  targetTaskDefId: string,
+): Promise<{ success: true } | { success: false }> => {
+  await db.transaction(async tx => {
+    const sourceTasks = await tx
+      .select()
+      .from(task)
+      .where(eq(task.taskDefinitionId, parseInt(sourceTaskDefId)))
+
+    for (const srcTask of sourceTasks) {
+      const sourceTaskDef = alias(taskDefinition, 'sourceTaskDef')
+
+      const targetWithSameNameAsSource = await tx
+        .select()
+        .from(task)
+        .innerJoin(taskDefinition, eq(task.taskDefinitionId, taskDefinition.id))
+        .innerJoin(sourceTaskDef, eq(taskDefinition.name, sourceTaskDef.name))
+        .where(
+          and(
+            eq(taskDefinition.id, parseInt(targetTaskDefId)),
+            eq(sourceTaskDef.id, parseInt(sourceTaskDefId)),
+          ),
+        )
+        .limit(1)
+
+      if (targetWithSameNameAsSource.length > 0) {
+        // Task exists in target, sum seconds and delete source task
+        const targetTask = targetWithSameNameAsSource[0]
+        await tx
+          .update(task)
+          .set({ seconds: targetTask.Task.seconds + srcTask.seconds })
+          .where(eq(task.id, targetTask.Task.id))
+        await tx.delete(task).where(eq(task.id, srcTask.id))
+      } else {
+        // Task does not exist in target, update taskDefinitionId
+        // to target task definition
+        await tx
+          .update(task)
+          .set({ taskDefinitionId: parseInt(targetTaskDefId) })
+          .where(eq(task.id, srcTask.id))
+      }
+    }
+
+    // Now we can delete the source task definition
+    await tx
+      .delete(taskDefinition)
+      .where(eq(taskDefinition.id, parseInt(sourceTaskDefId)))
+  })
+  return { success: true }
+}
+
+const mergeTaskDefinitions = async (
+  db: ReturnType<typeof drizzle>,
+  sourceTaskDefId: string,
+  targetTaskDefId: string,
+): Promise<{ success: true }> => {
+  await mergeTaskDefinitionsByIds(db, sourceTaskDefId, targetTaskDefId)
+  return { success: true }
 }
 
 const editTaskDefinition = async (
@@ -1110,18 +1225,6 @@ const editTask = async (
     ),
   )
 
-  const oldDate = new Date(
-    Date.UTC(
-      parseInt(oldDateStr.split('-')[0]),
-      parseInt(oldDateStr.split('-')[1]) - 1,
-      parseInt(oldDateStr.split('-')[2]),
-      0,
-      0,
-      0,
-      0,
-    ),
-  )
-
   const existingTaskResult = await db
     .select()
     .from(task)
@@ -1139,10 +1242,10 @@ const editTask = async (
     await db.transaction(async tx => {
       await tx.delete(task).where(eq(task.id, parseInt(opts.id)))
 
-      const activeStatusId = await getOrCreateStatus(tx, 'active')
+      const activeStatusId = await getOrCreateStatus(db, 'active')
       const statusId =
         opts.status !== undefined
-          ? await getOrCreateStatus(tx, opts.status)
+          ? await getOrCreateStatus(db, opts.status)
           : activeStatusId
 
       await tx.insert(task).values({
@@ -1206,11 +1309,13 @@ const getTasks = async (
       status: status.name,
       taskDefinitionName: taskDefinition.name,
       projectName: project.name,
+      companyName: company.name,
     })
     .from(task)
     .innerJoin(taskDefinition, eq(task.taskDefinitionId, taskDefinition.id))
     .innerJoin(project, eq(taskDefinition.projectId, project.id))
     .innerJoin(status, eq(task.statusId, status.id))
+    .innerJoin(company, eq(project.companyId, company.id))
     .where(eq(project.id, parseInt(projectId)))
 
   return tasks.map(t => ({
@@ -1222,6 +1327,7 @@ const getTasks = async (
     seconds: t.seconds,
     date: t.date.toISOString().split('T')[0],
     status: t.status,
+    companyName: t.companyName,
   }))
 }
 
@@ -1239,11 +1345,13 @@ const getTasksByNameAndProject = async (
       status: status.name,
       taskDefinitionName: taskDefinition.name,
       projectName: project.name,
+      companyName: company.name,
     })
     .from(task)
     .innerJoin(taskDefinition, eq(task.taskDefinitionId, taskDefinition.id))
     .innerJoin(project, eq(taskDefinition.projectId, project.id))
     .innerJoin(status, eq(task.statusId, status.id))
+    .innerJoin(company, eq(project.companyId, company.id))
     .where(eq(task.taskDefinitionId, parseInt(opts.taskDefinitionId)))
 
   return tasks.map(t => ({
@@ -1255,6 +1363,7 @@ const getTasksByNameAndProject = async (
     seconds: t.seconds,
     date: t.date.toISOString().split('T')[0],
     status: t.status,
+    companyName: t.companyName,
   }))
 }
 
@@ -1320,6 +1429,7 @@ const getTasksByCompany = async (
       status: status.name,
       taskDefinitionName: taskDefinition.name,
       projectName: project.name,
+      companyName: company.name,
     })
     .from(task)
     .innerJoin(taskDefinition, eq(task.taskDefinitionId, taskDefinition.id))
@@ -1337,6 +1447,7 @@ const getTasksByCompany = async (
     seconds: t.seconds,
     date: t.date.toISOString().split('T')[0],
     status: t.status,
+    companyName: t.companyName,
   }))
 }
 
@@ -1362,11 +1473,14 @@ export {
   editTaskDefinition,
   getAllTaskDefinitions,
   getCompanies,
+  getCompanyByName,
   getDataForPDFExport,
+  getProjectByName,
   getProjects,
   getSearchResult,
   getTaskById,
   getTaskByTaskDefinitionAndDate,
+  getTaskDefinitionByName,
   getTaskDefinitions,
   getTasks,
   getTasksByCompany,
@@ -1374,6 +1488,9 @@ export {
   getTasksByProject,
   getTasksToday,
   initDB,
+  mergeCompanies,
+  mergeProjects,
+  mergeTaskDefinitions,
   saveActiveTask,
   saveActiveTasks,
 }

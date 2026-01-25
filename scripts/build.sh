@@ -4,7 +4,7 @@ if [ -z "$VERSION" ]; then echo "Error: VERSION is not set"; exit 1; fi
 if [ -z "$PLATFORM" ]; then echo "Error: PLATFORM is not set"; exit 1; fi
 
 generate_icons() {
-  local source_icon="resources/icon.png"
+  local source_icon="build/icon.png"
   local output_dir="build/icons"
 
   mkdir -p $output_dir

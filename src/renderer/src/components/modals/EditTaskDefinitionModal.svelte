@@ -19,7 +19,7 @@
     e.preventDefault()
     const result = await window.electron.editTaskDefinition({
       id: taskDefinition.id,
-      name: taskDefinition.name,
+      name: taskDefName,
       status: status,
     })
 

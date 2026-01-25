@@ -109,7 +109,7 @@
               <option value="" selected={!$selectedCompany}
                 >Select a company</option
               >
-              {#each $companies as company (company.id)}
+              {#each $companies as company (`unique-company-${company.id}`)}
                 <option
                   value={company.id}
                   selected={$selectedCompany &&

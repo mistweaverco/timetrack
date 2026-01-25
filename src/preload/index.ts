@@ -7,11 +7,24 @@ const API = {
   },
 
   // Companies
+  getCompanyByName: async (name: string): Promise<DBCompany | null> => {
+    return await ipcRenderer.invoke('getCompanyByName', name)
+  },
   getCompanies: async (): Promise<DBCompany[]> => {
     return await ipcRenderer.invoke('getCompanies')
   },
   addCompany: async (name: string): Promise<{ success: boolean }> => {
     return await ipcRenderer.invoke('addCompany', name)
+  },
+  mergeCompanies: async (
+    sourceCompanyId: string,
+    targetCompanyId: string,
+  ): Promise<{ success: boolean }> => {
+    return await ipcRenderer.invoke(
+      'mergeCompanies',
+      sourceCompanyId,
+      targetCompanyId,
+    )
   },
   editCompany: async (
     opts: DBEditCompanyOpts,
@@ -23,6 +36,12 @@ const API = {
   },
 
   // Projects
+  getProjectByName: async (
+    name: string,
+    companyId: string,
+  ): Promise<DBProject | null> => {
+    return await ipcRenderer.invoke('getProjectByName', name, companyId)
+  },
   getProjects: async (companyId?: string): Promise<DBProject[]> => {
     return await ipcRenderer.invoke('getProjects', companyId)
   },
@@ -31,6 +50,16 @@ const API = {
     companyId: string,
   ): Promise<{ success: boolean; id: string }> => {
     return await ipcRenderer.invoke('addProject', name, companyId)
+  },
+  mergeProjects: async (
+    sourceProjectId: string,
+    targetProjectId: string,
+  ): Promise<{ success: boolean }> => {
+    return await ipcRenderer.invoke(
+      'mergeProjects',
+      sourceProjectId,
+      targetProjectId,
+    )
   },
   editProject: async (
     opts: DBEditProjectOpts,
@@ -42,10 +71,26 @@ const API = {
   },
 
   // Task Definitions
+  getTaskDefinitionByName: async (
+    name: string,
+    projectId: string,
+  ): Promise<DBTaskDefinition | null> => {
+    return await ipcRenderer.invoke('getTaskDefinitionByName', name, projectId)
+  },
   addTaskDefinition: async (
     opts: DBAddTaskDefinitionOpts,
   ): Promise<{ success: boolean }> => {
     return await ipcRenderer.invoke('addTaskDefinition', opts)
+  },
+  mergeTaskDefinitions: async (
+    sourceTaskDefinitionId: string,
+    targetTaskDefinitionId: string,
+  ): Promise<{ success: boolean }> => {
+    return await ipcRenderer.invoke(
+      'mergeTaskDefinitions',
+      sourceTaskDefinitionId,
+      targetTaskDefinitionId,
+    )
   },
   editTaskDefinition: async (
     opts: DBEditTaskDefinitionOpts,

@@ -23,16 +23,22 @@ import {
   editTaskDefinition,
   getAllTaskDefinitions,
   getCompanies,
+  getCompanyByName,
   getDatabase,
   getDataForPDFExport,
+  getProjectByName,
   getProjects,
   getSearchResult,
   getTaskById,
   getTaskByTaskDefinitionAndDate,
+  getTaskDefinitionByName,
   getTaskDefinitions,
   getTasks,
   getTasksByNameAndProject,
   getTasksToday,
+  mergeCompanies,
+  mergeProjects,
+  mergeTaskDefinitions,
   saveActiveTask,
   saveActiveTasks,
 } from '../database'
@@ -353,10 +359,18 @@ export const initIpcHandlers = async (
   })
 
   // Company handlers
+  ipcMain.handle('getCompanyByName', async (_, name: string) =>
+    getCompanyByName(DB, name),
+  )
   ipcMain.handle('getCompanies', async (_, statusName?: string) =>
     getCompanies(DB, statusName),
   )
   ipcMain.handle('addCompany', async (_, name: string) => addCompany(DB, name))
+  ipcMain.handle(
+    'mergeCompanies',
+    async (_, sourceId: string, targetId: string) =>
+      mergeCompanies(DB, sourceId, targetId),
+  )
   ipcMain.handle('editCompany', async (_, opts: DBEditCompanyOpts) =>
     editCompany(DB, opts),
   )
@@ -366,12 +380,22 @@ export const initIpcHandlers = async (
 
   // Project handlers
   ipcMain.handle(
+    'getProjectByName',
+    async (_, name: string, companyId: string) =>
+      getProjectByName(DB, name, companyId),
+  )
+  ipcMain.handle(
     'getProjects',
     async (_, companyId?: string, statusName?: string) =>
       getProjects(DB, companyId, statusName),
   )
   ipcMain.handle('addProject', async (_, name: string, companyId: string) =>
     addProject(DB, name, companyId),
+  )
+  ipcMain.handle(
+    'mergeProjects',
+    async (_, sourceId: string, targetId: string) =>
+      mergeProjects(DB, sourceId, targetId),
   )
   ipcMain.handle('editProject', async (_, opts: DBEditProjectOpts) =>
     editProject(DB, opts),
@@ -384,6 +408,11 @@ export const initIpcHandlers = async (
     async (_, opts: DBAddTaskDefinitionOpts) => addTaskDefinition(DB, opts),
   )
   ipcMain.handle(
+    'mergeTaskDefinitions',
+    async (_, sourceId: string, targetId: string) =>
+      mergeTaskDefinitions(DB, sourceId, targetId),
+  )
+  ipcMain.handle(
     'editTaskDefinition',
     async (_, opts: DBEditTaskDefinitionOpts) => editTaskDefinition(DB, opts),
   )
@@ -394,6 +423,11 @@ export const initIpcHandlers = async (
   )
   ipcMain.handle('getTaskDefinitions', async (_, projectId: string) =>
     getTaskDefinitions(DB, projectId),
+  )
+  ipcMain.handle(
+    'getTaskDefinitionByName',
+    async (_, name: string, projectId: string) =>
+      getTaskDefinitionByName(DB, name, projectId),
   )
   ipcMain.handle('getAllTaskDefinitions', async () => getAllTaskDefinitions(DB))
   ipcMain.handle('addTask', async (_, opts: DBAddTaskOpts) => addTask(DB, opts))

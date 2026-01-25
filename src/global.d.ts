@@ -187,18 +187,31 @@ interface Window {
   electron: {
     on: (channel: string, callback: ElectronOnCallback) => void
     off: (channel: string) => void
+    getCompanyByName: (name: string) => Promise<DBCompany | null>
     getCompanies: (statusName?: string) => Promise<DBCompany[]>
     addCompany: (
       name: string,
     ) => Promise<{ success: boolean; company: DBCompany }>
+    mergeCompanies: (
+      sourceCompanyId: string,
+      targetCompanyId: string,
+    ) => Promise<{ success: boolean }>
     editCompany: (opts: DBEditCompanyOpts) => Promise<{ success: boolean }>
     deleteCompany: (id: string) => Promise<{ success: boolean }>
     addProject: (
       name: string,
       companyId: string,
     ) => Promise<{ success: boolean; project: DBProject }>
+    mergeProjects: (
+      sourceProjectId: string,
+      targetProjectId: string,
+    ) => Promise<{ success: boolean }>
     editProject: (opts: DBEditProjectOpts) => Promise<{ success: boolean }>
     deleteProject: (id: string) => Promise<{ success: boolean }>
+    getProjectByName: (
+      name: string,
+      companyId: string,
+    ) => Promise<DBProject | null>
     getProjects: (
       companyId?: string,
       statusName: string,
@@ -207,6 +220,10 @@ interface Window {
       success: boolean
       taskDefinition: DBTaskDefinition
     }>
+    mergeTaskDefinitions: (
+      sourceTaskDefinitionId: string,
+      targetTaskDefinitionId: string,
+    ) => Promise<{ success: boolean }>
     editTaskDefinition: (opts: DBEditTaskDefinitionOpts) => Promise<{
       success: boolean
     }>
@@ -214,6 +231,10 @@ interface Window {
       success: boolean
     }>
     getTasksToday: (projectId: string) => Promise<DBTask[]>
+    getTaskDefinitionByName: (
+      name: string,
+      projectId: string,
+    ) => Promise<DBTaskDefinition | null>
     getTaskDefinitions: (projectId: string) => Promise<DBTaskDefinition[]>
     getTaskById: (id: string) => Promise<DBTask | null>
     getTaskByTaskDefinitionAndDate: (
