@@ -15,9 +15,10 @@ import {
   initIpcHandlers,
   periodicSaveActiveTasks,
 } from './ipcHandlers'
+import fs from 'fs'
 import { loadWindowContents } from './utils'
 import icon from './../assets/icon/icon.png?asset'
-import trayIcon from './../../build/icons/64x64.png'
+import trayIconAsset from './../assets/icon/64x64.png?asset'
 import {
   getConfiguredDatabases,
   getDBFilePath,
@@ -118,12 +119,16 @@ app.whenReady().then(async () => {
 
   app.commandLine.appendSwitch('disable-gpu-vsync')
 
+  const trayIcon = fs.readFileSync(trayIconAsset).toString('base64')
+
   const win = await createWindow()
 
   // Minimize to tray behavior
   win.on('minimize', () => {
     if (!TRAY) {
-      TRAY = new Tray(nativeImage.createFromDataURL(trayIcon))
+      TRAY = new Tray(
+        nativeImage.createFromDataURL(`data:image/png;base64,${trayIcon}`),
+      )
       TRAY.setToolTip('TimeTrack')
     }
     TRAY.setContextMenu(
