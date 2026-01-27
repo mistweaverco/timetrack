@@ -75,7 +75,7 @@
         <Overview />
       {:else if $selectedPanel === 'Search'}
         <Search />
-      {:else if $selectedPanel === 'PDFExport' || $selectedPanel === 'PDFDocument'}
+      {:else if $selectedPanel === 'PDFDocument'}
         <PDFExport />
       {/if}
     </div>

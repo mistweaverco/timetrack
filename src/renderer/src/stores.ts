@@ -13,6 +13,8 @@ export const tasks = writable<DBTask[]>([])
 export const taskDefinitions = writable<DBTaskDefinition[]>([])
 export const activeTasks = writable<ActiveTask[]>([])
 export const searchResults = writable<SearchQueryResult | null>(null)
+export const pdfExportData = writable<PDFQueryResult[] | null>(null)
+export const pdfExportShowing = writable<boolean>(false)
 
 // Derived stores
 export const projectsForSelectedCompany = derived(

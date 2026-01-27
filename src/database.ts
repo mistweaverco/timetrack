@@ -294,8 +294,9 @@ const getSearchResult = async (
       .innerJoin(status, eq(company.statusId, status.id))
 
     if (company_name !== '%' && company_name !== '*') {
+      // Use exact match when a specific company is selected
       query = query.where(
-        like(company.name, `%${company_name.replace(/%/g, '')}%`),
+        eq(company.name, company_name.replace(/%/g, '')),
       ) as any
     }
 
@@ -329,7 +330,8 @@ const getSearchResult = async (
       conditions.push(like(project.name, `%${project_name.replace(/%/g, '')}%`))
     }
     if (company_name !== '%' && company_name !== '*') {
-      conditions.push(like(company.name, `%${company_name.replace(/%/g, '')}%`))
+      // Use exact match when a specific company is selected
+      conditions.push(eq(company.name, company_name.replace(/%/g, '')))
     }
     if (statusId) {
       conditions.push(eq(project.statusId, statusId))
@@ -428,6 +430,10 @@ const getSearchResult = async (
     }
     if (project_name !== '%' && project_name !== '*') {
       conditions.push(like(project.name, `%${project_name.replace(/%/g, '')}%`))
+    }
+    if (company_name !== '%' && company_name !== '*') {
+      // Use exact match when a specific company is selected
+      conditions.push(eq(company.name, company_name.replace(/%/g, '')))
     }
     if (task_description !== '%' && task_description !== '*') {
       conditions.push(
@@ -553,6 +559,7 @@ const getDataForPDFExport = async (
     .select({
       name: taskDefinition.name,
       projectName: project.name,
+      companyName: company.name,
       date: task.date,
       description: task.description,
       seconds: task.seconds,
@@ -560,6 +567,7 @@ const getDataForPDFExport = async (
     .from(task)
     .innerJoin(taskDefinition, eq(task.taskDefinitionId, taskDefinition.id))
     .innerJoin(project, eq(taskDefinition.projectId, project.id))
+    .innerJoin(company, eq(project.companyId, company.id))
     .where(
       and(
         gte(task.date, fromDate),
@@ -573,6 +581,7 @@ const getDataForPDFExport = async (
   return res.map(t => ({
     name: t.name,
     projectName: t.projectName,
+    companyName: t.companyName,
     date: t.date.toISOString().split('T')[0],
     description: t.description || '',
     seconds: t.seconds,

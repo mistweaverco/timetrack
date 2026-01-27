@@ -4,21 +4,26 @@
   export let pdfDocument: PDFQueryResult[]
 
   type PDFTotalObject = {
-    [key: string]: {
-      [key: string]: number
+    [companyName: string]: {
+      [projectName: string]: {
+        [taskName: string]: number
+      }
     }
   }
 
   $: total = (() => {
     const result: PDFTotalObject = {}
     pdfDocument.forEach((item: PDFQueryResult) => {
-      if (!result[item.projectName]) {
-        result[item.projectName] = {}
+      if (!result[item.companyName]) {
+        result[item.companyName] = {}
       }
-      if (!result[item.projectName][item.name]) {
-        result[item.projectName][item.name] = 0
+      if (!result[item.companyName][item.projectName]) {
+        result[item.companyName][item.projectName] = {}
       }
-      result[item.projectName][item.name] += item.seconds
+      if (!result[item.companyName][item.projectName][item.name]) {
+        result[item.companyName][item.projectName][item.name] = 0
+      }
+      result[item.companyName][item.projectName][item.name] += item.seconds
     })
     return result
   })()
@@ -37,11 +42,14 @@
   </section>
 
   <!-- Tasks List -->
-  {#each pdfDocument as item (`${item.projectName}-${item.name}-${item.date}`)}
+  {#each pdfDocument as item (`${item.companyName}-${item.projectName}-${item.name}-${item.date}`)}
     <div
       class="card bg-base-200 shadow-xl print:bg-white print:shadow-none print:border print:border-gray-300"
     >
       <div class="card-body print:p-4">
+        <h3 class="text-sm font-semibold text-base-content/70 print:text-xs">
+          {item.companyName}
+        </h3>
         <h2 class="card-title print:text-xl">{item.projectName}</h2>
         <p class="text-lg font-semibold print:text-base">{item.name}</p>
         {#if item.description}
@@ -77,24 +85,33 @@
     </div>
   </section>
 
-  {#each Object.keys(total) as projectName (projectName)}
+  {#each Object.keys(total) as companyName (companyName)}
     <div
       class="card bg-base-200 shadow-xl print:bg-white print:shadow-none print:border print:border-gray-300"
     >
       <div class="card-body print:p-4">
-        <h2 class="card-title print:text-xl">{projectName}</h2>
-        <div class="space-y-2 print:text-sm">
-          {#each Object.keys(total[projectName]) as taskName (taskName)}
-            <div class="flex justify-between items-center">
-              <span class="font-semibold">{taskName}</span>
-              <span
-                class="badge badge-primary badge-lg print:badge-sm print:bg-gray-200 print:text-gray-800"
-              >
-                {getHMSStringFromSeconds(total[projectName][taskName])}
-              </span>
+        <h2 class="card-title print:text-xl">{companyName}</h2>
+        {#each Object.keys(total[companyName]) as projectName (projectName)}
+          <div class="mt-4">
+            <h3 class="text-lg font-semibold print:text-base mb-2">
+              {projectName}
+            </h3>
+            <div class="space-y-2 print:text-sm ml-4">
+              {#each Object.keys(total[companyName][projectName]) as taskName (taskName)}
+                <div class="flex justify-between items-center">
+                  <span class="font-semibold">{taskName}</span>
+                  <span
+                    class="badge badge-primary badge-lg print:badge-sm print:bg-gray-200 print:text-gray-800"
+                  >
+                    {getHMSStringFromSeconds(
+                      total[companyName][projectName][taskName],
+                    )}
+                  </span>
+                </div>
+              {/each}
             </div>
-          {/each}
-        </div>
+          </div>
+        {/each}
       </div>
     </div>
   {/each}
