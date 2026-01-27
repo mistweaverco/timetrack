@@ -151,6 +151,13 @@ app.whenReady().then(async () => {
     win.hide()
   })
 
+  // When window is shown (restored from tray), notify renderer to refresh active tasks
+  win.on('show', () => {
+    if (areHandlersReady()) {
+      win.webContents.send('window-restored')
+    }
+  })
+
   // Resolve database file path (may prompt user if config with multiple DBs exists)
   // Dialog will appear on top of the window
   await chooseDatabaseForSession(win)

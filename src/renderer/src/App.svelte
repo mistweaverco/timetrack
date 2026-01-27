@@ -32,6 +32,16 @@
     window.electron.on('app-ready', () => {
       appReady = true
     })
+
+    // When window is restored from tray, refresh active tasks to get correct elapsed time
+    window.electron.on('window-restored', async () => {
+      try {
+        const activeTasksData = await window.electron.getActiveTasks()
+        activeTasks.set(activeTasksData)
+      } catch (error) {
+        console.error('Error refreshing active tasks on restore:', error)
+      }
+    })
   })
 </script>
 

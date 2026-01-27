@@ -20,6 +20,11 @@
         fetchActiveTasks()
       }
     })
+
+    // Listen for window restore event from main process
+    window.electron.on('window-restored', () => {
+      fetchActiveTasks()
+    })
   })
 
   activeTasks.subscribe(value => {
