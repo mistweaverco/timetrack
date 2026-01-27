@@ -7,7 +7,7 @@
 
   // Use non-reactive variable for interval ID to avoid effect loops
   let intervalId: ReturnType<typeof setInterval> | null = null
-  let localSeconds = $state(task.seconds)
+  let localSeconds = $derived(task.seconds)
 
   let isActive = $derived('isActive' in task && task.isActive)
   let currentSeconds = $derived(task.seconds)
