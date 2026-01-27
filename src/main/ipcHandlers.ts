@@ -8,6 +8,15 @@ import {
 import moment from 'moment'
 import fs from 'fs'
 import { CountUp } from '../countup'
+
+// Helper to normalize date (handle both Date objects and ISO strings)
+const normalizeDate = (date: Date | string): string => {
+  if (typeof date === 'string') {
+    // If it's already a string, extract date part if it's ISO format
+    return date.includes('T') ? date.split('T')[0] : date
+  }
+  return date.toISOString().split('T')[0]
+}
 import {
   addCompany,
   addProject,
@@ -134,13 +143,14 @@ export const initIpcHandlers = async (
         throw new Error(`Task not found: ${id}`)
       }
 
+      const taskDate = normalizeDate(dbTask.date as Date | string)
       const addedTask = addActiveTask({
         name: dbTask.taskDefinitionName,
         companyName: dbTask.companyName,
         projectName: dbTask.projectName,
         taskId: id,
         description: dbTask.description || '',
-        date: dbTask.date.toISOString(),
+        date: taskDate,
         seconds: dbTask.seconds,
         isActive: true,
       })
@@ -149,7 +159,7 @@ export const initIpcHandlers = async (
         success: true,
         taskId: id,
         description: dbTask.taskDefinitionName,
-        date: dbTask.date.toISOString(),
+        date: taskDate,
         seconds: dbTask.seconds,
         isActive: true,
         name: dbTask.taskDefinitionName,
@@ -177,11 +187,12 @@ export const initIpcHandlers = async (
         throw new Error(`Task not found: ${id}`)
       }
 
+      const taskDate = normalizeDate(dbTask.date as Date | string)
       return {
         success: false,
         taskId: id,
         description: activeTask.description,
-        date: dbTask.date.toISOString(),
+        date: taskDate,
         seconds: activeTask.seconds,
         isActive: true,
         name: dbTask.taskDefinitionName,
@@ -208,11 +219,12 @@ export const initIpcHandlers = async (
         throw new Error(`Task not found: ${id}`)
       }
 
+      const taskDate = normalizeDate(dbTask.date as Date | string)
       return {
         success: true,
         taskId: id,
         description: activeTask.description,
-        date: dbTask.date.toISOString(),
+        date: taskDate,
         seconds: activeTask.seconds,
         isActive: true,
         name: dbTask.taskDefinitionName,
@@ -261,11 +273,12 @@ export const initIpcHandlers = async (
         throw new Error(`Task not found: ${activeTask.taskId}`)
       }
 
+      const taskDate = normalizeDate(dbTask.date as Date | string)
       return {
         success: true,
         taskId: id,
         description: clone.description,
-        date: dbTask.date.toISOString(),
+        date: taskDate,
         seconds: clone.seconds,
         isActive: false,
         name: dbTask.taskDefinitionName,
@@ -311,11 +324,12 @@ export const initIpcHandlers = async (
       throw new Error(`Task not found: ${activeTask.taskId}`)
     }
 
+    const taskDate = normalizeDate(dbTask.date as Date | string)
     return {
       success: true,
       taskId: activeTask.taskId,
       description: activeTask.description,
-      date: dbTask.date.toISOString(),
+      date: taskDate,
       seconds: activeTask.seconds,
       isActive: false,
       name: dbTask.taskDefinitionName,

@@ -68,9 +68,22 @@ export const task = sqliteTable(
       .notNull()
       .references(() => taskDefinition.id, { onDelete: 'cascade' }),
     description: text('description'),
-    date: integer('date', { mode: 'timestamp' })
+    date: text('date')
       .notNull()
-      .$defaultFn(() => new Date()),
+      .$defaultFn(() => {
+        const now = new Date()
+        return new Date(
+          Date.UTC(
+            now.getFullYear(),
+            now.getMonth(),
+            now.getDate(),
+            0,
+            0,
+            0,
+            0,
+          ),
+        ).toISOString()
+      }),
     seconds: integer('seconds').notNull().default(0),
     statusId: integer('statusId')
       .notNull()

@@ -249,33 +249,15 @@
       return
     }
 
-    // Get unique task definitions from tasks (same as PDF export)
-    const taskMap = new SvelteMap<
-      string,
-      { project_name: string; name: string }
-    >()
-    for (const task of result.tasks) {
-      const key = `${task.projectName}:${task.name}`
-      if (!taskMap.has(key)) {
-        taskMap.set(key, {
-          project_name: task.projectName,
-          name: task.name,
-        })
-      }
-    }
-
-    const pdfQuery: PDFQuery = {
-      from: fromDate,
-      to: toDate,
-      tasks: Array.from(taskMap.values()),
-    }
-
-    const data = await window.electron.getDataForPDFExport(pdfQuery)
-
-    if (!data || data.length === 0) {
-      alert('No tasks found for CSV export.')
-      return
-    }
+    // Use search results directly instead of re-querying
+    const data = result.tasks.map(task => ({
+      companyName: task.companyName,
+      projectName: task.projectName,
+      name: task.name,
+      date: task.date,
+      description: task.description,
+      seconds: task.seconds,
+    }))
 
     const csvRows: string[] = []
 
@@ -357,38 +339,22 @@
   async function exportToPDF(result: SearchQueryResult) {
     if (!window.electron) return
 
-    // For PDF export, we need to convert search results to PDFQuery format
+    // For PDF export, use search results directly
     // Only export tasks for PDF (as PDF export currently only supports tasks)
     if (result.tasks.length === 0) {
       alert('No tasks found to export. PDF export only supports tasks.')
       return
     }
 
-    // Get unique task definitions from tasks
-    const taskMap = new Map<string, { project_name: string; name: string }>()
-    for (const task of result.tasks) {
-      const key = `${task.projectName}:${task.name}`
-      if (!taskMap.has(key)) {
-        taskMap.set(key, {
-          project_name: task.projectName,
-          name: task.name,
-        })
-      }
-    }
-
-    const pdfQuery: PDFQuery = {
-      from: fromDate,
-      to: toDate,
-      tasks: Array.from(taskMap.values()),
-    }
-
-    // Get PDF data using the same query as search
-    const data = await window.electron.getDataForPDFExport(pdfQuery)
-
-    if (!data || data.length === 0) {
-      alert('No tasks found for PDF export.')
-      return
-    }
+    // Convert search results to PDFQueryResult format
+    const data: PDFQueryResult[] = result.tasks.map(task => ({
+      companyName: task.companyName,
+      projectName: task.projectName,
+      name: task.name,
+      date: task.date,
+      description: task.description,
+      seconds: task.seconds,
+    }))
 
     // Set up PDF document view using shared store
     pdfExportData.set(data)
