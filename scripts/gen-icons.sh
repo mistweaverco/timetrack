@@ -24,10 +24,8 @@ generate_icons() {
   magick "$source_icon" -define icon:auto-resize=64,128,256 "$output_ico"
   echo "Created: $output_ico"
 
-  # Generate .icns file for macOS
-  local output_icns="$output_dir/icon.icns"
-  magick "$output_dir/icon.png" "$output_icns"
-  echo "Created: $output_icns"
+  # INFO:
+  # Generate .icns file for macOS is not supported on Linux directly.
 
   cp "$output_dir_appimage_icons/64x64.png" "$src_assets_dir/64x64.png"
   cp "$output_dir/icon.icns" "$src_assets_dir/icon.icns"
