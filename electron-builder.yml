@@ -5,6 +5,7 @@ directories:
   buildResources: build
 files:
   - 'build/**'
+  - 'drizzle/**'
   - 'out/**/*'
   - 'node_modules/@libsql/**/*'
   - 'node_modules/bindings/**/*'
@@ -16,7 +17,6 @@ files:
   - '!{.eslintignore,.eslintrc.cjs,.prettierignore,.prettierrc.yaml,CHANGELOG.md,README.md}'
   - '!{.env,.env.*,.npmrc,pnpm-lock.yaml,bun.lock}'
   - '!{tsconfig.json,tsconfig.node.json}'
-  - '!drizzle/**'
 asar: true
 asarUnpack:
   - 'node_modules/@libsql/**/*'
@@ -24,6 +24,7 @@ asarUnpack:
   - 'node_modules/file-uri-to-path/**/*'
   - 'node_modules/prebuild-install/**/*'
   - '**/*.node'
+  - 'drizzle/**/*'
 win:
   executableName: timetrack
   icon: build/icon.ico
