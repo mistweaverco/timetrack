@@ -340,22 +340,46 @@ export const initIpcHandlers = async (
   }
 
   // IPC Handlers
-  ipcMain.handle('showFileSaveDialog', async () => {
-    const datestr = moment().format('YYYY-MM-DD')
-    const dialogResult = await dialog.showSaveDialog(WINDOW, {
-      properties: ['showOverwriteConfirmation'],
-      defaultPath: `timetrack-report-${datestr}.pdf`,
-    })
-    if (!dialogResult.canceled && dialogResult.filePath) {
-      WINDOW.webContents.send('on-pdf-export-file-selected', dialogResult)
-      await getPDFExport(
-        { sender: WINDOW.webContents } as IpcMainInvokeEvent,
-        dialogResult.filePath,
-      )
-    } else {
-      WINDOW.webContents.send('on-pdf-export-file-selected', dialogResult)
-    }
-    return dialogResult
+  ipcMain.handle(
+    'showFileSaveDialog',
+    async (
+      _,
+      options?: {
+        defaultPath?: string
+        filters?: Electron.FileFilter[]
+      },
+    ) => {
+      const datestr = moment().format('YYYY-MM-DD')
+      const dialogOptions: Electron.SaveDialogOptions = {
+        properties: ['showOverwriteConfirmation'],
+        defaultPath: options?.defaultPath || `timetrack-report-${datestr}.pdf`,
+      }
+      if (options?.filters) {
+        dialogOptions.filters = options.filters
+      }
+      const dialogResult = await dialog.showSaveDialog(WINDOW, dialogOptions)
+      if (!dialogResult.canceled && dialogResult.filePath) {
+        // Only auto-export PDF if it's a PDF file
+        if (dialogResult.filePath.endsWith('.pdf')) {
+          WINDOW.webContents.send('on-pdf-export-file-selected', dialogResult)
+          await getPDFExport(
+            { sender: WINDOW.webContents } as IpcMainInvokeEvent,
+            dialogResult.filePath,
+          )
+        } else {
+          WINDOW.webContents.send('on-pdf-export-file-selected', dialogResult)
+        }
+      } else {
+        WINDOW.webContents.send('on-pdf-export-file-selected', dialogResult)
+      }
+      return dialogResult
+    },
+  )
+
+  ipcMain.handle('saveFile', async (_, filePath: string, content: string) => {
+    fs.writeFileSync(filePath, content, 'utf-8')
+    shell.openExternal('file://' + filePath)
+    return { success: true }
   })
 
   // Company handlers

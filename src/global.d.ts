@@ -21,6 +21,7 @@ type PDFQueryResult = {
   description: string
   name: string
   projectName: string
+  companyName: string
   seconds: number
 }
 
@@ -257,7 +258,14 @@ interface Window {
       id: string,
     ) => Promise<(ActiveTask & { success: true }) | { success: false }>
     getDataForPDFExport: (opts: PDFQuery) => Promise<PDFQueryResult[]>
-    showFileSaveDialog: () => Promise<void>
+    showFileSaveDialog: (options?: {
+      defaultPath?: string
+      filters?: Electron.FileFilter[]
+    }) => Promise<Electron.SaveDialogReturnValue>
+    saveFile: (
+      filePath: string,
+      content: string,
+    ) => Promise<{ success: boolean }>
     getPDFExport: (filepath: string) => Promise<void>
     getSearchResult: (query: SearchQuery) => Promise<SearchQueryResult>
   }

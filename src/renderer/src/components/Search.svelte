@@ -1,6 +1,14 @@
 <script lang="ts">
   import moment from 'moment'
-  import { activeTasks, searchResults } from '../stores'
+  import {
+    activeTasks,
+    searchResults,
+    selectedPanel,
+    pdfExportData,
+    pdfExportShowing,
+    selectedCompany,
+    companies,
+  } from '../stores'
   import EditCompanyModal from './modals/EditCompanyModal.svelte'
   import DeleteCompanyModal from './modals/DeleteCompanyModal.svelte'
   import EditProjectModal from './modals/EditProjectModal.svelte'
@@ -11,6 +19,8 @@
   import DeleteTaskDefinitionModal from './modals/DeleteTaskDefinitionModal.svelte'
   import InfoBox from './InfoBox.svelte'
   import { getHMSStringFromSeconds } from '../lib/utils'
+  import { tick, onMount } from 'svelte'
+  import { SvelteMap } from 'svelte/reactivity'
 
   let searchResult: SearchQueryResult | null = $state(null)
   let loading = $state(false)
@@ -45,6 +55,66 @@
 
   let activeTasksList = $state($activeTasks)
   let formValid = $derived(false)
+  let exportFormat = $state<'csv' | 'pdf'>('csv')
+  let exporting = $state(false)
+  let eventListenersAdded = $state(false)
+  let companiesList: DBCompany[] = $state([])
+
+  // Sync company name when selectedCompany changes
+  $effect(() => {
+    if ($selectedCompany) {
+      companyName = $selectedCompany.name
+      // Automatically include companies in search if a company is selected
+      if (!searchIn.includes('companies')) {
+        searchIn = [...searchIn, 'companies']
+      }
+    }
+  })
+
+  // Load companies list
+  onMount(async () => {
+    // Load companies list
+    if (window.electron) {
+      try {
+        const data = await window.electron.getCompanies()
+        companies.set(data)
+        companiesList = data
+      } catch (error) {
+        console.error('Error loading companies:', error)
+      }
+    }
+    companies.subscribe(value => {
+      companiesList = value
+    })
+
+    // Set up event listeners for PDF export
+    if (!eventListenersAdded && window.electron) {
+      window.electron.on(
+        'on-pdf-export-file-selected',
+        (data: { canceled: boolean }) => {
+          if (data.canceled) {
+            // User canceled - go back to search
+            pdfExportData.set(null)
+            pdfExportShowing.set(false)
+            if ($selectedPanel === 'PDFDocument') {
+              selectedPanel.set('Search')
+            }
+          }
+        },
+      )
+
+      window.electron.on('on-pdf-export-file-saved', () => {
+        // PDF saved successfully - go back to search
+        pdfExportData.set(null)
+        pdfExportShowing.set(false)
+        if ($selectedPanel === 'PDFDocument') {
+          selectedPanel.set('Search')
+        }
+      })
+
+      eventListenersAdded = true
+    }
+  })
 
   $effect(() => {
     formValid =
@@ -151,6 +221,194 @@
   function handleDeleteCompany(company: DBCompany) {
     companyToDelete = company
     showDeleteCompanyModal = true
+  }
+
+  async function handleExport() {
+    if (!searchResult) return
+
+    exporting = true
+    try {
+      if (exportFormat === 'csv') {
+        await exportToCSV(searchResult)
+      } else if (exportFormat === 'pdf') {
+        await exportToPDF(searchResult)
+      }
+    } catch (error) {
+      console.error('Error exporting:', error)
+      alert('Failed to export. Please try again.')
+    } finally {
+      exporting = false
+    }
+  }
+
+  async function exportToCSV(result: SearchQueryResult) {
+    if (!window.electron) return
+
+    if (result.tasks.length === 0) {
+      alert('No tasks found to export. CSV export only supports tasks.')
+      return
+    }
+
+    // Get unique task definitions from tasks (same as PDF export)
+    const taskMap = new SvelteMap<
+      string,
+      { project_name: string; name: string }
+    >()
+    for (const task of result.tasks) {
+      const key = `${task.projectName}:${task.name}`
+      if (!taskMap.has(key)) {
+        taskMap.set(key, {
+          project_name: task.projectName,
+          name: task.name,
+        })
+      }
+    }
+
+    const pdfQuery: PDFQuery = {
+      from: fromDate,
+      to: toDate,
+      tasks: Array.from(taskMap.values()),
+    }
+
+    const data = await window.electron.getDataForPDFExport(pdfQuery)
+
+    if (!data || data.length === 0) {
+      alert('No tasks found for CSV export.')
+      return
+    }
+
+    const csvRows: string[] = []
+
+    csvRows.push('Company Name;Project Name;Task Name;Date;Description;Time')
+
+    const formatTime = (seconds: number) => {
+      const hours = Math.floor(seconds / 3600)
+      const minutes = Math.floor((seconds % 3600) / 60)
+      const secs = seconds % 60
+      return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`
+    }
+
+    const escapeCSV = (value: string | null | undefined) => {
+      if (value === null || value === undefined) return ''
+      const str = String(value)
+      if (str.includes(';') || str.includes('"') || str.includes('\n')) {
+        return `"${str.replace(/"/g, '""')}"`
+      }
+      return str
+    }
+
+    for (const task of data) {
+      csvRows.push(
+        `${escapeCSV(task.companyName)};${escapeCSV(task.projectName)};${escapeCSV(task.name)};${escapeCSV(task.date)};${escapeCSV(task.description)};${formatTime(task.seconds)}`,
+      )
+    }
+
+    csvRows.push('')
+    csvRows.push('Total Time by Company, Project and Task')
+    csvRows.push('Company Name;Project Name;Task Name;Total Time')
+
+    const totals: {
+      [companyName: string]: {
+        [projectName: string]: { [taskName: string]: number }
+      }
+    } = {}
+    for (const task of data) {
+      if (!totals[task.companyName]) {
+        totals[task.companyName] = {}
+      }
+      if (!totals[task.companyName][task.projectName]) {
+        totals[task.companyName][task.projectName] = {}
+      }
+      if (!totals[task.companyName][task.projectName][task.name]) {
+        totals[task.companyName][task.projectName][task.name] = 0
+      }
+      totals[task.companyName][task.projectName][task.name] += task.seconds
+    }
+
+    for (const companyName of Object.keys(totals).sort()) {
+      for (const projectName of Object.keys(totals[companyName]).sort()) {
+        for (const taskName of Object.keys(
+          totals[companyName][projectName],
+        ).sort()) {
+          const totalSeconds = totals[companyName][projectName][taskName]
+          csvRows.push(
+            `${escapeCSV(companyName)};${escapeCSV(projectName)};${escapeCSV(taskName)};${formatTime(totalSeconds)}`,
+          )
+        }
+      }
+    }
+
+    const csvContent = csvRows.join('\n')
+
+    const datestr = moment().format('YYYY-MM-DD')
+    const dialogResult = await window.electron.showFileSaveDialog({
+      defaultPath: `timetrack-export-${datestr}.csv`,
+      filters: [
+        { name: 'CSV Files', extensions: ['csv'] },
+        { name: 'All Files', extensions: ['*'] },
+      ],
+    })
+
+    if (!dialogResult.canceled && dialogResult.filePath) {
+      await window.electron.saveFile(dialogResult.filePath, csvContent)
+    }
+  }
+
+  async function exportToPDF(result: SearchQueryResult) {
+    if (!window.electron) return
+
+    // For PDF export, we need to convert search results to PDFQuery format
+    // Only export tasks for PDF (as PDF export currently only supports tasks)
+    if (result.tasks.length === 0) {
+      alert('No tasks found to export. PDF export only supports tasks.')
+      return
+    }
+
+    // Get unique task definitions from tasks
+    const taskMap = new Map<string, { project_name: string; name: string }>()
+    for (const task of result.tasks) {
+      const key = `${task.projectName}:${task.name}`
+      if (!taskMap.has(key)) {
+        taskMap.set(key, {
+          project_name: task.projectName,
+          name: task.name,
+        })
+      }
+    }
+
+    const pdfQuery: PDFQuery = {
+      from: fromDate,
+      to: toDate,
+      tasks: Array.from(taskMap.values()),
+    }
+
+    // Get PDF data using the same query as search
+    const data = await window.electron.getDataForPDFExport(pdfQuery)
+
+    if (!data || data.length === 0) {
+      alert('No tasks found for PDF export.')
+      return
+    }
+
+    // Set up PDF document view using shared store
+    pdfExportData.set(data)
+    pdfExportShowing.set(true)
+    selectedPanel.set('PDFDocument')
+
+    // Wait for Svelte to render the PDFDocument component
+    await tick()
+    await tick()
+    // Add a delay to ensure the component is fully rendered and visible
+    await new Promise(resolve => setTimeout(resolve, 300))
+
+    // Show file save dialog - PDFDocument will stay visible during this
+    await window.electron.showFileSaveDialog({
+      defaultPath: `timetrack-export-${moment().format('YYYY-MM-DD')}.pdf`,
+      filters: [
+        { name: 'PDF Files', extensions: ['pdf'] },
+        { name: 'All Files', extensions: ['*'] },
+      ],
+    })
   }
 
   function handleProjectModalClose(
@@ -375,14 +633,29 @@
             <label class="label" for="companyName">
               <span class="label-text">Company Name</span>
             </label>
-            <input
+            <select
               id="companyName"
-              type="text"
               bind:value={companyName}
-              placeholder="Company Name (* for all)"
-              class="input input-bordered"
+              class="select select-bordered"
               required
-            />
+            >
+              <option value="*">All Companies</option>
+              {#each companiesList as company (company.id)}
+                <option
+                  value={company.name}
+                  selected={companyName === company.name}
+                >
+                  {company.name}
+                </option>
+              {/each}
+            </select>
+            {#if $selectedCompany}
+              <label class="label">
+                <span class="label-text-alt text-info">
+                  Selected: {$selectedCompany.name}
+                </span>
+              </label>
+            {/if}
           </div>
 
           <div class="form-control mt-2">
@@ -455,6 +728,38 @@
               {/if}
             </button>
           </div>
+
+          {#if searchResult}
+            <div class="form-control mt-4">
+              <label class="label" for="exportFormat">
+                <span class="label-text">Export Format</span>
+              </label>
+              <select
+                id="exportFormat"
+                bind:value={exportFormat}
+                class="select select-bordered"
+              >
+                <option value="csv">CSV</option>
+                <option value="pdf">PDF</option>
+              </select>
+            </div>
+
+            <div class="form-control mt-4">
+              <button
+                type="button"
+                class="btn btn-success w-full"
+                disabled={exporting || !searchResult}
+                onclick={handleExport}
+              >
+                {#if exporting}
+                  <span class="loading loading-spinner"></span>
+                  Exporting...
+                {:else}
+                  Export {exportFormat.toUpperCase()}
+                {/if}
+              </button>
+            </div>
+          {/if}
         </div>
       </div>
 

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { House, Search, Download, Bug, Code } from '@lucide/svelte'
+  import { House, Search, Bug, Code } from '@lucide/svelte'
   import { selectedPanel } from '../stores'
 
   export let currentPanel: string = 'Overview'
@@ -45,17 +45,6 @@
             : ''}"
           onclick={() => handlePanelClick('Search')}
           ><Search size="16" /></button
-        >
-      </div>
-    </li>
-    <li>
-      <div class="tooltip tooltip-bottom" data-tip="Export">
-        <button
-          class="btn {currentPanel === 'PDFExport'
-            ? 'btn-outline btn-accent'
-            : ''}"
-          onclick={() => handlePanelClick('PDFExport')}
-          ><Download size="16" /></button
         >
       </div>
     </li>

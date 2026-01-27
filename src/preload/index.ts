@@ -1,11 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron'
 
 const API = {
-  // File operations
-  showFileSaveDialog: async (): Promise<Electron.SaveDialogReturnValue> => {
-    return await ipcRenderer.invoke('showFileSaveDialog')
-  },
-
   // Companies
   getCompanyByName: async (name: string): Promise<DBCompany | null> => {
     return await ipcRenderer.invoke('getCompanyByName', name)
@@ -167,6 +162,18 @@ const API = {
   // PDF Export
   getDataForPDFExport: async (opts: PDFQuery): Promise<PDFQueryResult[]> => {
     return await ipcRenderer.invoke('getDataForPDFExport', opts)
+  },
+  showFileSaveDialog: async (options?: {
+    defaultPath?: string
+    filters?: Electron.FileFilter[]
+  }): Promise<Electron.SaveDialogReturnValue> => {
+    return await ipcRenderer.invoke('showFileSaveDialog', options)
+  },
+  saveFile: async (
+    filePath: string,
+    content: string,
+  ): Promise<{ success: boolean }> => {
+    return await ipcRenderer.invoke('saveFile', filePath, content)
   },
 
   // Search
