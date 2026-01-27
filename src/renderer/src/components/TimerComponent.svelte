@@ -1,33 +1,45 @@
 <script lang="ts">
-  import { onDestroy } from 'svelte'
+  import { onDestroy, untrack } from 'svelte'
   import { getHMSStringFromSeconds } from '../lib/utils'
   import { activeTasks } from '../stores'
 
-  export let task: DBTask | ActiveTask
+  let { task } = $props<{ task: DBTask | ActiveTask }>()
 
-  let displayTime = getHMSStringFromSeconds(task.seconds)
+  // Use non-reactive variable for interval ID to avoid effect loops
   let intervalId: ReturnType<typeof setInterval> | null = null
-  let localSeconds = task.seconds
+  let localSeconds = $state(task.seconds)
 
-  $: isActive = 'isActive' in task && task.isActive
-  $: currentSeconds = task.seconds
+  let isActive = $derived('isActive' in task && task.isActive)
+  let currentSeconds = $derived(task.seconds)
+  let displayTime = $derived(getHMSStringFromSeconds(localSeconds))
 
   // Update local seconds when task seconds change
-  // (but not when active, to avoid resetting during count)
-  $: if (!isActive && currentSeconds !== undefined) {
-    localSeconds = currentSeconds
-    displayTime = getHMSStringFromSeconds(localSeconds)
-  }
+  // For inactive tasks, always sync
+  // For active tasks, sync if there's a significant difference (more than 2 seconds)
+  // This handles the case when window was restored from tray and backend has correct time
+  $effect(() => {
+    if (currentSeconds !== undefined) {
+      if (!isActive) {
+        localSeconds = currentSeconds
+      } else {
+        // Check intervalId without tracking it as a dependency
+        const currentInterval = untrack(() => intervalId)
+        if (currentInterval && Math.abs(currentSeconds - localSeconds) > 2) {
+          // Significant difference detected - sync with backend time
+          localSeconds = currentSeconds
+        }
+      }
+    }
+  })
 
   // Start/stop interval based on isActive
-  $: {
+  $effect(() => {
     if (isActive) {
       // Start interval if not already running
       if (!intervalId) {
         localSeconds = currentSeconds
         intervalId = setInterval(() => {
           localSeconds++
-          displayTime = getHMSStringFromSeconds(localSeconds)
           // Update the active task in store
           activeTasks.update(tasks =>
             tasks.map(t =>
@@ -44,10 +56,17 @@
       if (intervalId) {
         clearInterval(intervalId)
         intervalId = null
-        displayTime = getHMSStringFromSeconds(localSeconds)
       }
     }
-  }
+
+    // Cleanup: clear interval when isActive becomes false or component unmounts
+    return () => {
+      if (intervalId) {
+        clearInterval(intervalId)
+        intervalId = null
+      }
+    }
+  })
 
   onDestroy(() => {
     if (intervalId) {

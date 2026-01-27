@@ -5,9 +5,10 @@ if [ -z "$PLATFORM" ]; then echo "Error: PLATFORM is not set"; exit 1; fi
 
 generate_icons() {
   local source_icon="build/icon.png"
-  local output_dir="build/icons"
+  local output_dir_appimage_icons="build/icons"
+  local output_dir="build/"
 
-  mkdir -p $output_dir
+  mkdir -p $output_dir_appimage_icons
 
   # Array of sizes required for Linux/AppImage compatibility
   local sizes=(16 32 48 64 128 256 512 1024)
@@ -15,10 +16,20 @@ generate_icons() {
   echo "Generating icons from $source_icon..."
 
   for SIZE in "${sizes[@]}"; do
-      dest="$output_dir/${SIZE}x${SIZE}.png"
+      dest="$output_dir_appimage_icons/${SIZE}x${SIZE}.png"
       magick "$source_icon" -resize "${SIZE}x${SIZE}" "$dest"
       echo "Created: $dest"
   done
+
+  # Generate .ico file for Windows
+  local output_ico="$output_dir/icon.ico"
+  magick "$source_icon" -define icon:auto-resize=64,128,256 "$output_ico"
+  echo "Created: $output_ico"
+
+  # Generate .icns file for macOS
+  local output_icns="$output_dir/icon.icns"
+  iconutil -c icns -o "$output_icns" "$output_dir_appimage
+
 }
 
 update_package_json_version() {
