@@ -5,7 +5,7 @@ directories:
   buildResources: build
 files:
   - 'build/**'
-  - 'drizzle/**'
+  - 'drizzle/**/*'
   - 'out/**/*'
   - 'node_modules/@libsql/**/*'
   - 'node_modules/bindings/**/*'

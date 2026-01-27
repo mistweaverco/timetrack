@@ -1,3 +1,4 @@
+import { app } from 'electron'
 import { createClient } from '@libsql/client'
 import { drizzle } from 'drizzle-orm/libsql'
 import { alias } from 'drizzle-orm/sqlite-core'
@@ -106,7 +107,13 @@ const initDB = async () => {
 
   // Run migrations programmatically
   try {
-    const migrationsPath = path.join(process.cwd(), 'drizzle')
+    // Determine migrations folder path
+    // should be in asar unpacked resources if packaged with Electron
+    // during development, it can be relative to the project root
+    // so we check for is development mode first
+    const migrationsPath = !app.isPackaged
+      ? path.join(__dirname, '..', '..', 'drizzle')
+      : path.join(process.resourcesPath, 'app.asar.unpacked', 'drizzle')
 
     // Check if migrations folder exists
     if (fs.existsSync(migrationsPath)) {
@@ -126,6 +133,7 @@ const initDB = async () => {
     } else {
       logger.warn(
         '⚠️ No migrations folder found. Please ensure migrations are set up.',
+        migrationsPath,
       )
     }
   } catch (migrateError) {
