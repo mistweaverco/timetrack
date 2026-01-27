@@ -3,44 +3,6 @@
 if [ -z "$VERSION" ]; then echo "Error: VERSION is not set"; exit 1; fi
 if [ -z "$PLATFORM" ]; then echo "Error: PLATFORM is not set"; exit 1; fi
 
-generate_icons() {
-  local source_icon="build/icon.png"
-  local output_dir_appimage_icons="build/icons"
-  local output_dir="build/"
-
-  mkdir -p $output_dir_appimage_icons
-
-  # Array of sizes required for Linux/AppImage compatibility
-  local sizes=(16 32 48 64 128 256 512 1024)
-
-  echo "Generating icons from $source_icon..."
-
-  for SIZE in "${sizes[@]}"; do
-      dest="$output_dir_appimage_icons/${SIZE}x${SIZE}.png"
-      magick "$source_icon" -resize "${SIZE}x${SIZE}" "$dest"
-      echo "Created: $dest"
-  done
-
-  # Generate .ico file for Windows
-  local output_ico="$output_dir/icon.ico"
-  magick "$source_icon" -define icon:auto-resize=64,128,256 "$output_ico"
-  echo "Created: $output_ico"
-
-  # Generate .icns file for macOS
-  local output_icns="$output_dir/icon.icns"
-  iconutil -c icns -o "$output_icns" "$output_dir_appimage
-
-}
-
-update_package_json_version() {
-  local tmp
-  tmp=$(mktemp)
-  jq --arg v "$VERSION" '.version = $v' package.json > "$tmp" && mv "$tmp" package.json
-}
-
-update_package_json_version
-generate_icons
-
 build_windows() {
   bun run build && bunx electron-builder --win --publish never
 }

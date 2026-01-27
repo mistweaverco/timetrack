@@ -37,17 +37,18 @@ fi
 # create favicons if they do not exist
 if [ ! -f ./web/static/favicon.ico ] || [ ! -f ./web/static/favicon.png ]; then
   if [ "$IMAGEMAGICK_VERSION" = "ok" ]; then
-    magick convert ./assets/logo.png -resize 64x64 ./web/static/favicon.ico || exit 1
-    magick convert ./assets/logo.png -resize 256x256 ./web/static/favicon.png || exit 1
+    magick convert ./build/icon.png -resize 64x64 ./web/static/favicon.ico || exit 1
+    magick convert ./build/icon.png -resize 256x256 ./web/static/favicon.png || exit 1
   else
-    convert ./assets/logo.png -resize 64x64 ./web/static/favicon.ico || exit 1
-    convert ./assets/logo.png -resize 256x256 ./web/static/favicon.png || exit 1
+    convert ./build/icon.png -resize 64x64 ./web/static/favicon.ico || exit 1
+    convert ./build/icon.png -resize 256x256 ./web/static/favicon.png || exit 1
   fi
 fi
 
 # copy logos if they do not exist
 if [ ! -f ./web/static/logo.png ] || [ ! -f ./web/static/logo.svg ]; then
-  cp ./assets/logo.* ./web/static/ || exit 1
+  cp ./build/icon.png ./web/static/logo.png || exit 1
+  cp ./build/icon.svg ./web/static/logo.svg || exit 1
 fi
 
 # copy config.schema.json to web static
