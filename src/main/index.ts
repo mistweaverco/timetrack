@@ -93,6 +93,12 @@ async function createWindow(): Promise<BrowserWindow> {
   await loadWindowContents(MAIN_WINDOW, 'index.html')
 
   MAIN_WINDOW.webContents.setWindowOpenHandler(details => {
+    if (
+      details.url.startsWith('file://') ||
+      details.url.startsWith('http://localhost')
+    ) {
+      return { action: 'allow' }
+    }
     shell.openExternal(details.url)
     return { action: 'deny' }
   })
