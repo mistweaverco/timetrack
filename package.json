@@ -1,6 +1,6 @@
 {
   "name": "timetrack",
-  "version": "5.6.3",
+  "version": "5.7.0",
   "description": "Simple desktop application to track your time spent on different projects.",
   "main": "./out/main/index.js",
   "author": {
@@ -52,6 +52,7 @@
     "electron-vite": "5.0.0",
     "eslint": "9.39.2",
     "eslint-plugin-svelte": "3.14.0",
+    "marked": "17.0.1",
     "prettier": "3.7.4",
     "prettier-plugin-svelte": "3.4.1",
     "prettier-plugin-tailwindcss": "0.7.2",

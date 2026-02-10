@@ -1,5 +1,6 @@
 <script lang="ts">
   import moment from 'moment'
+  import { marked } from 'marked'
   import {
     activeTasks,
     searchResults,
@@ -19,6 +20,12 @@
   import InfoBox from './InfoBox.svelte'
   import { getHMSStringFromSeconds } from '../lib/utils'
   import { tick, onMount } from 'svelte'
+
+  marked.use({
+    async: true,
+    pedantic: false,
+    gfm: true,
+  })
 
   let searchResult: SearchQueryResult | null = $state(null)
   let loading = $state(false)
@@ -142,6 +149,16 @@
         console.log('Executing search with query:', query)
         const result = await window.electron.getSearchResult(query)
         searchResult = result
+        searchResult.tasks.forEach(async task => {
+          if (task.description) {
+            task.descriptionHTML = await marked.parse(
+              task.description.replace(/\n(?=\n)/g, '\n\n<br/>\n'),
+            )
+            console.log(task.descriptionHTML)
+          } else {
+            task.descriptionHTML = ''
+          }
+        })
         console.log('Search result:', result)
         searchResults.set(result)
       }
@@ -341,7 +358,7 @@
       projectName: task.projectName,
       name: task.name,
       date: task.date,
-      description: task.description,
+      description: task.descriptionHTML,
       seconds: task.seconds,
     }))
 
@@ -861,7 +878,10 @@
                           {task.projectName}
                         </p>
                         {#if task.description}
-                          <p class="text-sm">{task.description}</p>
+                          <div class="text-sm">
+                            <!-- eslint-disable-next-line svelte/no-at-html-tags -->
+                            {@html task.descriptionHTML}
+                          </div>
                         {/if}
                         <div class="flex gap-4 text-sm">
                           <div class="flex items-center gap-1">

@@ -52,11 +52,15 @@ type SearchQuery = {
   to_date: string
 }
 
+type SearchQueryResultTask = DBTask & {
+  descriptionHTML?: string
+}
+
 type SearchQueryResult = {
   companies: DBCompany[]
   projects: DBProject[]
   task_definitions: DBTaskDefinition[]
-  tasks: DBTask[]
+  tasks: SearchQueryResultTask[]
 }
 
 type DBCompany = {

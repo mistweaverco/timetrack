@@ -54,7 +54,8 @@
         <p class="text-lg font-semibold print:text-base">{item.name}</p>
         {#if item.description}
           <div class="prose max-w-none print:text-sm">
-            <p>{item.description}</p>
+            <!-- eslint-disable-next-line svelte/no-at-html-tags -->
+            {@html item.description}
           </div>
         {/if}
         <div class="flex gap-4 mt-2 print:text-sm">
