@@ -53,7 +53,7 @@
         <h2 class="card-title print:text-xl">{item.projectName}</h2>
         <p class="text-lg font-semibold print:text-base">{item.name}</p>
         {#if item.description}
-          <div class="prose max-w-none print:text-sm">
+          <div class="prose max-w-none markdown-content print:text-sm">
             <!-- eslint-disable-next-line svelte/no-at-html-tags -->
             {@html item.description}
           </div>

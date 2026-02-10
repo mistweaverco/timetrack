@@ -146,7 +146,6 @@
       }
 
       if (window.electron) {
-        console.log('Executing search with query:', query)
         const result = await window.electron.getSearchResult(query)
         searchResult = result
         searchResult.tasks.forEach(async task => {
@@ -154,12 +153,10 @@
             task.descriptionHTML = await marked.parse(
               task.description.replace(/\n(?=\n)/g, '\n\n<br/>\n'),
             )
-            console.log(task.descriptionHTML)
           } else {
             task.descriptionHTML = ''
           }
         })
-        console.log('Search result:', result)
         searchResults.set(result)
       }
     } catch (error) {
@@ -878,7 +875,7 @@
                           {task.projectName}
                         </p>
                         {#if task.description}
-                          <div class="text-sm">
+                          <div class="markdown-content">
                             <!-- eslint-disable-next-line svelte/no-at-html-tags -->
                             {@html task.descriptionHTML}
                           </div>
@@ -932,3 +929,6 @@
     </div>
   </form>
 </section>
+
+<style>
+</style>
