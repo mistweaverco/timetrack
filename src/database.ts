@@ -121,6 +121,7 @@ const initDB = async () => {
       logger.info(`🗃️ Migrations folder: ${migrationsPath}`)
 
       try {
+        await client.execute('PRAGMA foreign_keys = OFF;')
         await migrate(db, {
           migrationsFolder: migrationsPath,
         })
@@ -128,6 +129,7 @@ const initDB = async () => {
         logger.error('🗃️ Migration error details:', migrateErr)
         throw migrateErr
       }
+      await client.execute('PRAGMA foreign_keys = ON;')
 
       logger.info('🗃️ Database migrations completed')
     } else {
