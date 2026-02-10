@@ -37,6 +37,13 @@ async function chooseDatabaseForSession(
   if (userConfig) {
     const databases = getConfiguredDatabases(userConfig)
 
+    // if only one database is configured, use it without asking.
+    // Otherwise, prompt user to select which one to use for this session
+    if (databases.length === 1) {
+      setDatabaseFilePath(databases[0].path)
+      return
+    }
+
     if (databases.length > 0) {
       const buttons = databases.map(db => db.name)
 
