@@ -99,7 +99,13 @@ const initDB = async () => {
 
   logger.info('🗃️ Initializing database with Drizzle...')
 
-  // Create raw libsql client
+  // Ensure the database directory exists so libsql can create the file on first use
+  const dbDir = path.dirname(sqlFilePath)
+  if (!fs.existsSync(dbDir)) {
+    fs.mkdirSync(dbDir, { recursive: true })
+  }
+
+  // Create raw libsql client (file is created automatically on first statement if missing)
   const client = createClient({ url: `file:${sqlFilePath}` })
 
   // Create Drizzle instance
