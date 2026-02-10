@@ -5,15 +5,15 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1769523713799,
-      "tag": "2026010271535_migrate_task_date_to_text",
+      "when": 1769523713798,
+      "tag": "0000_initial",
       "breakpoints": true
     },
     {
       "idx": 1,
       "version": "7",
-      "when": 1769526000000,
-      "tag": "202601271600_fix_remaining_timestamps",
+      "when": 1769523713799,
+      "tag": "2026010271535_fix_task_date",
       "breakpoints": true
     }
   ]

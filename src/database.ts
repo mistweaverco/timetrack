@@ -1,3 +1,4 @@
+import { app } from 'electron'
 import { createClient } from '@libsql/client'
 import { drizzle } from 'drizzle-orm/libsql'
 import { alias } from 'drizzle-orm/sqlite-core'
@@ -98,7 +99,13 @@ const initDB = async () => {
 
   logger.info('🗃️ Initializing database with Drizzle...')
 
-  // Create raw libsql client
+  // Ensure the database directory exists so libsql can create the file on first use
+  const dbDir = path.dirname(sqlFilePath)
+  if (!fs.existsSync(dbDir)) {
+    fs.mkdirSync(dbDir, { recursive: true })
+  }
+
+  // Create raw libsql client (file is created automatically on first statement if missing)
   const client = createClient({ url: `file:${sqlFilePath}` })
 
   // Create Drizzle instance
@@ -106,7 +113,13 @@ const initDB = async () => {
 
   // Run migrations programmatically
   try {
-    const migrationsPath = path.join(process.cwd(), 'drizzle')
+    // Determine migrations folder path
+    // should be in asar unpacked resources if packaged with Electron
+    // during development, it can be relative to the project root
+    // so we check for is development mode first
+    const migrationsPath = !app.isPackaged
+      ? path.join(__dirname, '..', '..', 'drizzle')
+      : path.join(process.resourcesPath, 'app.asar.unpacked', 'drizzle')
 
     // Check if migrations folder exists
     if (fs.existsSync(migrationsPath)) {
@@ -114,6 +127,7 @@ const initDB = async () => {
       logger.info(`🗃️ Migrations folder: ${migrationsPath}`)
 
       try {
+        await client.execute('PRAGMA foreign_keys = OFF;')
         await migrate(db, {
           migrationsFolder: migrationsPath,
         })
@@ -121,11 +135,13 @@ const initDB = async () => {
         logger.error('🗃️ Migration error details:', migrateErr)
         throw migrateErr
       }
+      await client.execute('PRAGMA foreign_keys = ON;')
 
       logger.info('🗃️ Database migrations completed')
     } else {
       logger.warn(
         '⚠️ No migrations folder found. Please ensure migrations are set up.',
+        migrationsPath,
       )
     }
   } catch (migrateError) {
