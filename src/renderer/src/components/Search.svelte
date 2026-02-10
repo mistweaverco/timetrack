@@ -6,7 +6,6 @@
     selectedPanel,
     pdfExportData,
     pdfExportShowing,
-    selectedCompany,
     companies,
   } from '../stores'
   import EditCompanyModal from './modals/EditCompanyModal.svelte'
@@ -20,7 +19,6 @@
   import InfoBox from './InfoBox.svelte'
   import { getHMSStringFromSeconds } from '../lib/utils'
   import { tick, onMount } from 'svelte'
-  import { SvelteMap } from 'svelte/reactivity'
 
   let searchResult: SearchQueryResult | null = $state(null)
   let loading = $state(false)
@@ -59,17 +57,6 @@
   let exporting = $state(false)
   let eventListenersAdded = $state(false)
   let companiesList: DBCompany[] = $state([])
-
-  // Sync company name when selectedCompany changes
-  $effect(() => {
-    if ($selectedCompany) {
-      companyName = $selectedCompany.name
-      // Automatically include companies in search if a company is selected
-      if (!searchIn.includes('companies')) {
-        searchIn = [...searchIn, 'companies']
-      }
-    }
-  })
 
   // Load companies list
   onMount(async () => {
@@ -152,8 +139,10 @@
       }
 
       if (window.electron) {
+        console.log('Executing search with query:', query)
         const result = await window.electron.getSearchResult(query)
         searchResult = result
+        console.log('Search result:', result)
         searchResults.set(result)
       }
     } catch (error) {
@@ -541,7 +530,6 @@
               bind:value={searchIn}
               required
             >
-              <option value="companies">Companies</option>
               <option value="projects">Projects</option>
               <option value="task_definitions">Task Definitions</option>
               <option value="tasks">Tasks</option>
@@ -615,13 +603,6 @@
                 </option>
               {/each}
             </select>
-            {#if $selectedCompany}
-              <label class="label">
-                <span class="label-text-alt text-info">
-                  Selected: {$selectedCompany.name}
-                </span>
-              </label>
-            {/if}
           </div>
 
           <div class="form-control mt-2">
