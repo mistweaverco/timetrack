@@ -23,7 +23,8 @@
     "build-unpack": "bun run build && electron-builder --dir",
     "build-windows": "bun run build && electron-builder --win --publish never",
     "build-macos": "bun run build && electron-builder --mac --publish never",
-    "build-linux": "bun run build && electron-builder --linux --publish never"
+    "build-linux": "bun run build && electron-builder --linux --publish never",
+		"upgrade": "bunx npm-check-updates -u"
   },
   "dependencies": {
     "@electron-toolkit/utils": "4.0.0",
