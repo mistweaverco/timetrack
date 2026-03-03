@@ -35,8 +35,12 @@ const dateStringToISO = (dateStr: string): string => {
 // Helper function to normalize date string for comparison
 const normalizeDateString = (dateStr: string): string => {
   if (dateStr.includes('T')) {
-    // Already ISO format, extract date part
+    // ISO-like format, extract date part
     return dateStr.split('T')[0]
+  }
+  if (dateStr.includes(' ')) {
+    // SQLite DATETIME 'YYYY-MM-DD HH:MM:SS'
+    return dateStr.split(' ')[0]
   }
   return dateStr
 }
@@ -171,7 +175,6 @@ const getTaskByTaskDefinitionAndDate = async (
   taskDefinitionId: string,
   date: string,
 ): Promise<DBTask | null> => {
-  // Normalize date to ISO format for comparison
   const targetDateISO = dateStringToISO(date)
   const targetDateNormalized = normalizeDateString(targetDateISO)
 
@@ -180,8 +183,8 @@ const getTaskByTaskDefinitionAndDate = async (
       id: task.id,
       taskDefinitionId: task.taskDefinitionId,
       description: task.description,
-      seconds: task.seconds,
-      date: task.date,
+      startDateTime: task.startDateTime,
+      endDateTime: task.endDateTime,
       status: status.name,
       taskDefinitionName: taskDefinition.name,
       projectName: project.name,
@@ -195,8 +198,9 @@ const getTaskByTaskDefinitionAndDate = async (
     .where(
       and(
         eq(task.taskDefinitionId, parseInt(taskDefinitionId)),
-        // Compare date strings - handle both ISO format and YYYY-MM-DD format
-        sql`DATE(${task.date}) = DATE(${sql.raw(`'${targetDateNormalized}'`)})`,
+        sql`DATE(${task.startDateTime}) = DATE(${sql.raw(
+          `'${targetDateNormalized}'`,
+        )})`,
       ),
     )
     .limit(1)
@@ -206,10 +210,19 @@ const getTaskByTaskDefinitionAndDate = async (
   }
 
   const t = result[0]
-  // Handle date as string (could be ISO or YYYY-MM-DD)
-  const taskDate =
-    typeof t.date === 'string' ? t.date : (t.date as Date).toISOString()
-  const dateStr = normalizeDateString(taskDate)
+  const start =
+    typeof t.startDateTime === 'string'
+      ? t.startDateTime
+      : (t.startDateTime as Date).toISOString()
+  const end =
+    typeof t.endDateTime === 'string'
+      ? t.endDateTime
+      : (t.endDateTime as Date).toISOString()
+  const dateStr = normalizeDateString(start)
+  const seconds = Math.max(
+    0,
+    Math.floor((new Date(end).getTime() - new Date(start).getTime()) / 1000),
+  )
 
   return {
     id: t.id.toString(),
@@ -217,10 +230,12 @@ const getTaskByTaskDefinitionAndDate = async (
     taskDefinitionId: t.taskDefinitionId.toString(),
     projectName: t.projectName,
     description: t.description || '',
-    seconds: t.seconds,
+    seconds,
     date: dateStr,
     status: t.status,
     companyName: t.companyName,
+    startDateTime: start,
+    endDateTime: end,
   }
 }
 
@@ -233,8 +248,8 @@ const getTaskById = async (
       id: task.id,
       taskDefinitionId: task.taskDefinitionId,
       description: task.description,
-      seconds: task.seconds,
-      date: task.date,
+      startDateTime: task.startDateTime,
+      endDateTime: task.endDateTime,
       status: status.name,
       taskDefinitionName: taskDefinition.name,
       projectName: project.name,
@@ -253,10 +268,19 @@ const getTaskById = async (
   }
 
   const t = result[0]
-  // Handle date as string (could be ISO or YYYY-MM-DD format)
-  const taskDate =
-    typeof t.date === 'string' ? t.date : (t.date as Date).toISOString()
-  const dateStr = normalizeDateString(taskDate)
+  const start =
+    typeof t.startDateTime === 'string'
+      ? t.startDateTime
+      : (t.startDateTime as Date).toISOString()
+  const end =
+    typeof t.endDateTime === 'string'
+      ? t.endDateTime
+      : (t.endDateTime as Date).toISOString()
+  const dateStr = normalizeDateString(start)
+  const seconds = Math.max(
+    0,
+    Math.floor((new Date(end).getTime() - new Date(start).getTime()) / 1000),
+  )
 
   return {
     id: t.id.toString(),
@@ -265,9 +289,11 @@ const getTaskById = async (
     projectName: t.projectName,
     companyName: t.companyName,
     description: t.description || '',
-    seconds: t.seconds,
+    seconds,
     date: dateStr,
     status: t.status,
+    startDateTime: start,
+    endDateTime: end,
   }
 }
 
@@ -313,11 +339,13 @@ const getSearchResult = async (
       // Use exact match when a specific company is selected
       query = query.where(
         eq(company.name, company_name.replace(/%/g, '')),
-      ) as any
+      ) as unknown as typeof query
     }
 
     if (statusId) {
-      query = query.where(eq(company.statusId, statusId)) as any
+      query = query.where(
+        eq(company.statusId, statusId),
+      ) as unknown as typeof query
     }
 
     const companies = await query
@@ -354,7 +382,7 @@ const getSearchResult = async (
     }
 
     if (conditions.length > 0) {
-      query = query.where(and(...conditions)) as any
+      query = query.where(and(...conditions)) as unknown as typeof query
     }
 
     const projects = await query
@@ -398,7 +426,7 @@ const getSearchResult = async (
       .innerJoin(status, eq(taskDefinition.statusId, status.id))
 
     if (conditions.length > 0) {
-      query = query.where(and(...conditions)) as any
+      query = query.where(and(...conditions)) as unknown as typeof query
     }
 
     const taskDefs = await query
@@ -416,13 +444,12 @@ const getSearchResult = async (
     const fromDateISO = dateStringToISO(q.from_date)
     const toDateISO = dateStringToISO(q.to_date)
 
-    // For date string comparison, we compare the date part only
-    // Dates are stored as ISO strings, so we can compare them directly
+    // Compare only the DATE(startDateTime) part
     const conditions = [
-      sql`DATE(${task.date}) >= DATE(${sql.raw(
+      sql`DATE(${task.startDateTime}) >= DATE(${sql.raw(
         `'${normalizeDateString(fromDateISO)}'`,
       )})`,
-      sql`DATE(${task.date}) <= DATE(${sql.raw(
+      sql`DATE(${task.startDateTime}) <= DATE(${sql.raw(
         `'${normalizeDateString(toDateISO)}'`,
       )})`,
     ]
@@ -464,8 +491,10 @@ const getSearchResult = async (
         id: task.id,
         taskDefinitionId: task.taskDefinitionId,
         description: task.description,
-        seconds: task.seconds,
-        date: task.date,
+        startDateTime: task.startDateTime,
+        endDateTime: task.endDateTime,
+        // Duration in seconds computed in SQLite to avoid JS date parsing issues
+        durationSeconds: sql<number>`CAST((julianday(${task.endDateTime}) - julianday(${task.startDateTime})) * 86400 AS INTEGER)`,
         status: status.name,
         taskDefinitionName: taskDefinition.name,
         projectName: project.name,
@@ -479,10 +508,16 @@ const getSearchResult = async (
       .where(and(...conditions))
 
     results.tasks = tasks.map(t => {
-      // Handle date as string (could be ISO or YYYY-MM-DD format)
-      const taskDate =
-        typeof t.date === 'string' ? t.date : (t.date as Date).toISOString()
-      const dateStr = normalizeDateString(taskDate)
+      const start =
+        typeof t.startDateTime === 'string'
+          ? t.startDateTime
+          : (t.startDateTime as Date).toISOString()
+      const end =
+        typeof t.endDateTime === 'string'
+          ? t.endDateTime
+          : (t.endDateTime as Date).toISOString()
+      const dateStr = normalizeDateString(start)
+      const seconds = Math.max(0, t.durationSeconds ?? 0)
 
       return {
         id: t.id.toString(),
@@ -491,9 +526,11 @@ const getSearchResult = async (
         projectName: t.projectName,
         date: dateStr,
         description: t.description || '',
-        seconds: t.seconds,
+        seconds,
         status: t.status,
         companyName: t.companyName,
+        startDateTime: start,
+        endDateTime: end,
       }
     })
   }
@@ -563,9 +600,10 @@ const getDataForPDFExport = async (
       name: taskDefinition.name,
       projectName: project.name,
       companyName: company.name,
-      date: task.date,
+      startDateTime: task.startDateTime,
+      endDateTime: task.endDateTime,
       description: task.description,
-      seconds: task.seconds,
+      durationSeconds: sql<number>`CAST((julianday(${task.endDateTime}) - julianday(${task.startDateTime})) * 86400 AS INTEGER)`,
     })
     .from(task)
     .innerJoin(taskDefinition, eq(task.taskDefinitionId, taskDefinition.id))
@@ -573,8 +611,12 @@ const getDataForPDFExport = async (
     .innerJoin(company, eq(project.companyId, company.id))
     .where(
       and(
-        sql`DATE(${task.date}) >= DATE(${sql.raw(`'${fromDateNormalized}'`)})`,
-        sql`DATE(${task.date}) <= DATE(${sql.raw(`'${toDateNormalized}'`)})`,
+        sql`DATE(${task.startDateTime}) >= DATE(${sql.raw(
+          `'${fromDateNormalized}'`,
+        )})`,
+        sql`DATE(${task.startDateTime}) <= DATE(${sql.raw(
+          `'${toDateNormalized}'`,
+        )})`,
         inArray(task.taskDefinitionId, taskDefIds),
       ),
     )
@@ -582,10 +624,12 @@ const getDataForPDFExport = async (
   logger.info(`PDF Export found ${res.length} tasks matching criteria`)
 
   return res.map(t => {
-    // Handle date as string (could be ISO or YYYY-MM-DD format)
-    const taskDate =
-      typeof t.date === 'string' ? t.date : (t.date as Date).toISOString()
-    const dateStr = normalizeDateString(taskDate)
+    const start =
+      typeof t.startDateTime === 'string'
+        ? t.startDateTime
+        : (t.startDateTime as Date).toISOString()
+    const dateStr = normalizeDateString(start)
+    const seconds = Math.max(0, t.durationSeconds ?? 0)
 
     return {
       name: t.name,
@@ -593,7 +637,7 @@ const getDataForPDFExport = async (
       companyName: t.companyName,
       date: dateStr,
       description: t.description || '',
-      seconds: t.seconds,
+      seconds,
     }
   })
 }
@@ -602,9 +646,12 @@ const saveActiveTask = async (
   db: ReturnType<typeof drizzle>,
   taskData: Task,
 ) => {
+  // Persist active time by adjusting endDateTime = startDateTime + seconds
   await db
     .update(task)
-    .set({ seconds: taskData.seconds })
+    .set({
+      endDateTime: sql`datetime(${task.startDateTime}, printf('+%d seconds', ${taskData.seconds}))`,
+    })
     .where(eq(task.id, parseInt(taskData.taskId, 10)))
 }
 
@@ -616,7 +663,9 @@ const saveActiveTasks = async (
     tasks.map(async taskData => {
       await db
         .update(task)
-        .set({ seconds: taskData.seconds })
+        .set({
+          endDateTime: sql`datetime(${task.startDateTime}, printf('+%d seconds', ${taskData.seconds}))`,
+        })
         .where(eq(task.id, parseInt(taskData.taskId)))
     }),
   )
@@ -1211,27 +1260,24 @@ const getAllTaskDefinitions = async (
 
 const addTask = async (db: ReturnType<typeof drizzle>, opts: DBAddTaskOpts) => {
   const activeStatusId = await getOrCreateStatus(db, 'active')
-  // Use today's date in ISO format
-  const today = new Date()
-  const todayISO = new Date(
-    Date.UTC(
-      today.getUTCFullYear(),
-      today.getUTCMonth(),
-      today.getUTCDate(),
-      0,
-      0,
-      0,
-      0,
-    ),
-  ).toISOString()
+  // Use the current local SQLite DATETIME (to second precision) as start/end
+  const now = new Date()
+  const pad = (n: number) => n.toString().padStart(2, '0')
+  const yyyy = now.getFullYear()
+  const mm = pad(now.getMonth() + 1)
+  const dd = pad(now.getDate())
+  const hh = pad(now.getHours())
+  const mi = pad(now.getMinutes())
+  const ss = pad(now.getSeconds())
+  const nowLocal = `${yyyy}-${mm}-${dd} ${hh}:${mi}:${ss}`
 
   const result = await db
     .insert(task)
     .values({
       taskDefinitionId: parseInt(opts.taskDefinitionId),
       description: opts.description,
-      seconds: opts.seconds,
-      date: todayISO,
+      startDateTime: nowLocal,
+      endDateTime: nowLocal,
       statusId: activeStatusId,
     })
     .returning({ id: task.id })
@@ -1243,9 +1289,31 @@ const editTask = async (
   db: ReturnType<typeof drizzle>,
   opts: DBEditTaskOpts,
 ) => {
-  const oldDateStr = normalizeDateString(opts.oldDate)
-  const newDateStr = normalizeDateString(opts.date)
-  const newDateISO = dateStringToISO(newDateStr)
+  const activeStatusId = await getOrCreateStatus(db, 'active')
+  const updateData: {
+    taskDefinitionId?: number
+    description: string
+    startDateTime: string
+    endDateTime: string
+    statusId: number
+  } = {
+    description: opts.description,
+    // Normalize to canonical SQLite DATETIME 'YYYY-MM-DD HH:MM:SS'
+    startDateTime:
+      opts.startDateTime.length === 16
+        ? `${opts.startDateTime.replace('T', ' ')}:00`
+        : opts.startDateTime.replace('T', ' '),
+    endDateTime:
+      opts.endDateTime.length === 16
+        ? `${opts.endDateTime.replace('T', ' ')}:00`
+        : opts.endDateTime.replace('T', ' '),
+    statusId: activeStatusId,
+  }
+
+  if (opts.status !== undefined) {
+    const statusId = await getOrCreateStatus(db, opts.status)
+    updateData.statusId = statusId
+  }
 
   const existingTaskResult = await db
     .select()
@@ -1258,58 +1326,15 @@ const editTask = async (
   }
 
   const existingTask = existingTaskResult[0]
-  const existingDateStr =
-    typeof existingTask.date === 'string'
-      ? normalizeDateString(existingTask.date)
-      : normalizeDateString((existingTask.date as Date).toISOString())
-
-  // If date changed, delete and recreate
-  if (oldDateStr !== newDateStr || existingDateStr !== newDateStr) {
-    await db.transaction(async tx => {
-      await tx.delete(task).where(eq(task.id, parseInt(opts.id)))
-
-      const activeStatusId = await getOrCreateStatus(db, 'active')
-      const statusId =
-        opts.status !== undefined
-          ? await getOrCreateStatus(db, opts.status)
-          : activeStatusId
-
-      await tx.insert(task).values({
-        taskDefinitionId: parseInt(opts.taskDefinitionId),
-        description: opts.description,
-        date: newDateISO,
-        seconds: opts.seconds,
-        statusId,
-      })
-    })
-  } else {
-    const activeStatusId = await getOrCreateStatus(db, 'active')
-    const updateData: {
-      taskDefinitionId?: number
-      description: string
-      seconds: number
-      statusId: number
-    } = {
-      description: opts.description,
-      seconds: opts.seconds,
-      statusId: activeStatusId,
-    }
-
-    if (opts.status !== undefined) {
-      const statusId = await getOrCreateStatus(db, opts.status)
-      updateData.statusId = statusId
-    }
-
-    // Update task definition if it changed
-    if (existingTask.taskDefinitionId.toString() !== opts.taskDefinitionId) {
-      updateData.taskDefinitionId = parseInt(opts.taskDefinitionId)
-    }
-
-    await db
-      .update(task)
-      .set(updateData)
-      .where(eq(task.id, parseInt(opts.id)))
+  if (existingTask.taskDefinitionId.toString() !== opts.taskDefinitionId) {
+    updateData.taskDefinitionId = parseInt(opts.taskDefinitionId)
   }
+
+  await db
+    .update(task)
+    .set(updateData)
+    .where(eq(task.id, parseInt(opts.id)))
+
   return { success: true }
 }
 
@@ -1330,8 +1355,8 @@ const getTasks = async (
       id: task.id,
       taskDefinitionId: task.taskDefinitionId,
       description: task.description,
-      seconds: task.seconds,
-      date: task.date,
+      startDateTime: task.startDateTime,
+      endDateTime: task.endDateTime,
       status: status.name,
       taskDefinitionName: taskDefinition.name,
       projectName: project.name,
@@ -1345,10 +1370,19 @@ const getTasks = async (
     .where(eq(project.id, parseInt(projectId)))
 
   return tasks.map(t => {
-    // Handle date as string (could be ISO or YYYY-MM-DD format)
-    const taskDate =
-      typeof t.date === 'string' ? t.date : (t.date as Date).toISOString()
-    const dateStr = normalizeDateString(taskDate)
+    const start =
+      typeof t.startDateTime === 'string'
+        ? t.startDateTime
+        : (t.startDateTime as Date).toISOString()
+    const end =
+      typeof t.endDateTime === 'string'
+        ? t.endDateTime
+        : (t.endDateTime as Date).toISOString()
+    const dateStr = normalizeDateString(start)
+    const seconds = Math.max(
+      0,
+      Math.floor((new Date(end).getTime() - new Date(start).getTime()) / 1000),
+    )
 
     return {
       id: t.id.toString(),
@@ -1356,10 +1390,12 @@ const getTasks = async (
       taskDefinitionId: t.taskDefinitionId.toString(),
       projectName: t.projectName,
       description: t.description || '',
-      seconds: t.seconds,
+      seconds,
       date: dateStr,
       status: t.status,
       companyName: t.companyName,
+      startDateTime: start,
+      endDateTime: end,
     }
   })
 }
@@ -1373,8 +1409,8 @@ const getTasksByNameAndProject = async (
       id: task.id,
       taskDefinitionId: task.taskDefinitionId,
       description: task.description,
-      seconds: task.seconds,
-      date: task.date,
+      startDateTime: task.startDateTime,
+      endDateTime: task.endDateTime,
       status: status.name,
       taskDefinitionName: taskDefinition.name,
       projectName: project.name,
@@ -1388,10 +1424,19 @@ const getTasksByNameAndProject = async (
     .where(eq(task.taskDefinitionId, parseInt(opts.taskDefinitionId)))
 
   return tasks.map(t => {
-    // Handle date as string (could be ISO or YYYY-MM-DD format)
-    const taskDate =
-      typeof t.date === 'string' ? t.date : (t.date as Date).toISOString()
-    const dateStr = normalizeDateString(taskDate)
+    const start =
+      typeof t.startDateTime === 'string'
+        ? t.startDateTime
+        : (t.startDateTime as Date).toISOString()
+    const end =
+      typeof t.endDateTime === 'string'
+        ? t.endDateTime
+        : (t.endDateTime as Date).toISOString()
+    const dateStr = normalizeDateString(start)
+    const seconds = Math.max(
+      0,
+      Math.floor((new Date(end).getTime() - new Date(start).getTime()) / 1000),
+    )
 
     return {
       id: t.id.toString(),
@@ -1399,10 +1444,12 @@ const getTasksByNameAndProject = async (
       taskDefinitionId: t.taskDefinitionId.toString(),
       projectName: t.projectName,
       description: t.description || '',
-      seconds: t.seconds,
+      seconds,
       date: dateStr,
       status: t.status,
       companyName: t.companyName,
+      startDateTime: start,
+      endDateTime: end,
     }
   })
 }
@@ -1411,7 +1458,7 @@ const getTasksToday = async (
   db: ReturnType<typeof drizzle>,
   projectId: string,
 ): Promise<DBTask[]> => {
-  // Use today's date in ISO format for comparison
+  // Use today's date in ISO format for comparison (based on startDateTime)
   const today = new Date()
   const todayISO = new Date(
     Date.UTC(
@@ -1431,8 +1478,8 @@ const getTasksToday = async (
       id: task.id,
       taskDefinitionId: task.taskDefinitionId,
       description: task.description,
-      seconds: task.seconds,
-      date: task.date,
+      startDateTime: task.startDateTime,
+      endDateTime: task.endDateTime,
       status: status.name,
       taskDefinitionName: taskDefinition.name,
       projectName: project.name,
@@ -1446,15 +1493,26 @@ const getTasksToday = async (
     .where(
       and(
         eq(project.id, parseInt(projectId)),
-        sql`DATE(${task.date}) = DATE(${sql.raw(`'${todayNormalized}'`)})`,
+        sql`DATE(${task.startDateTime}) = DATE(${sql.raw(
+          `'${todayNormalized}'`,
+        )})`,
       ),
     )
 
   return tasks.map(t => {
-    // Handle date as string (could be ISO or YYYY-MM-DD format)
-    const taskDate =
-      typeof t.date === 'string' ? t.date : (t.date as Date).toISOString()
-    const dateStr = normalizeDateString(taskDate)
+    const start =
+      typeof t.startDateTime === 'string'
+        ? t.startDateTime
+        : (t.startDateTime as Date).toISOString()
+    const end =
+      typeof t.endDateTime === 'string'
+        ? t.endDateTime
+        : (t.endDateTime as Date).toISOString()
+    const dateStr = normalizeDateString(start)
+    const seconds = Math.max(
+      0,
+      Math.floor((new Date(end).getTime() - new Date(start).getTime()) / 1000),
+    )
 
     return {
       id: t.id.toString(),
@@ -1463,9 +1521,11 @@ const getTasksToday = async (
       projectName: t.projectName,
       companyName: t.companyName,
       description: t.description || '',
-      seconds: t.seconds,
+      seconds,
       date: dateStr,
       status: t.status,
+      startDateTime: start,
+      endDateTime: end,
     }
   })
 }
@@ -1480,8 +1540,8 @@ const getTasksByCompany = async (
       id: task.id,
       taskDefinitionId: task.taskDefinitionId,
       description: task.description,
-      seconds: task.seconds,
-      date: task.date,
+      startDateTime: task.startDateTime,
+      endDateTime: task.endDateTime,
       status: status.name,
       taskDefinitionName: taskDefinition.name,
       projectName: project.name,
@@ -1495,10 +1555,19 @@ const getTasksByCompany = async (
     .where(eq(company.id, parseInt(companyId)))
 
   return tasks.map(t => {
-    // Handle date as string (could be ISO or YYYY-MM-DD format)
-    const taskDate =
-      typeof t.date === 'string' ? t.date : (t.date as Date).toISOString()
-    const dateStr = normalizeDateString(taskDate)
+    const start =
+      typeof t.startDateTime === 'string'
+        ? t.startDateTime
+        : (t.startDateTime as Date).toISOString()
+    const end =
+      typeof t.endDateTime === 'string'
+        ? t.endDateTime
+        : (t.endDateTime as Date).toISOString()
+    const dateStr = normalizeDateString(start)
+    const seconds = Math.max(
+      0,
+      Math.floor((new Date(end).getTime() - new Date(start).getTime()) / 1000),
+    )
 
     return {
       id: t.id.toString(),
@@ -1506,10 +1575,12 @@ const getTasksByCompany = async (
       taskDefinitionId: t.taskDefinitionId.toString(),
       projectName: t.projectName,
       description: t.description || '',
-      seconds: t.seconds,
+      seconds,
       date: dateStr,
       status: t.status,
       companyName: t.companyName,
+      startDateTime: start,
+      endDateTime: end,
     }
   })
 }

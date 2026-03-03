@@ -503,7 +503,11 @@
 {/if}
 
 {#if showDeleteTaskModal && taskToDelete}
-  <DeleteTaskModal task={taskToDelete} onClose={s => handleTaskModalClose(s)} />
+  <DeleteTaskModal
+    task={taskToDelete}
+    onSuccess={() => handleTaskModalClose(true)}
+    onClose={() => handleTaskModalClose(false)}
+  />
 {/if}
 
 {#if showEditTaskDefModal && taskDefToEdit}

@@ -34,7 +34,6 @@
     | 'deleteTaskDefinition'
     | null = $state(null)
   let showMoreMenu = $state(false)
-  let selectedTaskData: DBTask | null = $selectedTask
 
   onMount(async () => {
     tasks.subscribe(value => {
@@ -43,10 +42,6 @@
 
     taskDefinitions.subscribe(value => {
       taskDefs = value
-    })
-
-    selectedTask.subscribe(value => {
-      selectedTaskData = value
     })
 
     selectedProject.subscribe(async proj => {
@@ -83,51 +78,38 @@
     }
   }
 
-  async function handleAddTask() {
-    if (!$selectedProject || !$selectedTaskDefinition) return
-
-    if (window.electron) {
-      const result = await window.electron.addTask({
-        taskDefinitionId: $selectedTaskDefinition.id,
-        description: '',
-        seconds: 0,
-      })
-      if (result.success) {
-        await fetchTasks($selectedProject.id)
-        const newTask = await window.electron.getTaskById(result.id)
-        selectedTask.set(newTask)
-      }
-    }
-  }
-
   async function handleStartTask() {
-    const existingTask = await window.electron.getTaskByTaskDefinitionAndDate(
-      $selectedTaskDefinition.id,
-      new Date().toISOString().slice(0, 10),
-    )
+    if (!window.electron || !$selectedProject || !$selectedTaskDefinition)
+      return
 
-    if (existingTask) {
-      selectedTask.set(existingTask)
-    }
+    // Start always creates a new interval row for this task definition
+    const addResult = await window.electron.addTask({
+      taskDefinitionId: $selectedTaskDefinition.id,
+      description: '',
+      seconds: 0,
+    })
 
-    if (!$selectedTask) {
-      await handleAddTask()
-    }
+    if (!addResult.success) return
 
-    if (window.electron) {
-      const result = await window.electron.startActiveTask(selectedTaskData.id)
-      if (result.success) {
-        selectedTask.set(selectedTaskData)
-        activeTasks.update(ats => {
-          const exists = ats.find(
-            at => at.taskId === result.taskId && at.date === result.date,
-          )
-          if (!exists) {
-            return [...ats, { ...result, isActive: true }]
-          }
-          return ats
-        })
-      }
+    const newTask = await window.electron.getTaskById(addResult.id)
+    if (!newTask) return
+
+    selectedTask.set(newTask)
+
+    const startResult = await window.electron.startActiveTask(addResult.id)
+    if (startResult.success) {
+      activeTasks.update(ats => {
+        const exists = ats.find(
+          at =>
+            at.taskId === startResult.taskId && at.date === startResult.date,
+        )
+        if (!exists) {
+          return [...ats, { ...startResult, isActive: true }]
+        }
+        return ats
+      })
+
+      await fetchTasks($selectedProject.id)
     }
   }
 
@@ -189,6 +171,7 @@
 
 {#if modalType === 'deleteTask'}
   <DeleteTaskModal
+    task={$selectedTask}
     onClose={() => (modalType = null)}
     onSuccess={async () => {
       modalType = null

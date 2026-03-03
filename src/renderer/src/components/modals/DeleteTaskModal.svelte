@@ -1,17 +1,32 @@
 <script lang="ts">
   import { tasks, selectedTask } from '../../stores'
 
-  export let onSuccess: () => void
+  // Optional task passed in by caller; falls back to selectedTask store.
+  export let task: DBTask | null = null
+  export let onSuccess: (deletedTaskId?: string) => void
   export let onClose: () => void
 
   async function handleConfirm() {
+    const currentTaskId = task?.id ?? $selectedTask?.id
+    if (!currentTaskId) {
+      onClose()
+      return
+    }
+
     const result = await window.electron.deleteTask({
-      id: $selectedTask.id,
+      id: currentTaskId,
     })
+
     if (result.success) {
-      tasks.update(ts => ts.filter(t => t.id !== $selectedTask.id))
-      selectedTask.set(null)
-      onSuccess()
+      // Update main-view tasks store; harmless no-op for Search view
+      tasks.update(ts => ts.filter(t => t.id !== currentTaskId))
+
+      // Clear selectedTask only when we were using the global selection
+      if (!task) {
+        selectedTask.set(null)
+      }
+
+      onSuccess(currentTaskId)
     }
   }
 </script>

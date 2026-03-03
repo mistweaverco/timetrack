@@ -128,8 +128,8 @@ export const initIpcHandlers = async (
         projectName: project.name,
         companyName: company.name,
         description: task.description,
-        date: task.date,
-        seconds: task.seconds,
+        startDateTime: task.startDateTime,
+        endDateTime: task.endDateTime,
       })
         .from(task)
         .innerJoin(taskDefinition, eq(task.taskDefinitionId, taskDefinition.id))
@@ -143,7 +143,21 @@ export const initIpcHandlers = async (
         throw new Error(`Task not found: ${id}`)
       }
 
-      const taskDate = normalizeDate(dbTask.date as Date | string)
+      const start =
+        typeof dbTask.startDateTime === 'string'
+          ? dbTask.startDateTime
+          : (dbTask.startDateTime as Date).toISOString()
+      const end =
+        typeof dbTask.endDateTime === 'string'
+          ? dbTask.endDateTime
+          : (dbTask.endDateTime as Date).toISOString()
+      const taskDate = normalizeDate(start)
+      const seconds = Math.max(
+        0,
+        Math.floor(
+          (new Date(end).getTime() - new Date(start).getTime()) / 1000,
+        ),
+      )
       const addedTask = addActiveTask({
         name: dbTask.taskDefinitionName,
         companyName: dbTask.companyName,
@@ -151,7 +165,7 @@ export const initIpcHandlers = async (
         taskId: id,
         description: dbTask.description || '',
         date: taskDate,
-        seconds: dbTask.seconds,
+        seconds,
         isActive: true,
       })
       addedTask.start()
@@ -160,7 +174,7 @@ export const initIpcHandlers = async (
         taskId: id,
         description: dbTask.taskDefinitionName,
         date: taskDate,
-        seconds: dbTask.seconds,
+        seconds,
         isActive: true,
         name: dbTask.taskDefinitionName,
         projectName: dbTask.projectName,
@@ -173,7 +187,7 @@ export const initIpcHandlers = async (
         taskDefinitionName: taskDefinition.name,
         projectName: project.name,
         companyName: company.name,
-        date: task.date,
+        startDateTime: task.startDateTime,
       })
         .from(task)
         .innerJoin(taskDefinition, eq(task.taskDefinitionId, taskDefinition.id))
@@ -187,7 +201,11 @@ export const initIpcHandlers = async (
         throw new Error(`Task not found: ${id}`)
       }
 
-      const taskDate = normalizeDate(dbTask.date as Date | string)
+      const start =
+        typeof dbTask.startDateTime === 'string'
+          ? dbTask.startDateTime
+          : (dbTask.startDateTime as Date).toISOString()
+      const taskDate = normalizeDate(start)
       return {
         success: false,
         taskId: id,
@@ -205,7 +223,7 @@ export const initIpcHandlers = async (
         taskDefinitionName: taskDefinition.name,
         projectName: project.name,
         companyName: company.name,
-        date: task.date,
+        startDateTime: task.startDateTime,
       })
         .from(task)
         .innerJoin(taskDefinition, eq(task.taskDefinitionId, taskDefinition.id))
@@ -219,7 +237,11 @@ export const initIpcHandlers = async (
         throw new Error(`Task not found: ${id}`)
       }
 
-      const taskDate = normalizeDate(dbTask.date as Date | string)
+      const start =
+        typeof dbTask.startDateTime === 'string'
+          ? dbTask.startDateTime
+          : (dbTask.startDateTime as Date).toISOString()
+      const taskDate = normalizeDate(start)
       return {
         success: true,
         taskId: id,
@@ -259,7 +281,7 @@ export const initIpcHandlers = async (
         taskDefinitionName: taskDefinition.name,
         projectName: project.name,
         companyName: company.name,
-        date: task.date,
+        startDateTime: task.startDateTime,
       })
         .from(task)
         .innerJoin(taskDefinition, eq(task.taskDefinitionId, taskDefinition.id))
@@ -273,7 +295,11 @@ export const initIpcHandlers = async (
         throw new Error(`Task not found: ${activeTask.taskId}`)
       }
 
-      const taskDate = normalizeDate(dbTask.date as Date | string)
+      const start =
+        typeof dbTask.startDateTime === 'string'
+          ? dbTask.startDateTime
+          : (dbTask.startDateTime as Date).toISOString()
+      const taskDate = normalizeDate(start)
       return {
         success: true,
         taskId: id,
@@ -287,54 +313,6 @@ export const initIpcHandlers = async (
       }
     } else {
       return { success: false }
-    }
-  }
-
-  const pauseActiveTask = async (
-    id: string,
-  ): Promise<(ActiveTask & { success: true }) | { success: false }> => {
-    const activeTask = getActiveTask(id)
-    if (!activeTask) {
-      console.error('task not found', id)
-      return { success: false }
-    }
-    activeTask.pause()
-    // Save using taskId directly
-    await saveActiveTask(DB, {
-      taskId: activeTask.taskId,
-      date: activeTask.date,
-      seconds: activeTask.seconds,
-    })
-    // Fetch task details for response
-    const dbTaskResult = await DB.select({
-      taskDefinitionName: taskDefinition.name,
-      projectName: project.name,
-      companyName: company.name,
-      date: task.date,
-    })
-      .from(task)
-      .innerJoin(taskDefinition, eq(task.taskDefinitionId, taskDefinition.id))
-      .innerJoin(project, eq(taskDefinition.projectId, project.id))
-      .innerJoin(company, eq(project.companyId, company.id))
-      .where(eq(task.id, parseInt(activeTask.taskId)))
-      .limit(1)
-
-    const dbTask = dbTaskResult[0]
-    if (!dbTask) {
-      throw new Error(`Task not found: ${activeTask.taskId}`)
-    }
-
-    const taskDate = normalizeDate(dbTask.date as Date | string)
-    return {
-      success: true,
-      taskId: activeTask.taskId,
-      description: activeTask.description,
-      date: taskDate,
-      seconds: activeTask.seconds,
-      isActive: false,
-      name: dbTask.taskDefinitionName,
-      projectName: dbTask.projectName,
-      companyName: dbTask.companyName,
     }
   }
 
@@ -496,9 +474,6 @@ export const initIpcHandlers = async (
   ipcMain.handle('getActiveTasks', async () => getActiveTasks())
   ipcMain.handle('startActiveTask', async (_, id: string) =>
     startActiveTask(id),
-  )
-  ipcMain.handle('pauseActiveTask', async (_, id: string) =>
-    pauseActiveTask(id),
   )
   ipcMain.handle('stopActiveTask', async (_, id: string) => stopActiveTask(id))
   ipcMain.handle('getDataForPDFExport', async (_, opts: PDFQuery) =>
