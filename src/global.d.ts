@@ -98,6 +98,8 @@ type DBTask = {
   description: string
   seconds: number
   date: string
+  startDateTime?: string
+  endDateTime?: string
   status?: string
 }
 
@@ -159,9 +161,8 @@ type DBEditTaskOpts = {
   id: string
   taskDefinitionId: string
   description: string
-  seconds: number
-  date: string
-  oldDate: string
+  startDateTime: string
+  endDateTime: string
   status?: string
 }
 
@@ -255,9 +256,6 @@ interface Window {
     }) => Promise<DBTask[]>
     getActiveTasks: () => Promise<ActiveTask[]>
     startActiveTask: (id: string) => Promise<ActiveTask & { success: boolean }>
-    pauseActiveTask: (
-      id: string,
-    ) => Promise<(ActiveTask & { success: true }) | { success: false }>
     stopActiveTask: (
       id: string,
     ) => Promise<(ActiveTask & { success: true }) | { success: false }>

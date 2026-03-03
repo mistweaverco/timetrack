@@ -5,7 +5,7 @@ import {
   uniqueIndex,
 } from 'drizzle-orm/sqlite-core'
 import { relations } from 'drizzle-orm'
-import type { InferSelectModel, InferInsertModel } from 'drizzle-orm'
+import type { InferSelectModel } from 'drizzle-orm'
 
 export const status = sqliteTable('Status', {
   id: integer('id').primaryKey({ autoIncrement: true }),
@@ -60,42 +60,18 @@ export const taskDefinition = sqliteTable(
   }),
 )
 
-export const task = sqliteTable(
-  'Task',
-  {
-    id: integer('id').primaryKey({ autoIncrement: true }),
-    taskDefinitionId: integer('taskDefinitionId')
-      .notNull()
-      .references(() => taskDefinition.id, { onDelete: 'cascade' }),
-    description: text('description'),
-    date: text('date')
-      .notNull()
-      .$defaultFn(() => {
-        const now = new Date()
-        return new Date(
-          Date.UTC(
-            now.getFullYear(),
-            now.getMonth(),
-            now.getDate(),
-            0,
-            0,
-            0,
-            0,
-          ),
-        ).toISOString()
-      }),
-    seconds: integer('seconds').notNull().default(0),
-    statusId: integer('statusId')
-      .notNull()
-      .references(() => status.id, { onDelete: 'restrict' }),
-  },
-  table => ({
-    taskDefDateUnique: uniqueIndex('tasks_task_def_date_IDX').on(
-      table.taskDefinitionId,
-      table.date,
-    ),
-  }),
-)
+export const task = sqliteTable('Task', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  taskDefinitionId: integer('taskDefinitionId')
+    .notNull()
+    .references(() => taskDefinition.id, { onDelete: 'cascade' }),
+  description: text('description'),
+  startDateTime: text('startDateTime').notNull(),
+  endDateTime: text('endDateTime').notNull(),
+  statusId: integer('statusId')
+    .notNull()
+    .references(() => status.id, { onDelete: 'restrict' }),
+})
 
 // Relations
 export const statusRelations = relations(status, ({ many }) => ({

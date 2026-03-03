@@ -9,53 +9,75 @@
   import InfoBox from '../InfoBox.svelte'
 
   let description = $derived(task.description)
-  let hours = $derived(Math.floor(task.seconds / 3600))
-  let minutes = $derived(Math.floor((task.seconds % 3600) / 60))
-  let seconds = $derived(task.seconds % 60)
-  let date = $derived(task.date)
   let status = $derived(task.status)
-  const oldDate = $derived(task.date)
+
+  // Convert stored SQLite DATETIME to datetime-local input value (to minutes)
+  const toLocalInputValue = (value?: string): string => {
+    if (!value) return ''
+    const v = value.trim()
+
+    // Stored format is "YYYY-MM-DD HH:MM:SS" – convert to "YYYY-MM-DDTHH:MM"
+    if (v.includes(' ')) {
+      const [datePart, timePart] = v.split(' ')
+      const [hh, mm] = timePart.split(':')
+      return `${datePart}T${hh}:${mm}`
+    }
+
+    // If only a date is stored, default to midnight
+    if (v.length === 10) {
+      return `${v}T00:00`
+    }
+
+    return ''
+  }
+
+  const fromLocalInputValue = (v: string): string => {
+    // Convert "YYYY-MM-DDTHH:MM" to "YYYY-MM-DD HH:MM:SS"
+    if (!v) return ''
+    const [datePart, timePart] = v.split('T')
+    if (!timePart) return `${datePart} 00:00:00`
+    const [hh, mm] = timePart.split(':')
+    return `${datePart} ${hh}:${mm}:00`
+  }
+
+  let startLocal = $state(toLocalInputValue(task.startDateTime))
+  let endLocal = $state(
+    toLocalInputValue(task.endDateTime ?? task.startDateTime),
+  )
 
   let activeTask: ActiveTask | undefined
   let isActive = $state(false)
-  let currentSeconds = $derived(task.seconds)
 
   $effect(() => {
     activeTask = $activeTasks.find(at => at.taskId === task.id)
     isActive = activeTask !== undefined && activeTask.isActive
-    currentSeconds = hours * 3600 + minutes * 60 + seconds
   })
 
   async function handleSubmit(e: Event) {
     e.preventDefault()
+    if (!startLocal || !endLocal) {
+      return
+    }
+
+    const startDateTime = fromLocalInputValue(startLocal)
+    const endDateTime = fromLocalInputValue(endLocal)
+
     const result = await window.electron.editTask({
       id: task.id,
       taskDefinitionId: task.taskDefinitionId,
       description,
-      seconds: currentSeconds,
-      date: date,
-      oldDate: oldDate,
+      startDateTime,
+      endDateTime,
       status,
     })
 
     if (result.success) {
-      // Update active tasks if task is active
-      if (activeTask) {
-        activeTasks.update(ats =>
-          ats.map(at =>
-            at.taskId === task.id && at.date === oldDate
-              ? { ...at, description, seconds: currentSeconds, date: date }
-              : at,
-          ),
-        )
-      }
-
       // Pass edited task back to parent - parent will refresh from database
       onSuccess({
         ...task,
         description,
-        seconds: currentSeconds,
-        date: date,
+        startDateTime,
+        endDateTime,
         status,
       })
     }
@@ -81,19 +103,19 @@
       </div>
       <div class="form-control mt-4">
         <label class="label" for="date">
-          <span class="label-text">Task Date</span>
+          <span class="label-text">Start time</span>
         </label>
         {#if isActive}
           <InfoBox type="warning" title="Warning">
-            Editing the <strong>date</strong> of an
+            Editing the <strong>start time</strong> of an
             <strong>active task</strong> is not allowed. You can stop the task first,
-            and then edit the date.
+            and then edit the time range.
           </InfoBox>
         {/if}
         <input
           id="date"
-          type="date"
-          bind:value={date}
+          type="datetime-local"
+          bind:value={startLocal}
           class="input input-bordered"
           disabled={isActive}
           required
@@ -102,57 +124,22 @@
       <div class="form-control mt-4">
         {#if isActive}
           <InfoBox type="warning" title="Warning">
-            Editing the <strong>duration</strong> of an
+            Editing the <strong>end time</strong> of an
             <strong>active task</strong> is not allowed. You can stop the task first,
-            and then edit the duration.
+            and then edit the time range.
           </InfoBox>
         {/if}
-        <label class="label" for="hours">
-          <span class="label-text">Task Duration</span>
+        <label class="label" for="end">
+          <span class="label-text">End time</span>
         </label>
-        <div class="grid grid-cols-3 gap-4">
-          <div class="form-control">
-            <label class="label" for="hours">
-              <span class="label-text">Hours</span>
-            </label>
-            <input
-              id="hours"
-              type="number"
-              bind:value={hours}
-              min="0"
-              class="input"
-              disabled={isActive}
-            />
-          </div>
-          <div class="form-control">
-            <label class="label" for="minutes">
-              <span class="label-text">Minutes</span>
-            </label>
-            <input
-              id="minutes"
-              type="number"
-              bind:value={minutes}
-              min="0"
-              max="59"
-              class="input"
-              disabled={isActive}
-            />
-          </div>
-          <div class="form-control">
-            <label class="label" for="seconds">
-              <span class="label-text">Seconds</span>
-            </label>
-            <input
-              id="seconds"
-              type="number"
-              bind:value={seconds}
-              min="0"
-              max="59"
-              class="input"
-              disabled={isActive}
-            />
-          </div>
-        </div>
+        <input
+          id="end"
+          type="datetime-local"
+          bind:value={endLocal}
+          class="input input-bordered"
+          disabled={isActive}
+          required
+        />
       </div>
       <label class="label mt-4" for="status">
         <span class="label-text">Status</span>

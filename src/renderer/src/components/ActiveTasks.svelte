@@ -7,7 +7,7 @@
     selectedTask,
   } from '../stores'
   import TimerComponent from './TimerComponent.svelte'
-  import { CheckCheck, Pause, Play } from '@lucide/svelte'
+  import { CheckCheck } from '@lucide/svelte'
 
   let tasks: ActiveTask[] = []
 
@@ -40,13 +40,6 @@
     }
   }
 
-  async function handleStartTask(taskId: string) {
-    const result = await window.electron.startActiveTask(taskId)
-    if (result.success) {
-      await fetchActiveTasks()
-    }
-  }
-
   async function handleStopTask(taskId: string) {
     const result = await window.electron.stopActiveTask(taskId)
     if (result.success) {
@@ -66,13 +59,6 @@
         const updatedTask = await window.electron.getTaskById(taskId)
         selectedTask.set(updatedTask)
       }
-    }
-  }
-
-  async function handlePauseTask(taskId: string) {
-    const result = await window.electron.pauseActiveTask(taskId)
-    if (result.success) {
-      await fetchActiveTasks()
     }
   }
 </script>
@@ -101,25 +87,6 @@
                   </td>
                   <td>{task.date}</td>
                   <td>
-                    {#if task.isActive}
-                      <span class="tooltip" data-tip="Pause">
-                        <button
-                          class="btn btn-warning btn-soft btn-circle"
-                          on:click={() => handlePauseTask(task.taskId)}
-                        >
-                          <Pause size="16" />
-                        </button>
-                      </span>
-                    {:else}
-                      <span class="tooltip" data-tip="Resume">
-                        <button
-                          class="btn btn-success btn-soft btn-circle"
-                          on:click={() => handleStartTask(task.taskId)}
-                        >
-                          <Play size="16" />
-                        </button>
-                      </span>
-                    {/if}
                     <span class="tooltip" data-tip="Done">
                       <button
                         class="btn btn-success btn-soft btn-circle"

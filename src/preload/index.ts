@@ -144,19 +144,14 @@ const API = {
     return await ipcRenderer.invoke('getActiveTasks')
   },
   startActiveTask: async (
-    opts: ActiveTask,
+    id: string,
   ): Promise<ActiveTask & { success: boolean }> => {
-    return await ipcRenderer.invoke('startActiveTask', opts)
-  },
-  pauseActiveTask: async (
-    opts: ActiveTask,
-  ): Promise<ActiveTask & { success: boolean }> => {
-    return await ipcRenderer.invoke('pauseActiveTask', opts)
+    return await ipcRenderer.invoke('startActiveTask', id)
   },
   stopActiveTask: async (
-    opts: ActiveTask,
+    id: string,
   ): Promise<(ActiveTask & { success: true }) | { success: false }> => {
-    return await ipcRenderer.invoke('stopActiveTask', opts)
+    return await ipcRenderer.invoke('stopActiveTask', id)
   },
 
   // PDF Export
