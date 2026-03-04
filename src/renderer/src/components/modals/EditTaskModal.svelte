@@ -101,17 +101,10 @@
           placeholder="Task Description"
         ></textarea>
       </div>
-      <div class="form-control mt-4">
+      <div class="form-control mt-4 {isActive ? 'hidden' : ''}">
         <label class="label" for="date">
           <span class="label-text">Start time</span>
         </label>
-        {#if isActive}
-          <InfoBox type="warning" title="Warning">
-            Editing the <strong>start time</strong> of an
-            <strong>active task</strong> is not allowed. You can stop the task first,
-            and then edit the time range.
-          </InfoBox>
-        {/if}
         <input
           id="date"
           type="datetime-local"
@@ -121,14 +114,7 @@
           required
         />
       </div>
-      <div class="form-control mt-4">
-        {#if isActive}
-          <InfoBox type="warning" title="Warning">
-            Editing the <strong>end time</strong> of an
-            <strong>active task</strong> is not allowed. You can stop the task first,
-            and then edit the time range.
-          </InfoBox>
-        {/if}
+      <div class="form-control mt-4 {isActive ? 'hidden' : ''}">
         <label class="label" for="end">
           <span class="label-text">End time</span>
         </label>
@@ -157,9 +143,7 @@
         </select>
       </div>
       <div class="modal-action">
-        <button type="submit" class="btn btn-warning" disabled={isActive}
-          >Edit</button
-        >
+        <button type="submit" class="btn btn-warning">Edit</button>
         <button type="button" class="btn" onclick={onClose}>Cancel</button>
       </div>
     </form>
