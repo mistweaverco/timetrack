@@ -7,9 +7,10 @@
     selectedTask,
   } from '../stores'
   import TimerComponent from './TimerComponent.svelte'
-  import { CheckCheck } from '@lucide/svelte'
-
-  let tasks: ActiveTask[] = []
+  import EditTaskModal from './modals/EditTaskModal.svelte'
+  import { CheckCheck, SquarePen } from '@lucide/svelte'
+  let showEditTaskModal = $state(false)
+  let taskToEdit: DBTask | null = $state(null)
 
   onMount(async () => {
     await fetchActiveTasks()
@@ -27,13 +28,9 @@
     })
   })
 
-  activeTasks.subscribe(value => {
-    tasks = value
-  })
-
   async function fetchActiveTasks() {
     try {
-      tasks = await window.electron.getActiveTasks()
+      const tasks = await window.electron.getActiveTasks()
       activeTasks.set(tasks)
     } catch (error) {
       console.error('Error loading active tasks:', error)
@@ -61,9 +58,45 @@
       }
     }
   }
+
+  async function handleEditTask(taskId: string) {
+    if (!window.electron) return
+    const task = await window.electron.getTaskById(taskId)
+    if (!task) return
+    taskToEdit = task
+    showEditTaskModal = true
+  }
+
+  async function handleEditModalClose(editedTask: DBTask | null) {
+    showEditTaskModal = false
+    taskToEdit = null
+
+    if (!editedTask || !$selectedProject || !$selectedProject.id) return
+
+    try {
+      const updatedTasks = await window.electron.getTasksToday(
+        $selectedProject.id,
+      )
+      tasksStore.set(updatedTasks)
+    } catch (error) {
+      console.error('Error refreshing tasks after edit:', error)
+    }
+
+    if ($selectedTask && $selectedTask.id === editedTask.id) {
+      selectedTask.set(editedTask)
+    }
+  }
 </script>
 
-{#if tasks.length > 0}
+{#if showEditTaskModal && taskToEdit}
+  <EditTaskModal
+    task={taskToEdit}
+    onClose={() => handleEditModalClose(null)}
+    onSuccess={t => handleEditModalClose(t)}
+  />
+{/if}
+
+{#if $activeTasks.length > 0}
   <section class="section">
     <div class="card bg-base-200 outline outline-accent">
       <div class="card-body">
@@ -75,11 +108,12 @@
                 <th>ID</th>
                 <th>Elapsed</th>
                 <th>Date</th>
-                <th></th>
+                <th class="w-0"></th>
+                <th class="w-0"></th>
               </tr>
             </thead>
             <tbody>
-              {#each tasks as task (task.taskId)}
+              {#each $activeTasks as task (task.taskId)}
                 <tr class="hover:bg-base-100">
                   <td>{task.companyName} > {task.projectName} > {task.name}</td>
                   <td>
@@ -87,10 +121,20 @@
                   </td>
                   <td>{task.date}</td>
                   <td>
+                    <span class="tooltip" data-tip="Edit">
+                      <button
+                        class="btn btn-soft btn-circle btn-accent"
+                        onclick={() => handleEditTask(task.taskId)}
+                      >
+                        <SquarePen size="16" />
+                      </button>
+                    </span>
+                  </td>
+                  <td>
                     <span class="tooltip" data-tip="Done">
                       <button
                         class="btn btn-success btn-soft btn-circle"
-                        on:click={() => handleStopTask(task.taskId)}
+                        onclick={() => handleStopTask(task.taskId)}
                       >
                         <CheckCheck size="16" />
                       </button>

@@ -98,16 +98,13 @@
 
     const startResult = await window.electron.startActiveTask(addResult.id)
     if (startResult.success) {
-      activeTasks.update(ats => {
-        const exists = ats.find(
-          at =>
-            at.taskId === startResult.taskId && at.date === startResult.date,
-        )
-        if (!exists) {
-          return [...ats, { ...startResult, isActive: true }]
-        }
-        return ats
-      })
+      // Refresh active tasks from main process to ensure UI is in sync
+      try {
+        const activeTasksData = await window.electron.getActiveTasks()
+        activeTasks.set(activeTasksData)
+      } catch (error) {
+        console.error('Error refreshing active tasks after start:', error)
+      }
 
       await fetchTasks($selectedProject.id)
     }
