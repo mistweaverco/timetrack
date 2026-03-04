@@ -11,42 +11,47 @@
   let description = $derived(task.description)
   let status = $derived(task.status)
 
-  // Convert stored SQLite DATETIME to datetime-local input value (to minutes)
-  const toLocalInputValue = (value?: string): string => {
-    if (!value) return ''
+  const parseDateTime = (
+    value?: string,
+  ): { date: string; hour: number; minute: number } => {
+    if (!value) return { date: '', hour: 0, minute: 0 }
     const v = value.trim()
 
-    // Stored format is "YYYY-MM-DD HH:MM:SS" – convert to "YYYY-MM-DDTHH:MM"
+    let datePart = ''
+    let timePart = ''
+
     if (v.includes(' ')) {
-      const [datePart, timePart] = v.split(' ')
-      const [hh, mm] = timePart.split(':')
-      return `${datePart}T${hh}:${mm}`
+      ;[datePart, timePart] = v.split(' ')
+    } else if (v.includes('T')) {
+      ;[datePart, timePart] = v.split('T')
+    } else {
+      datePart = v
+      timePart = '00:00:00'
     }
 
-    // If only a date is stored, default to midnight
-    if (v.length === 10) {
-      return `${v}T00:00`
-    }
-
-    return ''
-  }
-
-  const fromLocalInputValue = (v: string): string => {
-    // Convert "YYYY-MM-DDTHH:MM" to "YYYY-MM-DD HH:MM:SS"
-    if (!v) return ''
-    const [datePart, timePart] = v.split('T')
-    if (!timePart) return `${datePart} 00:00:00`
     const [hh, mm] = timePart.split(':')
-    return `${datePart} ${hh}:${mm}:00`
+    return {
+      date: datePart,
+      hour: Number(hh) || 0,
+      minute: Number(mm) || 0,
+    }
   }
 
-  let startLocal = $state(toLocalInputValue(task.startDateTime))
-  let endLocal = $state(
-    toLocalInputValue(task.endDateTime ?? task.startDateTime),
-  )
+  const startParsed = parseDateTime(task.startDateTime)
+  const endParsed = parseDateTime(task.endDateTime ?? task.startDateTime)
+
+  let startDate = $state(startParsed.date)
+  let startHour = $state(startParsed.hour)
+  let startMinute = $state(startParsed.minute)
+
+  let endDate = $state(endParsed.date)
+  let endHour = $state(endParsed.hour)
+  let endMinute = $state(endParsed.minute)
 
   let activeTask: ActiveTask | undefined
   let isActive = $state(false)
+
+  const pad = (n: number): string => n.toString().padStart(2, '0')
 
   $effect(() => {
     activeTask = $activeTasks.find(at => at.taskId === task.id)
@@ -55,12 +60,14 @@
 
   async function handleSubmit(e: Event) {
     e.preventDefault()
-    if (!startLocal || !endLocal) {
+    if (!startDate || !endDate) {
       return
     }
 
-    const startDateTime = fromLocalInputValue(startLocal)
-    const endDateTime = fromLocalInputValue(endLocal)
+    const startDateTime = `${startDate} ${pad(startHour)}:${pad(
+      startMinute,
+    )}:00`
+    const endDateTime = `${endDate} ${pad(endHour)}:${pad(endMinute)}:00`
 
     const result = await window.electron.editTask({
       id: task.id,
@@ -102,30 +109,62 @@
         ></textarea>
       </div>
       <div class="form-control mt-4 {isActive ? 'hidden' : ''}">
-        <label class="label" for="date">
+        <label class="label">
           <span class="label-text">Start time</span>
         </label>
-        <input
-          id="date"
-          type="datetime-local"
-          bind:value={startLocal}
-          class="input input-bordered"
-          disabled={isActive}
-          required
-        />
+        <div class="grid grid-cols-3 gap-2">
+          <input
+            type="date"
+            bind:value={startDate}
+            class="input input-bordered"
+            required
+          />
+          <input
+            type="number"
+            min="0"
+            max="23"
+            bind:value={startHour}
+            class="input input-bordered"
+            required
+          />
+          <input
+            type="number"
+            min="0"
+            max="59"
+            bind:value={startMinute}
+            class="input input-bordered"
+            required
+          />
+        </div>
       </div>
       <div class="form-control mt-4 {isActive ? 'hidden' : ''}">
-        <label class="label" for="end">
+        <label class="label">
           <span class="label-text">End time</span>
         </label>
-        <input
-          id="end"
-          type="datetime-local"
-          bind:value={endLocal}
-          class="input input-bordered"
-          disabled={isActive}
-          required
-        />
+        <div class="grid grid-cols-3 gap-2">
+          <input
+            type="date"
+            bind:value={endDate}
+            class="input input-bordered"
+            required
+          />
+          <input
+            type="number"
+            min="0"
+            max="23"
+            bind:value={endHour}
+            class="input input-bordered"
+            required
+          />
+          <input
+            type="number"
+            min="0"
+            max="59"
+            bind:value={endMinute}
+            class="input input-bordered"
+            required
+          />
+        </div>
       </div>
       <label class="label mt-4" for="status">
         <span class="label-text">Status</span>
