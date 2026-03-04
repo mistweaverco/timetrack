@@ -80,7 +80,7 @@ export const getDBFilePath = async (): Promise<string> => {
   } catch (error) {
     const err = error as NodeJS.ErrnoException
     if (err.code === 'ENOENT') {
-      logger.error('📢 Creating user data dir:', userDataDir)
+      logger.warn('📢 Creating user data dir:', userDataDir)
       await mkdir(userDataDir, { recursive: true })
     }
   }
