@@ -351,6 +351,7 @@
 
     // Convert search results to PDFQueryResult format
     const data: PDFQueryResult[] = result.tasks.map(task => ({
+      id: task.id,
       companyName: task.companyName,
       projectName: task.projectName,
       name: task.name,
