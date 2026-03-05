@@ -17,6 +17,7 @@ type PDFTotalObject = {
 }
 
 type PDFQueryResult = {
+  id: number
   date: string
   description: string
   name: string

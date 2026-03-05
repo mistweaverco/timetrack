@@ -597,6 +597,7 @@ const getDataForPDFExport = async (
 
   const res = await db
     .select({
+      id: task.id,
       name: taskDefinition.name,
       projectName: project.name,
       companyName: company.name,
@@ -632,6 +633,7 @@ const getDataForPDFExport = async (
     const seconds = Math.max(0, t.durationSeconds ?? 0)
 
     return {
+      id: t.id,
       name: t.name,
       projectName: t.projectName,
       companyName: t.companyName,
