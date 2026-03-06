@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { Hourglass, CalendarDays } from '@lucide/svelte'
   import moment from 'moment'
   import { marked } from 'marked'
   import {
@@ -48,7 +49,7 @@
   let taskDefToDelete: DBTaskDefinition | null = $state(null)
 
   // Form values
-  let searchIn: string[] = $state([])
+  let searchIn: string[] = $state(['tasks'])
   let fromDate = $state(moment().format('YYYY-MM-DD'))
   let toDate = $state(moment().format('YYYY-MM-DD'))
   let activeState = $state('all')
@@ -132,7 +133,7 @@
 
     try {
       const query: SearchQuery = {
-        search_in: searchIn,
+        search_in: $state.snapshot(searchIn),
         from_date: fromDate,
         to_date: toDate,
         active_state: activeState,
@@ -351,7 +352,7 @@
 
     // Convert search results to PDFQueryResult format
     const data: PDFQueryResult[] = result.tasks.map(task => ({
-      id: task.id,
+      id: parseInt(task.id, 10),
       companyName: task.companyName,
       projectName: task.projectName,
       name: task.name,
@@ -868,6 +869,30 @@
 
           <!-- Tasks Results -->
           {#if searchIn.includes('tasks') && searchResult.tasks.length > 0}
+            <!-- Statistics -->
+            <div role="alert" class="alert">
+              <CalendarDays size="16" class="text-info" />
+              <span>
+                The tasks shown are between <strong>{fromDate}</strong> and
+                <strong>{toDate}</strong>.
+              </span>
+            </div>
+            <div role="alert" class="alert">
+              <Hourglass size="16" class="text-secondary" />
+              <span>
+                All tasks combined have a total time of
+                <strong>
+                  {getHMSStringFromSeconds(
+                    searchResult.tasks.reduce(
+                      (sum, task) => sum + task.seconds,
+                      0,
+                    ),
+                  )}
+                </strong>
+              </span>
+            </div>
+
+            <!-- Tasks List -->
             <div class="card bg-base-200 shadow-xl">
               <div class="card-body">
                 <h2 class="card-title">Tasks</h2>
