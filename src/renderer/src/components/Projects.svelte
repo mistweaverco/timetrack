@@ -86,7 +86,7 @@
 {/if}
 
 {#if $selectedCompany && $selectedCompany}
-  <div class="flex justify-between">
+  <div class="wflex justify-between">
     <ul class="flex space-x-2">
       {#if $companyProjects.length !== 0}
         <li>
