@@ -110,6 +110,15 @@
     }
   }
 
+  function hasActiveTaskForSelectedTaskDefinition(): boolean {
+    if (!$selectedTaskDefinition) return false
+    return $activeTasks.some(
+      at =>
+        at.name === $selectedTaskDefinition.name &&
+        at.projectName === $selectedTaskDefinition.projectName,
+    )
+  }
+
   function onTaskDefinitionSelect(e: Event) {
     const select = e.target as HTMLSelectElement
     const taskDefId = select.value
@@ -245,7 +254,7 @@
           </span>
         </li>
       {/if}
-      {#if $selectedTaskDefinition && $selectedTaskDefinition.id}
+      {#if $selectedTaskDefinition && $selectedTaskDefinition.id && !hasActiveTaskForSelectedTaskDefinition()}
         <li>
           <div
             class="tooltip tooltip-bottom hover:btn-success"
