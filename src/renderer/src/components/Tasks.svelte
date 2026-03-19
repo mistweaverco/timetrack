@@ -129,12 +129,19 @@
     }
     const taskDef = $taskDefinitions.find(td => td.id === taskDefId) || null
     selectedTaskDefinition.set(taskDef)
-    const existingTask = tasksList.find(
+    const tasksForToday = tasksList.filter(
       t =>
         t.taskDefinitionId === taskDefId &&
         t.date === new Date().toISOString().slice(0, 10),
     )
-    selectedTask.set(existingTask)
+    const activeTaskIds = new Set($activeTasks.map(at => at.taskId))
+    const activeTaskForDefinition = tasksForToday.find(t =>
+      activeTaskIds.has(t.id),
+    )
+    const latestTaskForDefinition =
+      tasksForToday.length > 0 ? tasksForToday[tasksForToday.length - 1] : null
+
+    selectedTask.set(activeTaskForDefinition || latestTaskForDefinition)
   }
 
   async function handleEditModalClose(editedTask: DBTask) {
