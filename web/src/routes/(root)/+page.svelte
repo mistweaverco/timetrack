@@ -21,10 +21,13 @@
 	interface PrismaRegisterButtonContext {
 		element: { parentNode: HTMLElement | null };
 	}
+	const downloadBaseUrl = 'https://github.com/mistweaverco/timetrack/releases/latest/download/';
+
+	let downloadLink = downloadBaseUrl + 'timetrack-setup-x64.exe';
 
 	let randomOrderMentions: Mention[] = [];
 
-	let installUsing = 'manually';
+	let installSystem = 'manually';
 
 	const handleAnchorClick = (evt: Event) => {
 		evt.preventDefault();
@@ -35,11 +38,31 @@
 			top: anchor?.offsetTop,
 			behavior: 'smooth'
 		});
+		window.history.pushState(null, '', `#${anchorId}`);
 	};
 
-	const onInstallUsingChange = (evt: Event) => {
+	const onInstallSystemChange = (evt: Event) => {
 		const select = evt.currentTarget as HTMLSelectElement;
-		installUsing = select.value;
+		installSystem = select.value;
+		switch (installSystem) {
+			case 'linux-appimage':
+				downloadLink = downloadBaseUrl + 'timetrack_x86_64.AppImage';
+				break;
+			case 'linux-deb':
+				downloadLink = downloadBaseUrl + 'timetrack_amd64.deb';
+				break;
+			case 'macos-x64':
+				downloadLink = downloadBaseUrl + 'timetrack_x64.dmg';
+				break;
+			case 'macos-arm64':
+				downloadLink = downloadBaseUrl + 'timetrack_arm64.dmg';
+				break;
+			case 'windows-x64':
+				downloadLink = downloadBaseUrl + 'timetrack-setup_x64.exe';
+				break;
+			default:
+				downloadLink = '';
+		}
 	};
 
 	onMount(() => {
@@ -78,8 +101,31 @@
 				A simple, offline-first, privacy-focused, cross-platform, desktop application to track your
 				time spent on different projects.
 			</p>
+			<a href="#screenshots" on:click={handleAnchorClick}
+				><button class="btn btn-primary">Screenshots</button></a
+			>
+		</div>
+	</div>
+</div>
+<div id="screenshots" class="hero bg-base-200 min-h-screen">
+	<div class="hero-content text-center">
+		<div class="max-w-2xl">
+			<a href="#screenshots" on:click={handleAnchorClick}>
+				<h1 class="text-5xl font-bold">Screenshots 📸</h1>
+			</a>
+			<a href="/assets/screenshots/overview.webp">
+				<img
+					src="/assets/screenshots/overview.webp"
+					alt="Screenshot of the overview"
+					class="m-5 mx-auto"
+				/>
+			</a>
+			<p class="py-6">
+				This animated screenshot shows the overview page of Timetrack, where you can see all your
+				companies, projects and tasks.
+			</p>
 			<a href="#install" on:click={handleAnchorClick}
-				><button class="btn btn-primary">Get Started</button></a
+				><button class="btn btn-primary">Install</button></a
 			>
 		</div>
 	</div>
@@ -87,24 +133,31 @@
 <div id="install" class="hero bg-base-200 min-h-screen">
 	<div class="hero-content text-center">
 		<div class="max-w-md">
-			<h1 class="text-5xl font-bold">Install ⚡</h1>
-			<p class="py-6">Install Timetrack using ...</p>
-			<select on:input={onInstallUsingChange} class="select select-bordered mb-5">
-				<option value="manually">manually</option>
+			<a href="#install" on:click={handleAnchorClick}>
+				<h1 class="text-5xl font-bold">Install ⚡</h1>
+			</a>
+			<p class="py-6">Install Timetrack ...</p>
+			<select on:input={onInstallSystemChange} class="select select-bordered mb-5">
+				<option value="manually">select manually</option>
+				<option value="linux-appimage">Linux x86_64 .AppImage</option>
+				<option value="linux-deb">Linux .deb</option>
+				<option value="macos-x64">MacOS x64</option>
+				<option value="macos-arm64">MacOS arm64</option>
+				<option value="windows-x64">Windows x64</option>
 			</select>
-			<div class={installUsing === 'manually' ? '' : 'hidden'}>
+			<div class={installSystem === 'manually' ? '' : 'hidden'}>
 				<p class="mb-5">
 					Download the latest release from the <a class="text-secondary" href="/download"
 						>releases page</a
 					>.
 				</p>
 			</div>
-			<div class={installUsing === 'curl' ? '' : 'hidden'}>
-				<pre><code
-						class="language-bash"
-						data-toolbar-order="copy-to-clipboard"
-						data-prismjs-copy="📋">curl -sSL https://timetrack.mwco.app/install.sh | bash</code
-					></pre>
+			<div class={installSystem !== 'manually' ? '' : 'hidden'}>
+				<p class="mb-5">
+					<a href={downloadLink} target="_blank" rel="noopener noreferrer">
+						<button class="btn btn-secondary mt-5">Download {installSystem}</button></a
+					>
+				</p>
 			</div>
 			<p>
 				<a href="#honorable-mentions" on:click={handleAnchorClick}
@@ -117,7 +170,9 @@
 <div id="honorable-mentions" class="hero bg-base-200 min-h-screen">
 	<div class="hero-content text-center">
 		<div class="max-w-md">
-			<h1 class="text-5xl font-bold">Honorable mentions 🥰</h1>
+			<a href="#honorable-mentions" on:click={handleAnchorClick}>
+				<h1 class="text-5xl font-bold">Honorable mentions 🥰</h1>
+			</a>
 			<p class="py-6">These projects helped make Timetrack possible:</p>
 			{#each randomOrderMentions as mention, idx}
 				{#if idx > 0}
@@ -150,12 +205,22 @@
 <div id="get-involved" class="hero bg-base-200 min-h-screen">
 	<div class="hero-content text-center">
 		<div class="max-w-md">
-			<h1 class="text-5xl font-bold">Get involved 📦</h1>
+			<a href="#get-involved" on:click={handleAnchorClick}>
+				<h1 class="text-5xl font-bold">Get involved 📦</h1>
+			</a>
 			<p class="py-6">Timetrack is open-source and we welcome contributions.</p>
 			<p>
 				View the <a class="text-secondary" href="https://github.com/mistweaverco/timetrack">code</a
 				>, and/or check out the
 				<a class="text-secondary" href="/docs">docs</a>.
+			</p>
+			<p class="py-6">
+				If you're interested in how it all started, you can read a bit about that
+				<a
+					class="text-secondary"
+					href="https://gorilla.moe/blog/how-i-came-to-build-timetrack-an-offline-first-desktop-time-tracking-app"
+					>here</a
+				>.
 			</p>
 		</div>
 	</div>
