@@ -47,12 +47,20 @@ fi
 
 # copy logos if they do not exist
 if [ ! -f ./web/static/logo.png ] || [ ! -f ./web/static/logo.svg ]; then
-  cp ./build/icon.png ./web/static/logo.png || exit 1
-  cp ./build/icon.svg ./web/static/logo.svg || exit 1
+  cp -p ./build/icon.png ./web/static/logo.png || exit 1
+  cp -p ./build/icon.svg ./web/static/logo.svg || exit 1
+fi
+
+# copy/sync assets from root (screenshots, etc.) to web static
+if [ -d ./assets ]; then
+  if [ -d ./web/static/assets ]; then
+    rm -rf ./web/static/assets || exit 1
+  fi
+  cp -pr ./assets ./web/static/ || exit 1
 fi
 
 # copy config.schema.json to web static
-cp ./config.schema.json ./web/static/ || exit 1
+cp -p ./config.schema.json ./web/static/ || exit 1
 
 # build web
 cd web || exit 1
