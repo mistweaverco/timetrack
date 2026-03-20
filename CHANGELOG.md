@@ -1,6 +1,10 @@
+## 5.13.0 (2026-03-20)
+
+* feat(ci): add publish to aur (#78) ([8074f3d](https://github.com/mistweaverco/timetrack/commit/8074f3d)), closes [#78](https://github.com/mistweaverco/timetrack/issues/78)
+
 ## 5.12.0 (2026-03-19)
 
-* feat(ux): add CHANGELOG.md ([1a70aa2](https://github.com/mistweaverco/timetrack/commit/1a70aa2))
+* feat(ux): add CHANGELOG.md (#77) ([32da2ef](https://github.com/mistweaverco/timetrack/commit/32da2ef)), closes [#77](https://github.com/mistweaverco/timetrack/issues/77)
 * feat(web): add screenshots + direct download links (#76) ([c8c2fe7](https://github.com/mistweaverco/timetrack/commit/c8c2fe7)), closes [#76](https://github.com/mistweaverco/timetrack/issues/76)
 * fix(ui): dropdown re-selection always picks first task from today (#75) ([a7e69a6](https://github.com/mistweaverco/timetrack/commit/a7e69a6)), closes [#75](https://github.com/mistweaverco/timetrack/issues/75)
 * fix(ui): hide "start" task, when it's already running (#74) ([72dab59](https://github.com/mistweaverco/timetrack/commit/72dab59)), closes [#74](https://github.com/mistweaverco/timetrack/issues/74)
