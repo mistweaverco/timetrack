@@ -139,6 +139,7 @@
 			<p class="py-6">Install Timetrack ...</p>
 			<select on:input={onInstallSystemChange} class="select select-bordered mb-5">
 				<option value="manually">select manually</option>
+				<option value="aur">Arch Linux x64</option>
 				<option value="linux-appimage">Linux x86_64 .AppImage</option>
 				<option value="linux-deb">Linux .deb</option>
 				<option value="macos-x64">MacOS x64</option>
@@ -152,7 +153,28 @@
 					>.
 				</p>
 			</div>
-			<div class={installSystem !== 'manually' ? '' : 'hidden'}>
+			<div class={installSystem === 'aur' ? '' : 'hidden'}>
+				<p class="mb-5">
+					Via AUR, using an AUR helper like <a
+						href="https://github.com/Jguer/yay"
+						class="text-secondary">yay</a
+					>
+				</p>
+				<pre><code
+						class="language-bash"
+						data-toolbar-order="copy-to-clipboard"
+						data-prismjs-copy="📋">yay -S mw-timetrack-bin</code
+					></pre>
+				<p class="mb-5">
+					.. or via <a href="https://github.com/morganamilo/paru" class="text-secondary">paru</a>
+				</p>
+				<pre><code
+						class="language-bash"
+						data-toolbar-order="copy-to-clipboard"
+						data-prismjs-copy="📋">paru -S mw-timetrack-bin</code
+					></pre>
+			</div>
+			<div class={installSystem !== 'manually' && installSystem !== 'aur' ? '' : 'hidden'}>
 				<p class="mb-5">
 					<a href={downloadLink} target="_blank" rel="noopener noreferrer">
 						<button class="btn btn-secondary mt-5">Download {installSystem}</button></a
