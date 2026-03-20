@@ -55,7 +55,7 @@ jobs:
           sed -i "s/pkgver=.*/pkgver=$VERSION_NO_V/" ./scripts/PKGBUILD
           updpkgsums ./scripts/PKGBUILD
       - name: Publish to AUR
-        uses: KSXGitHub/github-actions-deploy-aur@v4
+        uses: KSXGitHub/github-actions-deploy-aur@v4.1.1
         with:
           pkgname: mw-timetrack-bin
           pkgbuild: ./scripts/PKGBUILD
