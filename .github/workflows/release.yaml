@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
       - name: Set up env
@@ -20,7 +20,7 @@ jobs:
       - name: Set up Bun
         uses: oven-sh/setup-bun@v2
       - name: Cache Bun
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ~/.bun/install/cache
           key: linux-bun-${{ hashFiles('**/bun.lock') }}
@@ -38,6 +38,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           VERSION: ${{ env.VERSION }}
   deploy-aur:
+    name: Deploy to AUR
     needs: build-linux
     runs-on: ubuntu-latest
     container:
@@ -46,7 +47,7 @@ jobs:
     steps:
       - name: Install dependencies
         run: pacman -Syu --noconfirm pacman-contrib git openssh
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Update Version and Checksums
         run: |
           VERSION=${{ github.ref_name }}
@@ -54,11 +55,11 @@ jobs:
           sed -i "s/pkgver=.*/pkgver=$VERSION_NO_V/" ./scripts/PKGBUILD
           updpkgsums ./scripts/PKGBUILD
       - name: Publish to AUR
-        uses: KSXPC/github-actions-deploy-aur@v2
+        uses: KSXGitHub/github-actions-deploy-aur@v5
         with:
-          pkgname: timetrack-bin
+          pkgname: mw-timetrack-bin
           pkgbuild: ./scripts/PKGBUILD
-          commit_username: ${{ github.repository_owner }}
+          commit_username: ${{ secrets.AUR_USERNAME }}
           commit_email: ${{ secrets.AUR_EMAIL }}
           ssh_private_key: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
           commit_message: "Update to v${{ env.CLEAN_VERSION }}"
@@ -67,7 +68,7 @@ jobs:
     runs-on: windows-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
       - name: Set up env
@@ -78,7 +79,7 @@ jobs:
       - name: Set up Bun
         uses: oven-sh/setup-bun@v2
       - name: Cache Bun
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ~/.bun/install/cache
           key: windows-bun-${{ hashFiles('**/bun.lock') }}
@@ -102,7 +103,7 @@ jobs:
     runs-on: macos-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
       - name: Set up env
@@ -112,7 +113,7 @@ jobs:
       - name: Set up Bun
         uses: oven-sh/setup-bun@v2
       - name: Cache Bun
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ~/.bun/install/cache
           key: macos-bun-${{ hashFiles('**/bun.lock') }}
