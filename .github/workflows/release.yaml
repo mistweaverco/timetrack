@@ -48,12 +48,11 @@ jobs:
       - name: Install dependencies
         run: pacman -Syu --noconfirm pacman-contrib git openssh
       - uses: actions/checkout@v5
-      - name: Update Version and Checksums
+      - name: Update Version in PKGBUILD
         run: |
           VERSION=${{ github.ref_name }}
           VERSION_NO_V=${VERSION#v}
           sed -i "s/pkgver=.*/pkgver=$VERSION_NO_V/" ./scripts/PKGBUILD
-          updpkgsums ./scripts/PKGBUILD
       - name: Publish to AUR
         uses: KSXGitHub/github-actions-deploy-aur@v4.1.1
         with:
@@ -63,6 +62,7 @@ jobs:
           commit_email: ${{ secrets.AUR_EMAIL }}
           ssh_private_key: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
           commit_message: "Update to v${{ env.CLEAN_VERSION }}"
+          updpkgsums: true
   build-windows:
     name: Build Windows
     runs-on: windows-latest
