@@ -19,8 +19,14 @@ source=("https://github.com/mistweaverco/timetrack/releases/download/v${pkgver}/
 sha256sums=('PASTE_LATEST_DEB_HASH_HERE')
 
 package() {
-  tar -xJf data.tar.xz -C "${pkgdir}"
-  chmod -R 755 "${pkgdir}/usr/share/$_pkgname"
-  install -d "${pkgdir}/usr/bin"
-  ln -sf "/usr/lib/$_pkgname/$_pkgname" "${pkgdir}/usr/bin/$_pkgname"
+  if [ -f "data.tar.xz" ]; then
+    bsdtar -xf "data.tar.xz" -C "${pkgdir}"
+  else
+    bsdtar -xf "data.tar.gz" -C "${pkgdir}"
+  fi
+  mkdir -p "${pkgdir}/usr/bin"
+  ln -sf "/opt/timetrack/timetrack" "${pkgdir}/usr/bin/timetrack"
+  if [ -f "${pkgdir}/opt/timetrack/chrome-sandbox" ]; then
+    chmod 4755 "${pkgdir}/opt/timetrack/chrome-sandbox"
+  fi
 }

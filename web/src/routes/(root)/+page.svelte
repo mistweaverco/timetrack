@@ -173,6 +173,15 @@
 						data-toolbar-order="copy-to-clipboard"
 						data-prismjs-copy="📋">paru -S mw-timetrack-bin</code
 					></pre>
+				<div class="alert alert-info mt-5">
+					<p>
+						<i class="fas fa-info-circle"></i>
+						There is already a package called
+						<code class="rounded-xl bg-gray-900 p-1 text-nowrap text-white">timetrack</code>
+						in AUR, to avoid confusion, the package for this project is called
+						<code class="rounded-xl bg-gray-900 p-1 text-nowrap text-white">mw-timetrack-bin</code>.
+					</p>
+				</div>
 			</div>
 			<div class={installSystem !== 'manually' && installSystem !== 'aur' ? '' : 'hidden'}>
 				<p class="mb-5">
