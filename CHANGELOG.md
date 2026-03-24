@@ -1,4 +1,8 @@
 
+## 5.14.0 (2026-03-24)
+
+* feat(search): order tasks by startDate ASC (#79) ([7396098](https://github.com/mistweaverco/timetrack/commit/7396098)), closes [#79](https://github.com/mistweaverco/timetrack/issues/79)
+
 ## <small>5.13.1 (2026-03-20)</small>
 
 * fix(PKGBUILD): use correct folder struct ([e69fd0d](https://github.com/mistweaverco/timetrack/commit/e69fd0d))
