@@ -1,5 +1,15 @@
+
+## <small>5.13.1 (2026-03-20)</small>
+
+* fix(PKGBUILD): use correct folder struct ([e69fd0d](https://github.com/mistweaverco/timetrack/commit/e69fd0d))
+
 ## 5.13.0 (2026-03-20)
 
+* fix(ci): deploy to aur ([775b813](https://github.com/mistweaverco/timetrack/commit/775b813))
+* fix(ci): downgrade gh action for aur publish to v4 ([067feeb](https://github.com/mistweaverco/timetrack/commit/067feeb))
+* fix(ci): idk, maybe v4.1.1 for the aur workflow? ([106d08d](https://github.com/mistweaverco/timetrack/commit/106d08d))
+* fix(ci): update checksums in action instead of prior step as root ([7d191d6](https://github.com/mistweaverco/timetrack/commit/7d191d6))
+* chore(docs): update CHANGELOG ([c669770](https://github.com/mistweaverco/timetrack/commit/c669770))
 * feat(ci): add publish to aur (#78) ([8074f3d](https://github.com/mistweaverco/timetrack/commit/8074f3d)), closes [#78](https://github.com/mistweaverco/timetrack/issues/78)
 
 ## 5.12.0 (2026-03-19)
