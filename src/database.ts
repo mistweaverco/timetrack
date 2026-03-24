@@ -506,6 +506,7 @@ const getSearchResult = async (
       .innerJoin(status, eq(task.statusId, status.id))
       .innerJoin(company, eq(project.companyId, company.id))
       .where(and(...conditions))
+      .orderBy(sql`${task.startDateTime} ASC`)
 
     results.tasks = tasks.map(t => {
       const start =
