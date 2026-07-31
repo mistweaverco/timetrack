@@ -22,6 +22,13 @@
       "when": 1769590000000,
       "tag": "2026030312000_task_start_end",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1783000000000,
+      "tag": "2026073112000_task_attachments",
+      "breakpoints": true
     }
   ]
 }

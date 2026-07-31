@@ -43,6 +43,7 @@ type SearchQueryTask = {
   task_definition_name: string
   task_description: string
   company_name: string
+  attachment_filename: string
 }
 
 type SearchQuery = {
@@ -55,6 +56,24 @@ type SearchQuery = {
 
 type SearchQueryResultTask = DBTask & {
   descriptionHTML?: string
+  attachmentFilenames?: string[]
+}
+
+type SearchQueryResultAttachment = {
+  id: string
+  filename: string
+  mimeType: string
+  size: number
+  taskId: string
+  taskName: string
+  taskDefinitionId: string
+  projectName: string
+  companyName: string
+  date: string
+  description: string
+  seconds: number
+  status?: string
+  startDateTime?: string
 }
 
 type SearchQueryResult = {
@@ -62,6 +81,7 @@ type SearchQueryResult = {
   projects: DBProject[]
   task_definitions: DBTaskDefinition[]
   tasks: SearchQueryResultTask[]
+  attachments: SearchQueryResultAttachment[]
 }
 
 type DBCompany = {
@@ -171,6 +191,30 @@ type DBDeleteTaskOpts = {
   id: string
 }
 
+type DBTaskAttachment = {
+  id: string
+  taskId: string
+  filename: string
+  mimeType: string
+  size: number
+}
+
+type DBAddTaskAttachmentOpts = {
+  taskId: string
+  filename: string
+  mimeType: string
+  data: Buffer | Uint8Array
+}
+
+type DBRenameTaskAttachmentOpts = {
+  id: string
+  filename: string
+}
+
+type DBTaskAttachmentData = DBTaskAttachment & {
+  dataBase64: string
+}
+
 type MainProcessIPCHandle = {
   id: string
   cb: any // eslint-disable-line @typescript-eslint/no-explicit-any
@@ -265,11 +309,39 @@ interface Window {
       defaultPath?: string
       filters?: Electron.FileFilter[]
     }) => Promise<Electron.SaveDialogReturnValue>
+    showOpenFileDialog: (options?: {
+      filters?: Electron.FileFilter[]
+    }) => Promise<Electron.OpenDialogReturnValue>
     saveFile: (
       filePath: string,
       content: string,
     ) => Promise<{ success: boolean }>
+    saveBinaryFile: (
+      filePath: string,
+      dataBase64: string,
+    ) => Promise<{ success: boolean }>
     getPDFExport: (filepath: string) => Promise<void>
     getSearchResult: (query: SearchQuery) => Promise<SearchQueryResult>
+    listTaskAttachments: (taskId: string) => Promise<DBTaskAttachment[]>
+    addTaskAttachmentsFromPaths: (
+      taskId: string,
+      filePaths: string[],
+    ) => Promise<{
+      success: boolean
+      attachments: DBTaskAttachment[]
+      errors: string[]
+    }>
+    renameTaskAttachment: (
+      opts: DBRenameTaskAttachmentOpts,
+    ) => Promise<{ success: boolean; error?: string }>
+    deleteTaskAttachment: (id: string) => Promise<{ success: boolean }>
+    getTaskAttachmentData: (id: string) => Promise<DBTaskAttachmentData | null>
+    openTaskAttachment: (
+      id: string,
+    ) => Promise<{ success: boolean; filePath?: string; error?: string }>
+    saveAttachmentToFile: (
+      id: string,
+      defaultPath?: string,
+    ) => Promise<{ success: boolean; canceled?: boolean; filePath?: string }>
   }
 }

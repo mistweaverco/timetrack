@@ -164,16 +164,70 @@ const API = {
   }): Promise<Electron.SaveDialogReturnValue> => {
     return await ipcRenderer.invoke('showFileSaveDialog', options)
   },
+  showOpenFileDialog: async (options?: {
+    filters?: Electron.FileFilter[]
+  }): Promise<Electron.OpenDialogReturnValue> => {
+    return await ipcRenderer.invoke('showOpenFileDialog', options)
+  },
   saveFile: async (
     filePath: string,
     content: string,
   ): Promise<{ success: boolean }> => {
     return await ipcRenderer.invoke('saveFile', filePath, content)
   },
+  saveBinaryFile: async (
+    filePath: string,
+    dataBase64: string,
+  ): Promise<{ success: boolean }> => {
+    return await ipcRenderer.invoke('saveBinaryFile', filePath, dataBase64)
+  },
 
   // Search
   getSearchResult: async (query: SearchQuery): Promise<SearchQueryResult> => {
     return await ipcRenderer.invoke('getSearchResult', query)
+  },
+
+  // Attachments
+  listTaskAttachments: async (taskId: string): Promise<DBTaskAttachment[]> => {
+    return await ipcRenderer.invoke('listTaskAttachments', taskId)
+  },
+  addTaskAttachmentsFromPaths: async (
+    taskId: string,
+    filePaths: string[],
+  ): Promise<{
+    success: boolean
+    attachments: DBTaskAttachment[]
+    errors: string[]
+  }> => {
+    return await ipcRenderer.invoke(
+      'addTaskAttachmentsFromPaths',
+      taskId,
+      filePaths,
+    )
+  },
+  renameTaskAttachment: async (
+    opts: DBRenameTaskAttachmentOpts,
+  ): Promise<{ success: boolean; error?: string }> => {
+    return await ipcRenderer.invoke('renameTaskAttachment', opts)
+  },
+  deleteTaskAttachment: async (id: string): Promise<{ success: boolean }> => {
+    return await ipcRenderer.invoke('deleteTaskAttachment', id)
+  },
+  getTaskAttachmentData: async (
+    id: string,
+  ): Promise<DBTaskAttachmentData | null> => {
+    return await ipcRenderer.invoke('getTaskAttachmentData', id)
+  },
+  openTaskAttachment: async (
+    id: string,
+  ): Promise<{ success: boolean; filePath?: string; error?: string }> => {
+    return await ipcRenderer.invoke('openTaskAttachment', id)
+  },
+  saveAttachmentToFile: async (
+    id: string,
+    defaultPath?: string,
+  ): Promise<{ success: boolean; canceled?: boolean; filePath?: string }> => {
+    return await ipcRenderer.invoke('saveAttachmentToFile', id, defaultPath)
   },
 
   // Events

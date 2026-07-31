@@ -6,7 +6,14 @@ import logger from 'node-color-log'
 import fs from 'fs'
 import path from 'path'
 import { getDBFilePath } from './lib/ConfigFile'
-import { company, project, status, task, taskDefinition } from './db/schema'
+import {
+  company,
+  project,
+  status,
+  task,
+  taskAttachment,
+  taskDefinition,
+} from './db/schema'
 import { and, eq, inArray, like, sql } from 'drizzle-orm'
 import { migrate } from 'drizzle-orm/libsql/migrator'
 
@@ -306,12 +313,17 @@ const getSearchResult = async (
   const task_description = q.task.task_description.replace(/\*/g, '%')
   const task_definition_name = q.task.task_definition_name.replace(/\*/g, '%')
   const company_name = q.task.company_name.replace(/\*/g, '%')
+  const attachment_filename = (q.task.attachment_filename || '*').replace(
+    /\*/g,
+    '%',
+  )
 
   const results: SearchQueryResult = {
     companies: [],
     projects: [],
     task_definitions: [],
     tasks: [],
+    attachments: [],
   }
 
   // Filter by status if specified
@@ -485,6 +497,17 @@ const getSearchResult = async (
     if (statusId !== undefined) {
       conditions.push(eq(task.statusId, statusId))
     }
+    if (attachment_filename !== '%' && attachment_filename !== '*') {
+      conditions.push(
+        sql`EXISTS (
+          SELECT 1 FROM TaskAttachment
+          WHERE TaskAttachment.taskId = ${task.id}
+          AND TaskAttachment.filename LIKE ${
+            '%' + attachment_filename.replace(/%/g, '') + '%'
+          }
+        )`,
+      )
+    }
 
     const tasks = await db
       .select({
@@ -507,6 +530,34 @@ const getSearchResult = async (
       .innerJoin(company, eq(project.companyId, company.id))
       .where(and(...conditions))
       .orderBy(sql`${task.startDateTime} ASC`)
+
+    const taskIds = tasks.map(t => t.id)
+    const matchingAttachmentsByTask = new Map<number, string[]>()
+    if (taskIds.length > 0) {
+      const attachmentConditions = [inArray(taskAttachment.taskId, taskIds)]
+      if (attachment_filename !== '%' && attachment_filename !== '*') {
+        attachmentConditions.push(
+          like(
+            taskAttachment.filename,
+            `%${attachment_filename.replace(/%/g, '')}%`,
+          ),
+        )
+      }
+      const attachmentRows = await db
+        .select({
+          taskId: taskAttachment.taskId,
+          filename: taskAttachment.filename,
+        })
+        .from(taskAttachment)
+        .where(and(...attachmentConditions))
+        .orderBy(taskAttachment.filename)
+
+      for (const row of attachmentRows) {
+        const list = matchingAttachmentsByTask.get(row.taskId) || []
+        list.push(row.filename)
+        matchingAttachmentsByTask.set(row.taskId, list)
+      }
+    }
 
     results.tasks = tasks.map(t => {
       const start =
@@ -532,6 +583,106 @@ const getSearchResult = async (
         companyName: t.companyName,
         startDateTime: start,
         endDateTime: end,
+        attachmentFilenames: matchingAttachmentsByTask.get(t.id) || [],
+      }
+    })
+  }
+
+  if (q.search_in.includes('attachments')) {
+    const fromDateISO = dateStringToISO(q.from_date)
+    const toDateISO = dateStringToISO(q.to_date)
+
+    const conditions = [
+      sql`DATE(${task.startDateTime}) >= DATE(${sql.raw(
+        `'${normalizeDateString(fromDateISO)}'`,
+      )})`,
+      sql`DATE(${task.startDateTime}) <= DATE(${sql.raw(
+        `'${normalizeDateString(toDateISO)}'`,
+      )})`,
+    ]
+
+    if (task_name !== '%' && task_name !== '*') {
+      conditions.push(
+        like(taskDefinition.name, `%${task_name.replace(/%/g, '')}%`),
+      )
+    }
+    if (project_name !== '%' && project_name !== '*') {
+      conditions.push(like(project.name, `%${project_name.replace(/%/g, '')}%`))
+    }
+    if (company_name !== '%' && company_name !== '*') {
+      conditions.push(eq(company.name, company_name.replace(/%/g, '')))
+    }
+    if (task_definition_name !== '%' && task_definition_name !== '*') {
+      conditions.push(
+        like(
+          taskDefinition.name,
+          `%${task_definition_name.replace(/%/g, '')}%`,
+        ),
+      )
+    }
+    if (task_description !== '%' && task_description !== '*') {
+      conditions.push(
+        like(task.description, `%${task_description.replace(/%/g, '')}%`),
+      )
+    }
+    if (attachment_filename !== '%' && attachment_filename !== '*') {
+      conditions.push(
+        like(
+          taskAttachment.filename,
+          `%${attachment_filename.replace(/%/g, '')}%`,
+        ),
+      )
+    }
+    if (statusId !== undefined) {
+      conditions.push(eq(task.statusId, statusId))
+    }
+
+    const attachments = await db
+      .select({
+        id: taskAttachment.id,
+        filename: taskAttachment.filename,
+        mimeType: taskAttachment.mimeType,
+        size: taskAttachment.size,
+        taskId: taskAttachment.taskId,
+        taskDefinitionId: task.taskDefinitionId,
+        startDateTime: task.startDateTime,
+        endDateTime: task.endDateTime,
+        durationSeconds: sql<number>`CAST((julianday(${task.endDateTime}) - julianday(${task.startDateTime})) * 86400 AS INTEGER)`,
+        status: status.name,
+        taskDefinitionName: taskDefinition.name,
+        projectName: project.name,
+        companyName: company.name,
+        description: task.description,
+      })
+      .from(taskAttachment)
+      .innerJoin(task, eq(taskAttachment.taskId, task.id))
+      .innerJoin(taskDefinition, eq(task.taskDefinitionId, taskDefinition.id))
+      .innerJoin(project, eq(taskDefinition.projectId, project.id))
+      .innerJoin(status, eq(task.statusId, status.id))
+      .innerJoin(company, eq(project.companyId, company.id))
+      .where(and(...conditions))
+      .orderBy(taskAttachment.filename)
+
+    results.attachments = attachments.map(a => {
+      const start =
+        typeof a.startDateTime === 'string'
+          ? a.startDateTime
+          : (a.startDateTime as Date).toISOString()
+      return {
+        id: a.id.toString(),
+        filename: a.filename,
+        mimeType: a.mimeType,
+        size: a.size,
+        taskId: a.taskId.toString(),
+        taskName: a.taskDefinitionName,
+        taskDefinitionId: a.taskDefinitionId.toString(),
+        projectName: a.projectName,
+        companyName: a.companyName,
+        date: normalizeDateString(start),
+        description: a.description || '',
+        seconds: Math.max(0, a.durationSeconds ?? 0),
+        status: a.status,
+        startDateTime: start,
       }
     })
   }
@@ -1595,14 +1746,222 @@ const getTasksByProject = async (
   return getTasks(db, projectId)
 }
 
+const listTaskAttachments = async (
+  db: ReturnType<typeof drizzle>,
+  taskId: string,
+): Promise<DBTaskAttachment[]> => {
+  const rows = await db
+    .select({
+      id: taskAttachment.id,
+      taskId: taskAttachment.taskId,
+      filename: taskAttachment.filename,
+      mimeType: taskAttachment.mimeType,
+      size: taskAttachment.size,
+    })
+    .from(taskAttachment)
+    .where(eq(taskAttachment.taskId, parseInt(taskId)))
+    .orderBy(taskAttachment.filename)
+
+  return rows.map(r => ({
+    id: r.id.toString(),
+    taskId: r.taskId.toString(),
+    filename: r.filename,
+    mimeType: r.mimeType,
+    size: r.size,
+  }))
+}
+
+const addTaskAttachment = async (
+  db: ReturnType<typeof drizzle>,
+  opts: DBAddTaskAttachmentOpts,
+): Promise<
+  | { success: true; attachment: DBTaskAttachment }
+  | { success: false; error: string }
+> => {
+  const filename = opts.filename.trim()
+  if (!filename) {
+    return { success: false, error: 'Filename cannot be empty' }
+  }
+
+  const existing = await db
+    .select({ id: taskAttachment.id })
+    .from(taskAttachment)
+    .where(
+      and(
+        eq(taskAttachment.taskId, parseInt(opts.taskId)),
+        eq(taskAttachment.filename, filename),
+      ),
+    )
+    .limit(1)
+
+  if (existing.length > 0) {
+    return {
+      success: false,
+      error: `An attachment named "${filename}" already exists on this entry`,
+    }
+  }
+
+  const dataBuffer = Buffer.isBuffer(opts.data)
+    ? opts.data
+    : Buffer.from(opts.data)
+
+  try {
+    const result = await db
+      .insert(taskAttachment)
+      .values({
+        taskId: parseInt(opts.taskId),
+        filename,
+        mimeType: opts.mimeType,
+        size: dataBuffer.length,
+        data: dataBuffer,
+      })
+      .returning({
+        id: taskAttachment.id,
+        taskId: taskAttachment.taskId,
+        filename: taskAttachment.filename,
+        mimeType: taskAttachment.mimeType,
+        size: taskAttachment.size,
+      })
+
+    return {
+      success: true,
+      attachment: {
+        id: result[0].id.toString(),
+        taskId: result[0].taskId.toString(),
+        filename: result[0].filename,
+        mimeType: result[0].mimeType,
+        size: result[0].size,
+      },
+    }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    if (message.includes('UNIQUE') || message.includes('unique')) {
+      return {
+        success: false,
+        error: `An attachment named "${filename}" already exists on this entry`,
+      }
+    }
+    return { success: false, error: message }
+  }
+}
+
+const renameTaskAttachment = async (
+  db: ReturnType<typeof drizzle>,
+  opts: DBRenameTaskAttachmentOpts,
+): Promise<{ success: true } | { success: false; error: string }> => {
+  const filename = opts.filename.trim()
+  if (!filename) {
+    return { success: false, error: 'Filename cannot be empty' }
+  }
+
+  const current = await db
+    .select({
+      id: taskAttachment.id,
+      taskId: taskAttachment.taskId,
+      filename: taskAttachment.filename,
+    })
+    .from(taskAttachment)
+    .where(eq(taskAttachment.id, parseInt(opts.id)))
+    .limit(1)
+
+  if (current.length === 0) {
+    return { success: false, error: 'Attachment not found' }
+  }
+
+  if (current[0].filename === filename) {
+    return { success: true }
+  }
+
+  const collision = await db
+    .select({ id: taskAttachment.id })
+    .from(taskAttachment)
+    .where(
+      and(
+        eq(taskAttachment.taskId, current[0].taskId),
+        eq(taskAttachment.filename, filename),
+      ),
+    )
+    .limit(1)
+
+  if (collision.length > 0) {
+    return {
+      success: false,
+      error: `An attachment named "${filename}" already exists on this entry`,
+    }
+  }
+
+  try {
+    await db
+      .update(taskAttachment)
+      .set({ filename })
+      .where(eq(taskAttachment.id, parseInt(opts.id)))
+    return { success: true }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    if (message.includes('UNIQUE') || message.includes('unique')) {
+      return {
+        success: false,
+        error: `An attachment named "${filename}" already exists on this entry`,
+      }
+    }
+    return { success: false, error: message }
+  }
+}
+
+const deleteTaskAttachment = async (
+  db: ReturnType<typeof drizzle>,
+  id: string,
+): Promise<{ success: boolean }> => {
+  await db.delete(taskAttachment).where(eq(taskAttachment.id, parseInt(id)))
+  return { success: true }
+}
+
+const getTaskAttachmentData = async (
+  db: ReturnType<typeof drizzle>,
+  id: string,
+): Promise<DBTaskAttachmentData | null> => {
+  const rows = await db
+    .select({
+      id: taskAttachment.id,
+      taskId: taskAttachment.taskId,
+      filename: taskAttachment.filename,
+      mimeType: taskAttachment.mimeType,
+      size: taskAttachment.size,
+      data: taskAttachment.data,
+    })
+    .from(taskAttachment)
+    .where(eq(taskAttachment.id, parseInt(id)))
+    .limit(1)
+
+  if (rows.length === 0) {
+    return null
+  }
+
+  const row = rows[0]
+  const dataBuffer = Buffer.isBuffer(row.data)
+    ? row.data
+    : Buffer.from(row.data as ArrayBuffer)
+
+  return {
+    id: row.id.toString(),
+    taskId: row.taskId.toString(),
+    filename: row.filename,
+    mimeType: row.mimeType,
+    size: row.size,
+    dataBase64: dataBuffer.toString('base64'),
+  }
+}
+
 export {
   addCompany,
   addProject,
   addTask,
+  addTaskAttachment,
   addTaskDefinition,
   deleteCompany,
   deleteProject,
   deleteTask,
+  deleteTaskAttachment,
   deleteTaskDefinition,
   editCompany,
   editProject,
@@ -1615,6 +1974,7 @@ export {
   getProjectByName,
   getProjects,
   getSearchResult,
+  getTaskAttachmentData,
   getTaskById,
   getTaskByTaskDefinitionAndDate,
   getTaskDefinitionByName,
@@ -1625,9 +1985,11 @@ export {
   getTasksByProject,
   getTasksToday,
   initDB,
+  listTaskAttachments,
   mergeCompanies,
   mergeProjects,
   mergeTaskDefinitions,
+  renameTaskAttachment,
   saveActiveTask,
   saveActiveTasks,
 }

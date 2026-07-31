@@ -7,6 +7,8 @@ import {
 } from 'electron'
 import moment from 'moment'
 import fs from 'fs'
+import path from 'path'
+import os from 'os'
 import { CountUp } from '../countup'
 
 // Helper to normalize date (handle both Date objects and ISO strings)
@@ -21,10 +23,12 @@ import {
   addCompany,
   addProject,
   addTask,
+  addTaskAttachment,
   addTaskDefinition,
   deleteCompany,
   deleteProject,
   deleteTask,
+  deleteTaskAttachment,
   deleteTaskDefinition,
   editCompany,
   editProject,
@@ -38,6 +42,7 @@ import {
   getProjectByName,
   getProjects,
   getSearchResult,
+  getTaskAttachmentData,
   getTaskById,
   getTaskByTaskDefinitionAndDate,
   getTaskDefinitionByName,
@@ -45,15 +50,23 @@ import {
   getTasks,
   getTasksByNameAndProject,
   getTasksToday,
+  listTaskAttachments,
   mergeCompanies,
   mergeProjects,
   mergeTaskDefinitions,
+  renameTaskAttachment,
   saveActiveTask,
   saveActiveTasks,
 } from '../database'
+import { mimeTypeFromFilename } from '../lib/mime'
 import { drizzle } from 'drizzle-orm/better-sqlite3'
 import { company, project, task, taskDefinition } from '../db/schema'
 import { eq } from 'drizzle-orm'
+
+const openExternalPath = async (filePath: string): Promise<void> => {
+  const open = (await import('open')).default
+  await open(filePath)
+}
 
 let DB: ReturnType<typeof drizzle>
 let WINDOW: BrowserWindow
@@ -373,6 +386,140 @@ export const initIpcHandlers = async (
     shell.openExternal('file://' + filePath)
     return { success: true }
   })
+
+  ipcMain.handle(
+    'saveBinaryFile',
+    async (_, filePath: string, dataBase64: string) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      fs.writeFileSync(filePath, Buffer.from(dataBase64, 'base64') as any)
+      shell.openExternal('file://' + filePath)
+      return { success: true }
+    },
+  )
+
+  ipcMain.handle(
+    'showOpenFileDialog',
+    async (
+      _,
+      options?: {
+        filters?: Electron.FileFilter[]
+      },
+    ) => {
+      const dialogOptions: Electron.OpenDialogOptions = {
+        properties: ['openFile', 'multiSelections'],
+      }
+      if (options?.filters) {
+        dialogOptions.filters = options.filters
+      }
+      return await dialog.showOpenDialog(WINDOW, dialogOptions)
+    },
+  )
+
+  ipcMain.handle('listTaskAttachments', async (_, taskId: string) =>
+    listTaskAttachments(DB, taskId),
+  )
+
+  ipcMain.handle(
+    'addTaskAttachmentsFromPaths',
+    async (_, taskId: string, filePaths: string[]) => {
+      const attachments: DBTaskAttachment[] = []
+      const errors: string[] = []
+
+      for (const filePath of filePaths) {
+        try {
+          const filename = path.basename(filePath)
+          const data = fs.readFileSync(filePath)
+          const mimeType = mimeTypeFromFilename(filename)
+          const result = await addTaskAttachment(DB, {
+            taskId,
+            filename,
+            mimeType,
+            data,
+          })
+          if (result.success) {
+            attachments.push(result.attachment)
+          } else {
+            errors.push(`${filename}: ${result.error}`)
+          }
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error)
+          errors.push(`${path.basename(filePath)}: ${message}`)
+        }
+      }
+
+      return {
+        success: errors.length === 0,
+        attachments,
+        errors,
+      }
+    },
+  )
+
+  ipcMain.handle(
+    'renameTaskAttachment',
+    async (_, opts: DBRenameTaskAttachmentOpts) =>
+      renameTaskAttachment(DB, opts),
+  )
+
+  ipcMain.handle('deleteTaskAttachment', async (_, id: string) =>
+    deleteTaskAttachment(DB, id),
+  )
+
+  ipcMain.handle('getTaskAttachmentData', async (_, id: string) =>
+    getTaskAttachmentData(DB, id),
+  )
+
+  ipcMain.handle('openTaskAttachment', async (_, id: string) => {
+    const attachment = await getTaskAttachmentData(DB, id)
+    if (!attachment) {
+      return { success: false, error: 'Attachment not found' }
+    }
+
+    try {
+      const tempDir = path.join(os.tmpdir(), 'timetrack-attachments')
+      fs.mkdirSync(tempDir, { recursive: true })
+      // Keep id in the path so same-named files from different entries don't collide
+      const safeName = path.basename(attachment.filename)
+      const tempPath = path.join(tempDir, `${attachment.id}-${safeName}`)
+
+      fs.writeFileSync(
+        tempPath,
+        Buffer.from(attachment.dataBase64, 'base64') as unknown as string,
+      )
+      await openExternalPath(tempPath)
+      return { success: true, filePath: tempPath }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      return { success: false, error: message }
+    }
+  })
+
+  ipcMain.handle(
+    'saveAttachmentToFile',
+    async (_, id: string, defaultPath?: string) => {
+      const attachment = await getTaskAttachmentData(DB, id)
+      if (!attachment) {
+        return { success: false }
+      }
+
+      const dialogResult = await dialog.showSaveDialog(WINDOW, {
+        properties: ['showOverwriteConfirmation'],
+        defaultPath: defaultPath || attachment.filename,
+      })
+
+      if (dialogResult.canceled || !dialogResult.filePath) {
+        return { success: false, canceled: true }
+      }
+
+
+      fs.writeFileSync(
+        dialogResult.filePath,
+        Buffer.from(attachment.dataBase64, 'base64') as unknown as string,
+      )
+      await openExternalPath(dialogResult.filePath)
+      return { success: true, filePath: dialogResult.filePath }
+    },
+  )
 
   // Company handlers
   ipcMain.handle('getCompanyByName', async (_, name: string) =>

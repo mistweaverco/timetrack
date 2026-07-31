@@ -2,6 +2,7 @@ import {
   sqliteTable,
   text,
   integer,
+  blob,
   uniqueIndex,
 } from 'drizzle-orm/sqlite-core'
 import { relations } from 'drizzle-orm'
@@ -73,6 +74,26 @@ export const task = sqliteTable('Task', {
     .references(() => status.id, { onDelete: 'restrict' }),
 })
 
+export const taskAttachment = sqliteTable(
+  'TaskAttachment',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    taskId: integer('taskId')
+      .notNull()
+      .references(() => task.id, { onDelete: 'cascade' }),
+    filename: text('filename').notNull(),
+    mimeType: text('mimeType').notNull(),
+    size: integer('size').notNull(),
+    data: blob('data', { mode: 'buffer' }).notNull(),
+  },
+  table => ({
+    taskFilenameUnique: uniqueIndex('TaskAttachment_taskId_filename_key').on(
+      table.taskId,
+      table.filename,
+    ),
+  }),
+)
+
 // Relations
 export const statusRelations = relations(status, ({ many }) => ({
   companies: many(company),
@@ -116,7 +137,7 @@ export const taskDefinitionRelations = relations(
   }),
 )
 
-export const taskRelations = relations(task, ({ one }) => ({
+export const taskRelations = relations(task, ({ one, many }) => ({
   taskDefinition: one(taskDefinition, {
     fields: [task.taskDefinitionId],
     references: [taskDefinition.id],
@@ -124,6 +145,14 @@ export const taskRelations = relations(task, ({ one }) => ({
   status: one(status, {
     fields: [task.statusId],
     references: [status.id],
+  }),
+  attachments: many(taskAttachment),
+}))
+
+export const taskAttachmentRelations = relations(taskAttachment, ({ one }) => ({
+  task: one(task, {
+    fields: [taskAttachment.taskId],
+    references: [task.id],
   }),
 }))
 
@@ -133,3 +162,4 @@ export type Company = InferSelectModel<typeof company>
 export type Project = InferSelectModel<typeof project>
 export type TaskDefinition = InferSelectModel<typeof taskDefinition>
 export type Task = InferSelectModel<typeof task>
+export type TaskAttachment = InferSelectModel<typeof taskAttachment>

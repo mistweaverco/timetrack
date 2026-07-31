@@ -61,7 +61,7 @@ jobs:
           commit_username: ${{ secrets.AUR_USERNAME }}
           commit_email: ${{ secrets.AUR_EMAIL }}
           ssh_private_key: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
-          commit_message: "Update to v${{ env.CLEAN_VERSION }}"
+          commit_message: 'Update to v${{ env.CLEAN_VERSION }}'
           updpkgsums: true
   build-windows:
     name: Build Windows

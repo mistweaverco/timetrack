@@ -58,6 +58,7 @@
   let taskName = $state('*')
   let taskDescription = $state('*')
   let taskDefinitionName = $state('*')
+  let attachmentFilename = $state('*')
 
   let activeTasksList = $state($activeTasks)
   let formValid = $derived(false)
@@ -121,7 +122,8 @@
       !!projectName &&
       !!taskName &&
       !!taskDescription &&
-      !!taskDefinitionName
+      !!taskDefinitionName &&
+      !!attachmentFilename
   })
 
   async function handleSearch(e: Event) {
@@ -143,6 +145,7 @@
           task_name: taskName,
           task_definition_name: taskDefinitionName,
           task_description: taskDescription,
+          attachment_filename: attachmentFilename,
         },
       }
 
@@ -198,6 +201,19 @@
   }
 
   function handleEditTask(task: DBTask) {
+    taskToEdit = task
+    showEditTaskModal = true
+  }
+
+  async function handleEditTaskFromAttachment(
+    attachment: SearchQueryResultAttachment,
+  ) {
+    if (!window.electron) return
+    const task = await window.electron.getTaskById(attachment.taskId)
+    if (!task) {
+      alert('Parent task not found')
+      return
+    }
     taskToEdit = task
     showEditTaskModal = true
   }
@@ -553,6 +569,7 @@
               <option value="projects">Projects</option>
               <option value="task_definitions">Task Definitions</option>
               <option value="tasks">Tasks</option>
+              <option value="attachments">Attachments</option>
             </select>
             <label class="label" for="searchIn">
               <span class="label-text-alt"
@@ -676,6 +693,20 @@
               type="text"
               bind:value={taskDefinitionName}
               placeholder="Task Definition Name (* for all)"
+              class="input input-bordered"
+              required
+            />
+          </div>
+
+          <div class="form-control mt-2">
+            <label class="label" for="attachmentFilename">
+              <span class="label-text">Attachment Filename</span>
+            </label>
+            <input
+              id="attachmentFilename"
+              type="text"
+              bind:value={attachmentFilename}
+              placeholder="Attachment Filename (* for all)"
               class="input input-bordered"
               required
             />
@@ -920,6 +951,16 @@
                             <span>{getHMSStringFromSeconds(task.seconds)}</span>
                           </div>
                         </div>
+                        {#if task.attachmentFilenames && task.attachmentFilenames.length > 0}
+                          <div class="mt-2">
+                            <p class="text-sm font-medium">Attachments</p>
+                            <ul class="list-disc list-inside text-sm">
+                              {#each task.attachmentFilenames as filename (filename)}
+                                <li class="break-all">{filename}</li>
+                              {/each}
+                            </ul>
+                          </div>
+                        {/if}
                         <div class="card-actions justify-end">
                           {#if hasActiveTaskForTask(task)}
                             <InfoBox type="warning" title="Warning">
@@ -949,7 +990,46 @@
             </div>
           {/if}
 
-          {#if searchResult.companies.length === 0 && searchResult.projects.length === 0 && searchResult.task_definitions.length === 0 && searchResult.tasks.length === 0}
+          <!-- Attachments Results -->
+          {#if searchIn.includes('attachments') && searchResult.attachments.length > 0}
+            <div class="card bg-base-200 shadow-xl">
+              <div class="card-body">
+                <h2 class="card-title">Attachments</h2>
+                <div class="space-y-2">
+                  {#each searchResult.attachments as attachment (attachment.id)}
+                    <div class="card bg-base-100">
+                      <div class="card-body">
+                        <h3 class="card-title text-lg break-all">
+                          {attachment.filename}
+                        </h3>
+                        <p class="text-sm text-base-content/70">
+                          {attachment.taskName} · {attachment.projectName} · {attachment.companyName}
+                        </p>
+                        <div class="flex gap-4 text-sm flex-wrap">
+                          <span>{attachment.mimeType}</span>
+                          <span>{attachment.date}</span>
+                          <span
+                            >{getHMSStringFromSeconds(attachment.seconds)}</span
+                          >
+                        </div>
+                        <div class="card-actions justify-end">
+                          <button
+                            class="btn btn-warning btn-sm"
+                            onclick={() =>
+                              handleEditTaskFromAttachment(attachment)}
+                          >
+                            Edit Entry
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  {/each}
+                </div>
+              </div>
+            </div>
+          {/if}
+
+          {#if searchResult.companies.length === 0 && searchResult.projects.length === 0 && searchResult.task_definitions.length === 0 && searchResult.tasks.length === 0 && searchResult.attachments.length === 0}
             <div class="alert alert-info">
               <span>No results found</span>
             </div>
