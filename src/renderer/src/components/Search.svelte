@@ -19,7 +19,7 @@
   import EditTaskDefinitionModal from './modals/EditTaskDefinitionModal.svelte'
   import DeleteTaskDefinitionModal from './modals/DeleteTaskDefinitionModal.svelte'
   import InfoBox from './InfoBox.svelte'
-  import { getHMSStringFromSeconds } from '../lib/utils'
+  import { getHMSStringFromSeconds, prepareMarkdownWithBlankLineBreaks } from '../lib/utils'
   import { tick, onMount } from 'svelte'
 
   marked.use({
@@ -155,7 +155,7 @@
         searchResult.tasks.forEach(async task => {
           if (task.description) {
             task.descriptionHTML = await marked.parse(
-              task.description.replace(/\n(?=\n)/g, '\n\n<br/>\n'),
+              prepareMarkdownWithBlankLineBreaks(task.description),
             )
           } else {
             task.descriptionHTML = ''
