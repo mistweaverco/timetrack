@@ -2,7 +2,11 @@
 
 ### Features
 
-* **attachments:** add support for task attachments ([ee81f7a](https://github.com/mistweaverco/timetrack/commit/ee81f7aefc003a9da4cce2b001b831d24eb00112))
+* **attachments:** add support for task attachments ([5edfdf6](https://github.com/mistweaverco/timetrack/commit/5edfdf60d97e11030931304d9e588596761282a0))
+
+### Bug Fixes
+
+* **markdown:** fix codeblock markdown rendering ([7598208](https://github.com/mistweaverco/timetrack/commit/759820825da18e28c19ed19a4ee7205e81106c1a))
 
 ## [5.14.0](https://github.com/mistweaverco/timetrack/compare/v5.13.1...v5.14.0) (2026-03-24)
 
